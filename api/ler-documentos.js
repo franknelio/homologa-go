@@ -1,7 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 
 // Lê fotos de RG/CNH, CPF/CNPJ e conta de energia e devolve os campos do projeto.
-// Variáveis de ambiente: ANTHROPIC_API_KEY (obrigatória) e APP_CODE (código de acesso do app).
+// Variáveis de ambiente: ANTHROPIC_API_KEY, SUPABASE_URL e SUPABASE_ANON_KEY.
+// Só usuários com login válido no Supabase podem usar a leitura (evita gastos de terceiros).
 const client = new Anthropic();
 
 const CAMPOS = {
@@ -34,10 +35,19 @@ const PROMPT = `As imagens são documentos de um cliente de energia solar em Goi
 Preencha cada campo com o que estiver legível nos documentos e use null quando não encontrar. Não invente dados, exceto latitude e longitude aproximadas pelo endereço.
 ${Object.entries(CAMPOS).map(([k, d]) => `- ${k}: ${d}`).join("\n")}`;
 
+async function usuarioLogado(authorization) {
+  const { SUPABASE_URL, SUPABASE_ANON_KEY } = process.env;
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !authorization?.startsWith("Bearer ")) return false;
+  const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: { apikey: SUPABASE_ANON_KEY, authorization },
+  }).catch(() => null);
+  return Boolean(r?.ok);
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "use POST" });
-  if (process.env.APP_CODE && req.headers["x-app-code"] !== process.env.APP_CODE) {
-    return res.status(401).json({ error: "código de acesso inválido" });
+  if (!(await usuarioLogado(req.headers.authorization))) {
+    return res.status(401).json({ error: "faça login para usar a leitura automática" });
   }
   const images = Array.isArray(req.body?.images) ? req.body.images.slice(0, 5) : [];
   if (!images.length) return res.status(400).json({ error: "nenhuma imagem enviada" });

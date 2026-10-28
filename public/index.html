@@ -80,6 +80,12 @@ button,input,select,textarea{font:inherit;color:inherit}
 .quick .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
 .quick .msg{font-size:13px;color:var(--muted);flex:1;min-width:160px}
 .revh{font-family:var(--f-display);font-size:16px;margin:4px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.who{font-size:13px;color:var(--muted);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.login{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;align-items:center;justify-content:center;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.loginbox{width:min(380px,100%);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:22px;display:flex;flex-direction:column;gap:12px}
+.loginbox .brand b{font-size:28px}.loginbox p{margin:0;color:var(--muted);font-size:14px}
+.loginbox .msg{min-height:1.2em;color:var(--bad)}
+.loginbox .f input{background:var(--bg)}
 details.sec{border:1px solid var(--line);border-radius:8px;margin-bottom:8px;background:var(--panel)}
 details.sec>summary{cursor:pointer;list-style:none;padding:10px 12px;display:flex;align-items:center;gap:10px;font-family:var(--f-display);font-weight:600;font-size:17px}
 details.sec>summary::-webkit-details-marker{display:none}
@@ -149,6 +155,7 @@ details.sec[open]>summary .chev{transform:rotate(90deg)}
 <header class="top">
   <div class="brand"><b>Homologa<i>GO</i></b><span>Micro e minigeração · Equatorial Goiás</span></div>
   <div class="grow"></div>
+  <span class="who" id="who"></span>
   <button class="btn" id="bProjects" type="button">Projetos</button>
   <button class="btn" id="bSave" type="button">Salvar</button>
   <button class="btn amber" id="bAll" type="button">Gerar todos os documentos</button>
@@ -179,9 +186,6 @@ details.sec[open]>summary .chev{transform:rotate(90deg)}
           <div class="f"><label for="q_mMod">Modelo do módulo</label><input id="q_mMod"></div>
         </div>
       </details>
-      <details class="qopt"><summary>Código de acesso da leitura automática</summary>
-        <div class="qgrid"><div class="f" style="grid-column:1/-1"><label for="q_code">Código definido na hospedagem (APP_CODE)</label><input id="q_code" type="password" autocomplete="off"></div></div>
-      </details>
       <div class="row"><button class="btn amber" type="button" id="qGo">Gerar projeto</button><span class="msg" id="qMsg" role="status"></span></div>
     </section>
     <h3 class="revh">Revisar e completar dados</h3>
@@ -198,6 +202,15 @@ details.sec[open]>summary .chev{transform:rotate(90deg)}
   </main>
 </div>
 <div id="toast" class="toast" hidden></div>
+<div id="login" class="login" hidden><form id="loginForm" class="loginbox" novalidate>
+  <div class="brand"><b>Homologa<i>GO</i></b></div>
+  <p>Entre com o e-mail e a senha cadastrados para a sua empresa.</p>
+  <div class="f"><label for="lEmail">E-mail</label><input id="lEmail" type="email" autocomplete="username" required></div>
+  <div class="f"><label for="lSenha">Senha</label><input id="lSenha" type="password" autocomplete="current-password" required></div>
+  <button class="btn primary" type="submit" id="lGo">Entrar</button>
+  <p class="msg" id="lMsg" role="status"></p>
+  <button class="btn" type="button" id="lOffline" hidden>Continuar sem login (só neste aparelho)</button>
+</form></div>
 <div id="drawer" class="drawer" hidden><div><h3>Projetos salvos</h3><div class="plist" id="plist"></div>
   <div class="row" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
     <button class="btn primary" type="button" id="bNew">Novo projeto em branco</button>
@@ -206,7 +219,8 @@ details.sec[open]>summary .chev{transform:rotate(90deg)}
     <input type="file" id="fImport" accept="application/json,.json" hidden>
     <button class="btn" type="button" id="bClose">Fechar</button>
   </div>
-  <p class="note">Os projetos ficam salvos neste navegador. Use “Gerar todos os documentos” para baixar também o arquivo .json do projeto.</p></div></div>
+  <p class="note" id="syncNote">Os projetos ficam na sua conta e abrem em qualquer aparelho. Sem internet, ficam guardados no aparelho e sobem quando a conexão voltar.</p>
+  <button class="btn" type="button" id="bSair">Sair da conta</button></div></div>
 
 <script src="vendor/html2canvas.min.js"></script>
 </body>
@@ -218,6 +232,7 @@ details.sec[open]>summary .chev{transform:rotate(90deg)}
 </body>
 </html>
 <script src="vendor/xlsx.full.min.js"></script>
+<script src="vendor/supabase.js"></script>
 </body>
 </html>
 <script src="vendor/pdf.min.js"></script>
@@ -822,26 +837,55 @@ $("#bAll").addEventListener("click",async()=>{
   }catch(err){toast("Erro ao gerar: "+err.message)}finally{b.disabled=false;b.textContent="Gerar todos os documentos"}
 });
 
-/* ---------------- projetos ---------------- */
+/* ---------------- projetos (nuvem + cópia no aparelho) ---------------- */
+let sb=null,sessao=null,modoLocal=false;
 function projects(){return load("hgo_projects")||{}}
-$("#bSave").addEventListener("click",()=>{const all=projects();const id=P._id||("p"+Date.now());P._id=id;P._saved=new Date().toISOString();all[id]={...P,planta:P.planta&&P.planta.length<400000?P.planta:""};const ok=store("hgo_projects",all)&&store("hgo_current",P);toast(ok?"Projeto salvo neste navegador":"Não foi possível salvar neste navegador")});
-function openDrawer(){const all=projects();const ids=Object.keys(all).sort((a,b)=>(all[b]._saved||"").localeCompare(all[a]._saved||""));
-  $("#plist").innerHTML=ids.length?ids.map(id=>`<div class="pitem"><div><b>${esc(all[id].nome||"Sem titular")}</b><small>UC ${esc(all[id].uc||"—")} · ${all[id]._saved?new Date(all[id]._saved).toLocaleString("pt-BR"):""}</small></div><button class="btn" type="button" data-open="${id}">Abrir</button><button class="btn" type="button" data-del="${id}" aria-label="Excluir">Excluir</button></div>`).join(""):`<p class="note">Nenhum projeto salvo ainda.</p>`;
-  $("#drawer").hidden=false}
+const novoId=()=>(crypto.randomUUID?crypto.randomUUID():"p"+Date.now());
+function semImagemGrande(x){return {...x,planta:x.planta&&x.planta.length<400000?x.planta:""}}
+async function salvarProjeto(silencioso){
+  if(!P._id||!/^[0-9a-f-]{36}$/.test(P._id))P._id=novoId();
+  P._saved=new Date().toISOString();
+  const all=projects();all[P._id]={...semImagemGrande(P),_pendente:!!sb};store("hgo_projects",all);store("hgo_current",P);
+  const ok=await enviarNuvem(P._id);
+  if(!silencioso)toast(ok?"Projeto salvo na sua conta":sessao?"Sem conexão: salvo no aparelho, sobe quando a internet voltar":"Projeto salvo neste aparelho");
+}
+async function enviarNuvem(id){
+  if(!sb||!sessao||!navigator.onLine)return false;
+  const all=projects();const x=all[id];if(!x)return false;
+  const {_pendente,...dados}=x;
+  const {error}=await sb.from("projetos").upsert({id,nome:dados.nome||"Sem titular",uc:dados.uc||null,dados,atualizado_em:dados._saved});
+  if(error)return false;
+  all[id]._pendente=false;store("hgo_projects",all);return true;
+}
+async function sincronizar(){const all=projects();for(const id of Object.keys(all))if(all[id]._pendente)await enviarNuvem(id)}
+window.addEventListener("online",sincronizar);
+$("#bSave").addEventListener("click",()=>salvarProjeto(false));
+async function openDrawer(){
+  $("#drawer").hidden=false;$("#plist").innerHTML=`<p class="note">Carregando…</p>`;
+  const all=projects();
+  if(sb&&sessao&&navigator.onLine){
+    const {data,error}=await sb.from("projetos").select("id,nome,uc,atualizado_em").order("atualizado_em",{ascending:false}).limit(200);
+    if(!error)for(const r of data){if(!all[r.id]||(all[r.id]._saved||"")<r.atualizado_em)all[r.id]={...(all[r.id]||{}),_id:r.id,nome:r.nome,uc:r.uc,_saved:r.atualizado_em,_soNuvem:!all[r.id]||(all[r.id]._saved||"")<r.atualizado_em}}
+  }
+  const ids=Object.keys(all).sort((a,b)=>(all[b]._saved||"").localeCompare(all[a]._saved||""));
+  $("#plist").innerHTML=ids.length?ids.map(id=>`<div class="pitem"><div><b>${esc(all[id].nome||"Sem titular")}</b><small>UC ${esc(all[id].uc||"—")} · ${all[id]._saved?new Date(all[id]._saved).toLocaleString("pt-BR"):""}${all[id]._pendente?" · aguardando envio":""}</small></div><button class="btn" type="button" data-open="${id}">Abrir</button><button class="btn" type="button" data-del="${id}" aria-label="Excluir">Excluir</button></div>`).join(""):`<p class="note">Nenhum projeto salvo ainda.</p>`;
+}
 $("#bProjects").addEventListener("click",openDrawer);
 $("#bClose").addEventListener("click",()=>$("#drawer").hidden=true);
-$("#drawer").addEventListener("click",e=>{
+$("#drawer").addEventListener("click",async e=>{
   if(e.target.id==="drawer"){$("#drawer").hidden=true;return}
   const o=e.target.closest("[data-open]"),d=e.target.closest("[data-del]");
-  if(o){P={...projects()[o.dataset.open]};plantaImg=P.planta||null;afterLoad()}
-  if(d){const b=d;if(b.dataset.armed){const all=projects();delete all[b.dataset.del];store("hgo_projects",all);openDrawer()}else{b.dataset.armed="1";b.textContent="Confirmar"}}
+  if(o){const id=o.dataset.open;let x=projects()[id];
+    if((!x||!x.mFab&&!x.mP)&&sb&&sessao){const {data}=await sb.from("projetos").select("dados").eq("id",id).single();if(data)x=data.dados}
+    if(x){P={...x,_id:id};delete P._pendente;delete P._soNuvem;plantaImg=P.planta||null;afterLoad()}else toast("Não foi possível abrir este projeto sem internet")}
+  if(d){if(d.dataset.armed){const id=d.dataset.del;const all=projects();delete all[id];store("hgo_projects",all);if(sb&&sessao)await sb.from("projetos").delete().eq("id",id);openDrawer()}else{d.dataset.armed="1";d.textContent="Confirmar"}}
 });
 function afterLoad(){store("hgo_current",P);buildFormFresh();render();$("#drawer").hidden=true}
 function buildFormFresh(){const f=$("#form");const nf=f.cloneNode(false);f.replaceWith(nf);buildForm()}
-$("#bNew").addEventListener("click",()=>{P={...BLANK};plantaImg=null;afterLoad();toast("Novo projeto em branco")});
+$("#bNew").addEventListener("click",()=>{P={...BLANK,...(load("hgo_rt")||{})};plantaImg=null;afterLoad();toast("Novo projeto em branco")});
 $("#bExample").addEventListener("click",()=>{P={...EXAMPLE};plantaImg=null;afterLoad()});
 $("#bImport").addEventListener("click",()=>$("#fImport").click());
-$("#fImport").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{P=JSON.parse(r.result);delete P._id;plantaImg=P.planta||null;afterLoad();toast("Projeto importado")}catch(err){toast("Arquivo .json inválido")}};r.readAsText(f)});
+$("#fImport").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{P=JSON.parse(r.result);P._id=novoId();plantaImg=P.planta||null;afterLoad();toast("Projeto importado")}catch(err){toast("Arquivo .json inválido")}};r.readAsText(f)});
 
 /* ---------------- equipamentos estimados pela potência ---------------- */
 function estModulo(W){
@@ -939,7 +983,7 @@ Regras: o titular da UC é o nome que consta na conta de energia; números (lat,
     ["iFab","iMod","mFab","mMod"].forEach(k=>{const v=$("#q_"+k).value.trim();Q[k]=v});
     Q._equipEst=true;
     P=Q;autoStrings();plantaImg=null;
-    store("hgo_current",P);buildFormFresh();currentDoc="form";render();
+    P._id=novoId();store("hgo_current",P);buildFormFresh();currentDoc="form";render();salvarProjeto(true);
     const miss=["nome","doc","uc","end","cidade"].filter(k=>!P[k]);
     msg(`${aiNote}${found?found+" campos lidos dos documentos. ":""}${miss.length?"Faltam: "+miss.map(k=>SECTIONS.flatMap(s=>s.f).find(f=>f[0]===k)[1]).join(", ")+". ":""}Confira os alertas e os documentos ao lado.`);
   }catch(e){msg(e&&e.code==="not_granted"?"Permissão negada para o Claude ler os documentos.":e&&e.code==="rate_limited"?"Muitas leituras seguidas; tente de novo em instantes.":"Não foi possível ler os documentos ("+(e&&(e.code||e.message)||"erro")+").")}
@@ -948,29 +992,53 @@ Regras: o titular da UC é o nome que consta na conta de energia; números (lat,
 
 /* ---------------- RT lembrado entre projetos ---------------- */
 const RT_KEYS=["rtNome","rtTit","rtReg","rtTel","rtEmail","rtEmp"];
-document.addEventListener("input",e=>{const k=e.target.dataset&&e.target.dataset.k;if(k&&RT_KEYS.includes(k)){const rt={};RT_KEYS.forEach(x=>rt[x]=P[x]??"");rt[k]=e.target.value;store("hgo_rt",rt)}});
+document.addEventListener("input",e=>{const k=e.target.dataset&&e.target.dataset.k;if(k&&RT_KEYS.includes(k)){const rt={};RT_KEYS.forEach(x=>rt[x]=P[x]??"");rt[k]=e.target.value;store("hgo_rt",rt);clearTimeout(window._rtT);window._rtT=setTimeout(()=>{if(sb&&sessao&&navigator.onLine)sb.auth.updateUser({data:{rt}})},1500)}});
 
 function blobToB64(b){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]);r.onerror=rej;r.readAsDataURL(b)})}
 async function initAI(){
   if(window.pdfjsLib&&window.pdfjsWorker)pdfjsLib.GlobalWorkerOptions.workerSrc="";
-  try{$("#q_code").value=localStorage.getItem("hgo_code")||""}catch(e){}
-  $("#q_code").addEventListener("change",e=>{try{localStorage.setItem("hgo_code",e.target.value.trim())}catch(err){}});
   imgLimits={maxCount:5};
   sample={json:async(_prompt,{images})=>{
     if(!navigator.onLine)throw new Error("sem internet; a leitura automática precisa de conexão");
+    if(!sessao)throw new Error("entre na sua conta para usar a leitura automática");
     const body={images:await Promise.all(images.map(blobToB64))};
-    const r=await fetch("api/ler-documentos",{method:"POST",headers:{"content-type":"application/json","x-app-code":$("#q_code").value.trim()},body:JSON.stringify(body)});
+    const r=await fetch("api/ler-documentos",{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+sessao.access_token},body:JSON.stringify(body)});
     const j=await r.json().catch(()=>({}));
-    if(r.status===401)throw new Error("código de acesso inválido; confira em “Código de acesso”");
     if(!r.ok)throw new Error(j.error||("erro "+r.status));
     return j.dados||{};
   }};
 }
+
+/* ---------------- login ---------------- */
+function mostrarUsuario(){$("#who").textContent=sessao?sessao.user.email:modoLocal?"Sem login (só neste aparelho)":"";$("#bSair").hidden=!sessao}
+async function initAuth(){
+  let cfg=null;
+  try{const r=await fetch("api/config");if(r.ok){cfg=await r.json();store("hgo_cfg",cfg)}}catch(e){}
+  cfg=cfg||load("hgo_cfg");
+  if(!cfg||!window.supabase){modoLocal=true;mostrarUsuario();return}
+  sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true}});
+  const {data}=await sb.auth.getSession();sessao=data.session;
+  sb.auth.onAuthStateChange((_ev,s)=>{sessao=s;mostrarUsuario();if(s){$("#login").hidden=true;sincronizar()}});
+  if(!sessao){$("#login").hidden=false;$("#lOffline").hidden=navigator.onLine}
+  else{$("#login").hidden=true;sincronizar();
+    const rt=sessao.user.user_metadata&&sessao.user.user_metadata.rt;if(rt&&!load("hgo_rt"))store("hgo_rt",rt)}
+  mostrarUsuario();
+}
+$("#loginForm").addEventListener("submit",async e=>{
+  e.preventDefault();const m=$("#lMsg");m.textContent="";
+  if(!navigator.onLine){m.textContent="Sem internet. Conecte-se para entrar.";return}
+  $("#lGo").disabled=true;
+  const {error}=await sb.auth.signInWithPassword({email:$("#lEmail").value.trim(),password:$("#lSenha").value});
+  $("#lGo").disabled=false;
+  if(error)m.textContent=error.message==="Invalid login credentials"?"E-mail ou senha incorretos.":"Não foi possível entrar: "+error.message;
+});
+$("#lOffline").addEventListener("click",()=>{modoLocal=true;$("#login").hidden=true;mostrarUsuario()});
+$("#bSair").addEventListener("click",async()=>{if(sb)await sb.auth.signOut();sessao=null;$("#drawer").hidden=true;$("#login").hidden=false;mostrarUsuario()});
 if("serviceWorker" in navigator&&location.protocol!=="file:")window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 
 /* ---------------- início ---------------- */
 plantaImg=P.planta||null;
-buildForm();render();initAI();
+buildForm();render();initAI();initAuth();
 </script>
 </body>
 </html>

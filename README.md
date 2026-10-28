@@ -7,15 +7,30 @@ O usuário anexa os documentos do cliente (RG/CNH, CPF/CNPJ e conta de energia, 
 ## Estrutura
 
 - `public/` – o app (HTML único, bibliotecas em `vendor/`, manifest e service worker para funcionar offline).
-- `api/ler-documentos.js` – função serverless que envia as imagens à API da Anthropic e devolve os campos lidos.
+- `api/ler-documentos.js` – função serverless que envia as imagens à API da Anthropic e devolve os campos lidos. Só atende usuários logados.
+- `api/config.js` – entrega ao app a URL e a chave pública do Supabase.
+- `supabase/migrations/0001_projetos.sql` – tabela de projetos com RLS (cada usuário vê só os seus).
 
-## Publicar na Vercel
+Os projetos ficam na conta do usuário (Supabase) e também numa cópia no aparelho. Sem internet o app continua funcionando; o que foi salvo offline sobe quando a conexão volta. Os dados do responsável técnico ficam guardados na conta e voltam em qualquer aparelho.
+
+## Publicar
+
+### 1. Supabase (login e projetos)
+
+1. Em supabase.com, crie um projeto (pode ser na mesma organização do Hospeda).
+2. **SQL Editor**: cole e execute o conteúdo de `supabase/migrations/0001_projetos.sql`.
+3. **Authentication → Sign In / Providers → Email**: desligue **Allow new users to sign up** (só entra quem você cadastrar) e, se quiser, **Confirm email**.
+4. **Authentication → Users → Add user**: crie o seu usuário (e-mail e senha) e o de quem mais for usar.
+5. **Project Settings → API**: copie a **Project URL** e a chave **anon public**.
+
+### 2. Vercel (o app)
 
 1. Em vercel.com, **Add New → Project** e importe este repositório (Framework: *Other*; sem comando de build; diretório de saída: `public`).
 2. Em **Settings → Environment Variables**, crie:
-   - `ANTHROPIC_API_KEY` – chave criada em console.anthropic.com (é cobrada por uso; cada leitura de documentos custa alguns centavos).
-   - `APP_CODE` – um código à sua escolha. Quem não tiver o código não consegue usar a leitura automática (evita gastos de terceiros).
-3. Faça o deploy. No app, abra **Código de acesso da leitura automática** e digite o mesmo `APP_CODE` (fica salvo no aparelho).
+   - `SUPABASE_URL` – a Project URL do passo anterior.
+   - `SUPABASE_ANON_KEY` – a chave anon public.
+   - `ANTHROPIC_API_KEY` – chave criada em console.anthropic.com (cobrada por uso; cada leitura de documentos custa alguns centavos).
+3. Faça o deploy e entre com o usuário criado no Supabase.
 4. Opcional: em **Settings → Domains**, ligue um domínio próprio.
 
 ## Instalar no celular e no PC
