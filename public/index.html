@@ -1,0 +1,976 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0F3B33">
+<meta name="description" content="Gera os documentos de homologação de micro e minigeração fotovoltaica para a Equatorial Goiás.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Homologa GO Solar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: barra superior fixa + coluna de formulário (passos) à esquerda + prancheta de documentos à direita; empilha no celular */
+:root{
+  --bg:#EEF2F0; --panel:#FFFFFF; --ink:#14201C; --muted:#5A6A64; --line:#D3DCD8;
+  --accent:#C97E06; --accent-soft:#FBEFD9; --deep:#0F3B33; --deep-ink:#FFFFFF;
+  --ok:#1E7A4C; --ok-soft:#E1F3E9; --warn:#A35A00; --warn-soft:#FFF1DC; --bad:#B3261E; --bad-soft:#FBE3E1;
+  --desk:#DCE3E0;
+  --f-display:"Barlow Semi Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"Source Sans 3","Segoe UI",Roboto,Arial,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D1412; --panel:#141E1B; --ink:#E4ECE8; --muted:#94A49E; --line:#26342F;
+  --accent:#F0A532; --accent-soft:#3A2B10; --deep:#7FD1BC; --deep-ink:#0D1412;
+  --ok:#5CCB8F; --ok-soft:#173326; --warn:#F2B35B; --warn-soft:#3A2A12; --bad:#F2867E; --bad-soft:#3D1A18;
+  --desk:#0A100E; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D1412; --panel:#141E1B; --ink:#E4ECE8; --muted:#94A49E; --line:#26342F;
+  --accent:#F0A532; --accent-soft:#3A2B10; --deep:#7FD1BC; --deep-ink:#0D1412;
+  --ok:#5CCB8F; --ok-soft:#173326; --warn:#F2B35B; --warn-soft:#3A2A12; --bad:#F2867E; --bad-soft:#3D1A18;
+  --desk:#0A100E; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--panel)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--panel);border-bottom:1px solid var(--line);
+  padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
+.brand{display:flex;align-items:baseline;gap:10px;min-width:0}
+.brand b{font-family:var(--f-display);font-weight:700;font-size:22px;letter-spacing:.2px}
+.brand b i{font-style:normal;color:var(--accent)}
+.brand span{font-size:12.5px;color:var(--muted);letter-spacing:.4px;text-transform:uppercase}
+.top .grow{flex:1}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:7px 12px;cursor:pointer;font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--deep);color:var(--deep-ink);border-color:var(--deep)}
+.btn.amber{background:var(--accent);color:#1b1206;border-color:var(--accent)}
+.btn[disabled]{opacity:.55;cursor:progress}
+.wrap{display:grid;grid-template-columns:minmax(0,430px) minmax(0,1fr);gap:0;min-height:calc(100% - 60px)}
+@media (max-width:980px){.wrap{grid-template-columns:minmax(0,1fr)}}
+.side{border-right:1px solid var(--line);background:var(--panel);padding-block:14px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:16px;min-width:0}
+@media (max-width:980px){.side{border-right:0;border-bottom:1px solid var(--line);padding-right:max(16px,env(safe-area-inset-right,0px))}}
+.main{min-width:0;padding-block:14px;padding-left:16px;padding-right:max(16px,env(safe-area-inset-right,0px))}
+@media (max-width:980px){.main{padding-left:max(16px,env(safe-area-inset-left,0px))}}
+.status{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}
+@media (max-width:520px){.status{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:var(--panel)}
+.kpi small{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.kpi strong{font-family:var(--f-mono);font-size:17px;font-variant-numeric:tabular-nums}
+.quick{border:1px solid var(--accent);background:var(--accent-soft);border-radius:8px;padding:12px;margin-bottom:14px}
+.quick h3{margin:0 0 2px;font-family:var(--f-display);font-size:20px}
+.quick>p{margin:0 0 10px;font-size:13.5px;color:var(--muted)}
+.drop{display:flex;flex-direction:column;gap:2px;border:1.5px dashed var(--accent);border-radius:7px;background:var(--panel);padding:14px 12px;cursor:pointer;text-align:center}
+.drop.over{background:var(--bg)}
+.drop input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.drop b{font-size:14.5px}.drop span{font-size:12.5px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 2px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:3px 4px 3px 10px;font-size:12.5px;max-width:100%}
+.chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.chip button{border:0;background:var(--bg);border-radius:50%;width:22px;height:22px;cursor:pointer;line-height:1}
+.qgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px;margin-top:10px}
+.qopt{margin-top:8px;font-size:13.5px}.qopt summary{cursor:pointer;color:var(--muted)}
+.quick .f input{background:var(--panel)}
+.quick .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
+.quick .msg{font-size:13px;color:var(--muted);flex:1;min-width:160px}
+.revh{font-family:var(--f-display);font-size:16px;margin:4px 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+details.sec{border:1px solid var(--line);border-radius:8px;margin-bottom:8px;background:var(--panel)}
+details.sec>summary{cursor:pointer;list-style:none;padding:10px 12px;display:flex;align-items:center;gap:10px;font-family:var(--f-display);font-weight:600;font-size:17px}
+details.sec>summary::-webkit-details-marker{display:none}
+details.sec>summary .n{font-family:var(--f-mono);font-size:12px;color:var(--muted);width:22px}
+details.sec>summary .chev{margin-left:auto;color:var(--muted);transition:transform .15s}
+details.sec[open]>summary .chev{transform:rotate(90deg)}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px;padding:2px 12px 12px}
+.fields .full{grid-column:1/-1}
+.f label{display:block;font-size:12px;color:var(--muted);margin-bottom:2px;letter-spacing:.2px}
+.f input,.f select,.f textarea{width:100%;border:1px solid var(--line);border-radius:5px;background:var(--bg);padding:6px 8px;font-size:14px;min-width:0}
+.f textarea{min-height:60px;font-family:var(--f-mono);font-size:12.5px}
+.f .u{font-size:11px;color:var(--muted)}
+.hint{font-size:12.5px;color:var(--muted);padding:0 12px 10px;margin:0}
+.checks{display:flex;flex-direction:column;gap:4px;margin:6px 0 12px}
+.chk{display:flex;gap:8px;align-items:flex-start;font-size:13.5px;padding:6px 9px;border-radius:5px}
+.chk.ok{background:var(--ok-soft);color:var(--ok)}
+.chk.warn{background:var(--warn-soft);color:var(--warn)}
+.chk.bad{background:var(--bad-soft);color:var(--bad)}
+.chk b{font-family:var(--f-mono);font-size:12px;min-width:16px}
+.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:12px;padding-bottom:0}
+.tab{border:0;background:transparent;padding:8px 11px;cursor:pointer;font-weight:600;font-size:14px;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap;display:flex;gap:6px;align-items:center}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab .dot{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.tab .dot.off{background:var(--line)}
+.docbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.docbar .t{font-family:var(--f-display);font-size:19px;font-weight:600;margin-right:auto}
+.desk{background:var(--desk);border-radius:8px;padding:14px;overflow:auto;max-height:calc(100vh - 210px)}
+@media (max-width:980px){.desk{max-height:none}}
+.pagebox{margin:0 auto 14px;box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.pagebox:last-child{margin-bottom:0}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--deep);color:var(--deep-ink);padding:9px 14px;border-radius:6px;font-weight:600;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
+.drawer{position:fixed;inset:0;z-index:15;background:rgba(0,0,0,.35);display:flex;justify-content:flex-end}
+.drawer>div{width:min(420px,100%);height:100%;background:var(--panel);padding:16px;padding-top:calc(16px + env(safe-area-inset-top,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow:auto}
+.drawer h3{font-family:var(--f-display);margin:0 0 10px;font-size:20px}
+.plist{display:flex;flex-direction:column;gap:6px}
+.pitem{border:1px solid var(--line);border-radius:6px;padding:8px 10px;display:flex;gap:8px;align-items:center}
+.pitem div{flex:1;min-width:0}
+.pitem small{color:var(--muted);display:block}
+.note{font-size:12.5px;color:var(--muted);margin-top:10px}
+.tag-ex{font-size:11px;background:var(--accent-soft);color:var(--warn);border-radius:4px;padding:1px 6px;font-weight:700;letter-spacing:.4px;text-transform:uppercase}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ===== Folhas (papel) – sempre brancas, como serão impressas ===== */
+.sheet{width:794px;height:1123px;background:#fff;color:#111;font-family:var(--f-body);font-size:11.5px;line-height:1.38;position:relative;overflow:hidden;padding:46px 46px 40px}
+.sheet.land{width:1123px;height:794px;padding:22px}
+.sheet h1{font-family:var(--f-display);font-size:21px;margin:0 0 2px;letter-spacing:.3px;text-transform:uppercase}
+.sheet h2{font-family:var(--f-display);font-size:14.5px;margin:12px 0 4px;text-transform:uppercase;letter-spacing:.4px;border-bottom:1.5px solid #111;padding-bottom:2px}
+.sheet p{margin:0 0 5px;text-align:justify}
+.sheet .sub{font-size:11px;color:#444;margin-bottom:8px}
+.sheet table{width:100%;border-collapse:collapse;margin:3px 0 6px;font-size:10.8px}
+.sheet td,.sheet th{border:1px solid #333;padding:2.5px 5px;vertical-align:top}
+.sheet th{background:#E6E9E8;text-align:left;font-weight:700}
+.sheet td.v{font-family:var(--f-mono);font-size:10.3px;color:#0A2A8A}
+.sheet .band{background:#2F4F46;color:#fff;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:3px 6px;font-size:11px;margin-top:8px}
+.sheet .x{font-family:var(--f-mono);font-weight:700}
+.sheet .foot{position:absolute;left:46px;right:46px;bottom:18px;font-size:9.5px;color:#555;display:flex;justify-content:space-between;border-top:1px solid #999;padding-top:3px}
+.sheet .sign{display:flex;gap:40px;margin-top:26px}
+.sheet .sign div{flex:1;border-top:1px solid #111;text-align:center;padding-top:3px;font-size:10.5px}
+.sheet .hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2.5px solid #111;padding-bottom:6px;margin-bottom:8px}
+.sheet .hdr .r{text-align:right;font-size:10px;color:#333}
+.sheet svg text{font-family:var(--f-body)}
+</style>
+
+<style>html,body{margin:0}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}img{max-width:100%}</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><b>Homologa<i>GO</i></b><span>Micro e minigeração · Equatorial Goiás</span></div>
+  <div class="grow"></div>
+  <button class="btn" id="bProjects" type="button">Projetos</button>
+  <button class="btn" id="bSave" type="button">Salvar</button>
+  <button class="btn amber" id="bAll" type="button">Gerar todos os documentos</button>
+</header>
+
+<div class="wrap">
+  <aside class="side">
+    <section class="quick" aria-labelledby="qT">
+      <h3 id="qT">Novo projeto</h3>
+      <p>Anexe os documentos do cliente e a conta de energia. Informe só os equipamentos. O resto é preenchido a partir dos documentos.</p>
+      <label class="drop" id="drop" for="qFiles">
+        <input type="file" id="qFiles" multiple accept="image/*,application/pdf,.pdf">
+        <b>Documentos do cliente e conta de energia</b>
+        <span>RG ou CNH, CPF/CNPJ e conta da Equatorial · fotos ou PDF · toque ou arraste aqui</span>
+      </label>
+      <div class="chips" id="qChips"></div>
+      <div class="qgrid">
+        <div class="f"><label for="q_iP">Potência do inversor <span class="u">kW</span></label><input id="q_iP" inputmode="decimal" placeholder="ex. 5"></div>
+        <div class="f"><label for="q_iQ">Qtd. de inversores</label><input id="q_iQ" inputmode="numeric" value="1"></div>
+        <div class="f"><label for="q_mP">Potência do módulo <span class="u">Wp</span></label><input id="q_mP" inputmode="decimal" placeholder="ex. 550"></div>
+        <div class="f"><label for="q_mQ">Qtd. de módulos</label><input id="q_mQ" inputmode="numeric" placeholder="ex. 10"></div>
+      </div>
+      <details class="qopt"><summary>Marca e modelo (opcional)</summary>
+        <div class="qgrid">
+          <div class="f"><label for="q_iFab">Fabricante do inversor</label><input id="q_iFab"></div>
+          <div class="f"><label for="q_iMod">Modelo do inversor</label><input id="q_iMod"></div>
+          <div class="f"><label for="q_mFab">Fabricante do módulo</label><input id="q_mFab"></div>
+          <div class="f"><label for="q_mMod">Modelo do módulo</label><input id="q_mMod"></div>
+        </div>
+      </details>
+      <details class="qopt"><summary>Código de acesso da leitura automática</summary>
+        <div class="qgrid"><div class="f" style="grid-column:1/-1"><label for="q_code">Código definido na hospedagem (APP_CODE)</label><input id="q_code" type="password" autocomplete="off"></div></div>
+      </details>
+      <div class="row"><button class="btn amber" type="button" id="qGo">Gerar projeto</button><span class="msg" id="qMsg" role="status"></span></div>
+    </section>
+    <h3 class="revh">Revisar e completar dados</h3>
+    <div id="form"></div>
+  </aside>
+
+  <main class="main">
+    <div class="status" id="kpis"></div>
+    <div class="checks" id="checks"></div>
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="docbar"><span class="t" id="docTitle"></span><span id="docBtns"></span></div>
+    <div class="desk" id="desk"></div>
+    <p class="note">Base: NT.020.EQTL (Conexão de Micro e Minigeração Distribuída), REN ANEEL 1.000/2021, Lei 14.300/2022, ABNT NBR 16149, 16150, 16690 e IEC 62116. Confira a revisão vigente da norma e os modelos do Portal de Geração Distribuída da Equatorial Goiás antes do protocolo. O RT revisa e assina.</p>
+  </main>
+</div>
+<div id="toast" class="toast" hidden></div>
+<div id="drawer" class="drawer" hidden><div><h3>Projetos salvos</h3><div class="plist" id="plist"></div>
+  <div class="row" style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+    <button class="btn primary" type="button" id="bNew">Novo projeto em branco</button>
+    <button class="btn" type="button" id="bExample">Carregar exemplo</button>
+    <button class="btn" type="button" id="bImport">Importar .json</button>
+    <input type="file" id="fImport" accept="application/json,.json" hidden>
+    <button class="btn" type="button" id="bClose">Fechar</button>
+  </div>
+  <p class="note">Os projetos ficam salvos neste navegador. Use “Gerar todos os documentos” para baixar também o arquivo .json do projeto.</p></div></div>
+
+<script src="vendor/html2canvas.min.js"></script>
+</body>
+</html>
+<script src="vendor/jspdf.umd.min.js"></script>
+</body>
+</html>
+<script src="vendor/jszip.min.js"></script>
+</body>
+</html>
+<script src="vendor/xlsx.full.min.js"></script>
+</body>
+</html>
+<script src="vendor/pdf.min.js"></script>
+</body>
+</html>
+<script src="vendor/pdf.worker.min.js"></script>
+</body>
+</html>
+<script>
+"use strict";
+/* ---------------- Esquema do formulário ---------------- */
+const SECTIONS = [
+ {id:"cli", t:"Titular e unidade consumidora", f:[
+  ["nome","Nome do titular da UC","text","full"],["doc","CPF / CNPJ"],["rg","RG / Inscrição estadual"],
+  ["uc","Nº da UC (conta contrato)"],["classe","Classe","sel",["Residencial","Comercial","Industrial","Rural","Poder público"]],
+  ["tel","Telefone"],["email","E-mail"],["end","Logradouro e número","text","full"],["bairro","Bairro / Setor"],["cidade","Município"],
+  ["cep","CEP"],["uf","UF"],["lat","Latitude","num",null,"graus, ex. -16.6869"],["lon","Longitude","num",null,"graus, ex. -49.2648"]]},
+ {id:"con", t:"Conexão e padrão de entrada", f:[
+  ["tipoSolic","Tipo de solicitação","sel",["Conexão de GD em UC existente sem aumento de potência disponibilizada","Conexão de GD em UC existente com aumento de potência disponibilizada","Ligação nova com GD"],"full"],
+  ["modalidade","Modalidade de compensação","sel",["Autoconsumo local","Autoconsumo remoto","Geração compartilhada","Múltiplas unidades consumidoras (EMUC)"],"full"],
+  ["ligacao","Tipo de ligação","sel",["Monofásico","Bifásico","Trifásico"]],["tensao","Tensão de atendimento","sel",["220 V (F-N)","380/220 V"]],
+  ["disj","Disjuntor de entrada","num",null,"A"],["cabEnt","Condutor do ramal de entrada","num",null,"mm²"],
+  ["carga","Carga instalada","num",null,"kW"],["demanda","Demanda estimada","num",null,"kW"],
+  ["ramal","Ramal de ligação","sel",["Aéreo","Subterrâneo"]],["padrao","Padrão de entrada","sel",["Poste auxiliar","Muro / mureta","Fachada","Pontalete"]],
+  ["mudaPadrao","Haverá troca/mudança do padrão?","sel",["Não","Sim"]],["arrend","Telhado arrendado a terceiros?","sel",["Não","Sim"]],
+  ["consumo","Histórico de consumo (12 meses, kWh)","area","full","Separe por vírgula, do mais antigo ao mais recente"]]},
+ {id:"mod", t:"Módulos fotovoltaicos", f:[
+  ["mFab","Fabricante"],["mMod","Modelo"],["mP","Potência nominal (Pmax)","num",null,"Wp"],["mQ","Quantidade","num",null,"un."],
+  ["mVoc","Voc","num",null,"V"],["mVmp","Vmp","num",null,"V"],["mIsc","Isc","num",null,"A"],["mImp","Imp","num",null,"A"],
+  ["mBeta","Coef. temperatura Voc","num",null,"%/°C (ex. -0,27)"],["mEff","Eficiência","num",null,"%"],
+  ["mC","Comprimento","num",null,"m"],["mL","Largura","num",null,"m"],["mReg","Registro INMETRO / certificado","text","full"]]},
+ {id:"inv", t:"Inversor", f:[
+  ["iFab","Fabricante"],["iMod","Modelo"],["iP","Potência nominal CA","num",null,"kW"],["iQ","Quantidade","num",null,"un."],
+  ["iFases","Conexão CA","sel",["Monofásico 220 V","Trifásico 380/220 V"]],["iIout","Corrente CA máx. de saída","num",null,"A"],
+  ["iVmax","Tensão CC máxima","num",null,"V"],["iNmppt","Nº de MPPTs","num",null,"un."],
+  ["iMin","MPPT mínimo","num",null,"V"],["iMax","MPPT máximo","num",null,"V"],
+  ["iImax","Corrente máx. entrada por MPPT","num",null,"A"],["iIsc","Corrente de curto máx. por MPPT","num",null,"A"],
+  ["iFp","Fator de potência","num",null,"ex. 1 (ajustável 0,8 ind./cap.)"],["iEff","Eficiência máxima","num",null,"%"],
+  ["iDht","DHT de corrente","num",null,"%"],["iReg","Registro INMETRO / certificado","text","full"]]},
+ {id:"arr", t:"Arranjo e instalação", f:[
+  ["nStr","Nº de strings","num",null,"un."],["mPorStr","Módulos por string","num",null,"un."],
+  ["telhado","Tipo de telhado / estrutura","sel",["Cerâmico","Fibrocimento","Metálico (trapezoidal)","Laje","Solo"]],["orient","Orientação","sel",["Norte","Nordeste","Noroeste","Leste","Oeste","Sul"]],
+  ["incl","Inclinação","num",null,"graus"],["hsp","Irradiação (HSP)","num",null,"kWh/m²·dia"],
+  ["pr","Rendimento global (PR)","num",null,"ex. 0,80"],["tmin","Temperatura mínima","num",null,"°C"],
+  ["dCC","Distância arranjo → inversor","num",null,"m"],["dCA","Distância inversor → quadro","num",null,"m"],
+  ["locInv","Local do inversor","text","full","ex. Parede externa da garagem, a 1,30 m do piso"]]},
+ {id:"rt", t:"Responsável técnico", f:[
+  ["rtNome","Nome","text","full"],["rtTit","Título profissional","sel",["Engenheiro Eletricista","Técnico em Eletrotécnica","Engenheiro de Controle e Automação","Engenheiro Eletrônico"]],
+  ["rtReg","CREA / CFT nº"],["rtArt","ART / TRT nº"],["rtTel","Telefone"],["rtEmail","E-mail"],["rtEmp","Empresa integradora"],["dataDoc","Data dos documentos","date"]]},
+ {id:"ben", t:"Beneficiárias e anexos", f:[
+  ["benef","UCs beneficiárias (rateio)","area","full","Uma por linha: UC ; titular ; endereço ; %"],
+  ["planta","Imagem de satélite para a planta","file","full","Print do Google Earth/Maps com o telhado e o padrão"]]}
+];
+
+const EXAMPLE = {
+  _exemplo:true, projeto:"Exemplo · Residência 5 kW",
+  nome:"Maria Aparecida dos Santos (exemplo)", doc:"000.000.000-00", rg:"0000000 SSP/GO", uc:"10000000000", classe:"Residencial",
+  tel:"(62) 90000-0000", email:"cliente@exemplo.com", end:"Rua C-148, nº 120", bairro:"Jardim América", cidade:"Goiânia", cep:"74250-000", uf:"GO",
+  lat:-16.7008, lon:-49.2803,
+  tipoSolic:"Conexão de GD em UC existente sem aumento de potência disponibilizada", modalidade:"Autoconsumo local",
+  ligacao:"Monofásico", tensao:"220 V (F-N)", disj:50, cabEnt:10, carga:12.4, demanda:7.5, ramal:"Aéreo", padrao:"Muro / mureta", mudaPadrao:"Não", arrend:"Não",
+  consumo:"610, 580, 655, 702, 690, 640, 598, 575, 620, 668, 712, 695",
+  mFab:"JA Solar", mMod:"JAM72S30-550/MR", mP:550, mQ:10, mVoc:49.90, mVmp:41.96, mIsc:14.00, mImp:13.11, mBeta:-0.275, mEff:21.3, mC:2.278, mL:1.134, mReg:"Registro INMETRO nº 000000/2022 (preencher)",
+  iFab:"Growatt", iMod:"MIN 5000TL-X", iP:5, iQ:1, iFases:"Monofásico 220 V", iIout:22.7, iVmax:550, iNmppt:2, iMin:80, iMax:550, iImax:13.5, iIsc:16.9, iFp:1, iEff:97.6, iDht:3, iReg:"Registro INMETRO nº 000000/2021 (preencher)",
+  nStr:1, mPorStr:10, telhado:"Cerâmico", orient:"Norte", incl:15, hsp:5.35, pr:0.80, tmin:8, dCC:12, dCA:6, locInv:"Parede externa da garagem, base a 1,30 m do piso",
+  rtNome:"Fulano de Tal (exemplo)", rtTit:"Engenheiro Eletricista", rtReg:"CREA-GO 0000000000/D", rtArt:"GO2026000000000", rtTel:"(62) 90000-0001", rtEmail:"rt@exemplo.com", rtEmp:"Solarcity Engenharia", dataDoc:new Date().toISOString().slice(0,10),
+  benef:"", planta:""
+};
+const BLANK = {projeto:"Novo projeto", uf:"GO", classe:"Residencial", tipoSolic:SECTIONS[1].f[0][3][0], modalidade:"Autoconsumo local", ligacao:"Monofásico", tensao:"220 V (F-N)",
+  ramal:"Aéreo", padrao:"Muro / mureta", mudaPadrao:"Não", arrend:"Não", iFases:"Monofásico 220 V", iQ:1, nStr:1, telhado:"Cerâmico", orient:"Norte",
+  hsp:5.35, pr:0.80, tmin:8, mBeta:-0.28, iFp:1, rtTit:"Engenheiro Eletricista", dataDoc:new Date().toISOString().slice(0,10)};
+
+let P = load("hgo_current") || {...EXAMPLE};
+let currentDoc = "form";
+let plantaImg = null; // data URL (não salva no localStorage se muito grande)
+
+/* ---------------- utilidades ---------------- */
+function load(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null}}
+function store(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const n=v=>{const x=parseFloat(String(v??"").replace(",","."));return isFinite(x)?x:0};
+const fmt=(v,d=2)=>isFinite(v)?Number(v).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d}):"—";
+const val=k=>esc(P[k]??"");
+function toast(t){const e=$("#toast");e.textContent=t;e.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>e.hidden=true,2800)}
+function dataBR(){const d=P.dataDoc?new Date(P.dataDoc+"T12:00:00"):new Date();return d.toLocaleDateString("pt-BR")}
+function slug(){return (P.nome||"projeto").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-zA-Z0-9]+/g,"_").replace(/^_|_$/g,"").slice(0,40)||"projeto"}
+
+/* ---------------- cálculos ---------------- */
+const BRK=[6,10,16,20,25,32,40,50,63,70,80,100,125,160,200];
+const CAB=[[1.5,17.5],[2.5,24],[4,32],[6,41],[10,57],[16,76],[25,101],[35,125],[50,151],[70,192],[95,232]]; // NBR 5410 B1, Cu/PVC, 2 carregados
+function calc(){
+  const c={};
+  c.qtd=n(P.mQ); c.pcc=c.qtd*n(P.mP)/1000; c.pca=n(P.iP)*Math.max(1,n(P.iQ));
+  c.pinst=Math.min(c.pcc||Infinity,c.pca||Infinity); if(!isFinite(c.pinst))c.pinst=0;
+  c.ratio=c.pca?c.pcc/c.pca:0;
+  c.area=c.qtd*n(P.mC)*n(P.mL);
+  c.anexo=c.pinst<=10?"I":"II"; c.categoria=c.pinst<=75?"Microgeração":"Minigeração";
+  const vfn=220, vff=380;
+  const I=n(P.disj);
+  c.pdisp=P.ligacao==="Monofásico"?vfn*I/1000:P.ligacao==="Bifásico"?2*vfn*I/1000:Math.sqrt(3)*vff*I/1000;
+  // strings
+  const ms=n(P.mPorStr), ns=Math.max(1,n(P.nStr)), beta=n(P.mBeta)/100||-0.0028, tmin=P.tmin===""||P.tmin==null?8:n(P.tmin);
+  c.vocStr=ms*n(P.mVoc); c.vocMax=c.vocStr*(1+beta*(tmin-25));
+  c.vmpStr=ms*n(P.mVmp); c.vmpHot=c.vmpStr*(1+beta*(70-25));
+  const nm=Math.max(1,n(P.iNmppt)*Math.max(1,n(P.iQ)));
+  c.strPorMppt=Math.ceil(ns/nm);
+  c.iscMppt=c.strPorMppt*n(P.mIsc); c.impMppt=c.strPorMppt*n(P.mImp);
+  // saída CA
+  const vOut=P.iFases.startsWith("Trif")?vff:220;
+  c.vOut=P.iFases.startsWith("Trif")?"380/220 V":"220 V";
+  c.iout=n(P.iIout)||(P.iFases.startsWith("Trif")?n(P.iP)*1000/(Math.sqrt(3)*vff):n(P.iP)*1000/vOut);
+  c.iTot=c.iout*Math.max(1,n(P.iQ));
+  c.disjCA=BRK.find(b=>b>=1.25*c.iout)||BRK[BRK.length-1];
+  const ca=CAB.find(([s,a])=>a>=c.disjCA&&s>=2.5)||CAB[CAB.length-1]; c.cabCA=ca[0];
+  const L=n(P.dCA), rho=0.0178;
+  const vRef=P.iFases.startsWith("Trif")?vff:220;
+  const dv=(s,i)=>P.iFases.startsWith("Trif")?(Math.sqrt(3)*L*i*rho/s)/vRef*100:(2*L*i*rho/s)/vRef*100;
+  while(dv(c.cabCA,c.iout)>2 && c.cabCA<95){c.cabCA=CAB.find(([s])=>s>c.cabCA)[0]}
+  c.dvCA=dv(c.cabCA,c.iout);
+  // CC
+  const Lcc=n(P.dCC), iscS=n(P.mIsc)*1.25;
+  c.cabCC=4; const dvcc=s=>(2*Lcc*n(P.mImp)*rho/s)/(c.vmpStr||1)*100;
+  if(dvcc(4)>1.5)c.cabCC=6; if(dvcc(6)>1.5)c.cabCC=10; c.dvCC=dvcc(c.cabCC);
+  c.fusivel=ns/nm>=3?Math.ceil(iscS*1.25/5)*5:0;
+  c.dpsCCv=Math.ceil(c.vocMax*1.2/50)*50; // Ucpv mínimo
+  c.chaveCC=Math.max(25,Math.ceil(c.iscMppt*1.25/5)*5);
+  // geração
+  c.gerMes=c.pcc*n(P.hsp)*30*n(P.pr); c.gerAno=c.gerMes*12;
+  const cons=String(P.consumo||"").split(/[,;\s]+/).map(n).filter(x=>x>0); c.cons=cons;
+  c.consMed=cons.length?cons.reduce((a,b)=>a+b,0)/cons.length:0;
+  c.cobertura=c.consMed?c.gerMes/c.consMed*100:0;
+  c.benef=String(P.benef||"").split(/\n/).map(l=>l.split(";").map(s=>s.trim())).filter(r=>r[0]);
+  c.ndiv=P.ligacao==="Monofásico"?"F+N":P.ligacao==="Bifásico"?"2F+N":"3F+N";
+  c.condCA=P.iFases.startsWith("Trif")?"3F+N+T":P.iFases.startsWith("Bif")?"2F+T":"F+N+T";
+  return c;
+}
+function checks(c){
+  const r=[]; const add=(s,t)=>r.push([s,t]);
+  if(!c.pinst){add("bad","Informe módulos e inversor para calcular a potência.");return r}
+  add(c.pinst<=75?"ok":"warn",`${c.categoria} de ${fmt(c.pinst)} kW → usar formulário Anexo ${c.anexo} (${c.anexo==="I"?"até 10 kW":"acima de 10 kW, exige diagrama de blocos e projeto elétrico"}).`);
+  if(c.pdisp) add(c.pinst<=c.pdisp?"ok":"bad",`Potência disponibilizada pelo padrão ≈ ${fmt(c.pdisp)} kW (disjuntor ${P.disj} A). ${c.pinst<=c.pdisp?"A geração cabe no padrão atual.":"A geração excede: é preciso aumento de carga/troca de padrão."}`);
+  const qs=n(P.nStr)*n(P.mPorStr); if(qs&&qs!==c.qtd) add("bad",`Strings somam ${qs} módulos, mas a quantidade informada é ${c.qtd}.`);
+  if(c.vocMax&&n(P.iVmax)) add(c.vocMax<=n(P.iVmax)?"ok":"bad",`Voc da string a ${P.tmin??8} °C = ${fmt(c.vocMax,0)} V (limite do inversor ${P.iVmax} V).`);
+  if(c.vmpHot&&n(P.iMin)) add(c.vmpHot>=n(P.iMin)&&c.vmpStr<=n(P.iMax)?"ok":"warn",`Vmp da string entre ${fmt(c.vmpHot,0)} V (70 °C) e ${fmt(c.vmpStr,0)} V (25 °C); faixa MPPT ${P.iMin}–${P.iMax} V.`);
+  if(n(P.iIsc)) add(c.iscMppt<=n(P.iIsc)?"ok":"bad",`Isc por MPPT = ${fmt(c.iscMppt,1)} A (máx. ${P.iIsc} A).`);
+  if(c.ratio) add(c.ratio<=1.35?"ok":"warn",`Relação CC/CA = ${fmt(c.ratio,2)} (${c.ratio<=1.35?"dentro do usual":"sobrecarregamento alto, confira o datasheet"}).`);
+  if(!P.mReg||!P.iReg) add("warn","Informe os registros INMETRO de módulo e inversor (exigidos na solicitação).");
+  if(P.modalidade!=="Autoconsumo local"&&!c.benef.length) add("warn","Modalidade com rateio: preencha a lista de UCs beneficiárias.");
+  if(c.benef.length){const s=c.benef.reduce((a,r)=>a+n(r[3]),0); add(Math.abs(s-100)<0.01?"ok":"bad",`Rateio das beneficiárias soma ${fmt(s,1)}%.`)}
+  if(!P.rtArt) add("warn","Informe o número da ART/TRT do responsável técnico.");
+  if(P._equipEst) add("warn","Especificações elétricas do módulo e do inversor estimadas pela potência. Confira com o datasheet em “Módulos” e “Inversor” e informe marca, modelo e registro INMETRO.");
+  if(P._coordAprox) add("warn","Coordenadas aproximadas pelo endereço. Confira no Google Maps antes de protocolar.");
+  if(P._disjPadrao) add("warn",`Disjuntor de entrada assumido em ${P.disj} A (a conta não informa). Confirme no padrão.`);
+  return r;
+}
+
+/* ---------------- formulário ---------------- */
+function buildForm(){
+  const open=load("hgo_open")||[];
+  $("#form").innerHTML=SECTIONS.map((s,i)=>`<details class="sec" data-s="${s.id}" ${open.includes(s.id)?"open":""}><summary><span class="n">${String(i+1).padStart(2,"0")}</span>${s.t}<span class="chev">›</span></summary>
+   <div class="fields">${s.f.map(fd).join("")}</div>${s.id==="ben"?'<p class="hint">Sem imagem, a planta de situação é gerada como croqui com as coordenadas e o link do mapa.</p>':""}</details>`).join("");
+  document.querySelectorAll("details.sec").forEach(d=>d.addEventListener("toggle",()=>store("hgo_open",[...document.querySelectorAll("details.sec[open]")].map(x=>x.dataset.s))));
+  $("#form").addEventListener("input",onInput);$("#form").addEventListener("change",onInput);
+}
+function fd([k,l,t="text",o,u]){
+  const full=(o==="full"||u==="full"||(t==="area")||(t==="file"))?" full":"";
+  const id="f_"+k;
+  let inp;
+  if(t==="sel") inp=`<select id="${id}" data-k="${k}">${o.map(x=>`<option ${P[k]===x?"selected":""}>${esc(x)}</option>`).join("")}</select>`;
+  else if(t==="area") inp=`<textarea id="${id}" data-k="${k}" placeholder="${esc(u||"")}">${val(k)}</textarea>`;
+  else if(t==="file") inp=`<input id="${id}" type="file" accept="image/*" data-file="1">`;
+  else inp=`<input id="${id}" data-k="${k}" type="${t==="date"?"date":"text"}" ${t==="num"?'inputmode="decimal"':""} value="${val(k)}">`;
+  const unit=(t==="num"||t==="file")&&u?`<span class="u">${esc(u)}</span>`:"";
+  return `<div class="f${full}"><label for="${id}">${esc(l)} ${unit}</label>${inp}</div>`;
+}
+function syncForm(){document.querySelectorAll("[data-k]").forEach(e=>{const k=e.dataset.k;if(e.tagName==="SELECT"){if(P[k])e.value=P[k]}else e.value=P[k]??""})}
+let rT;
+function onInput(e){
+  const el=e.target;
+  if(el.dataset.file){const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{plantaImg=r.result;P.planta=plantaImg.length<1500000?plantaImg:"";render()};r.readAsDataURL(f);return}
+  const k=el.dataset.k;if(!k)return;P[k]=el.value;delete P._exemplo;
+  if(/^(m|i)[A-Z]/.test(k))delete P._equipEst;if(k==="lat"||k==="lon")delete P._coordAprox;if(k==="disj")delete P._disjPadrao;
+  clearTimeout(rT);rT=setTimeout(()=>{store("hgo_current",P);render()},250);
+}
+
+/* ---------------- documentos ---------------- */
+const DOCS=[
+ {id:"form",t:"Formulário de solicitação",short:"Formulário"},
+ {id:"memo",t:"Memorial técnico descritivo",short:"Memorial"},
+ {id:"unif",t:"Diagrama unifilar",short:"Unifilar"},
+ {id:"blocos",t:"Diagrama de blocos",short:"Blocos"},
+ {id:"planta",t:"Planta de situação e localização",short:"Planta"},
+ {id:"placa",t:"Placa de advertência",short:"Placa"},
+ {id:"benef",t:"Lista de UCs beneficiárias",short:"Beneficiárias",cond:()=>P.modalidade!=="Autoconsumo local"},
+ {id:"check",t:"Checklist de protocolo",short:"Checklist"}
+];
+const activeDocs=()=>DOCS.filter(d=>!d.cond||d.cond());
+
+function foot(doc,pg,tot){return `<div class="foot"><span>${esc(doc)} · ${esc(P.nome||"")} · UC ${esc(P.uc||"")}</span><span>Folha ${pg}/${tot}</span></div>`}
+function hdr(title,sub){return `<div class="hdr"><div><h1>${title}</h1><div class="sub">${sub||""}</div></div><div class="r">${esc(P.rtEmp||"")}<br>RT: ${esc(P.rtNome||"")} · ${esc(P.rtReg||"")}<br>${dataBR()}</div></div>`}
+const tr=(a,b,c,d)=>`<tr><th style="width:24%">${a}</th><td class="v"${c===undefined?' colspan="3"':""}>${b??""}</td>${c!==undefined?`<th style="width:22%">${c}</th><td class="v">${d??""}</td>`:""}</tr>`;
+const box=on=>`<span class="x">[${on?"X":"&nbsp;"}]</span>`;
+
+function docForm(c){
+  const t=P.tipoSolic||"";
+  const ben=c.benef;
+  return [`<div class="sheet">${hdr(`Formulário de solicitação de orçamento de conexão`,`Micro e minigeração distribuída · ${c.anexo==="I"?"Anexo I – potência até 10 kW":"Anexo II – potência acima de 10 kW"} · NT.020.EQTL · Equatorial Goiás`)}
+  <div class="band">1 · Identificação da unidade consumidora</div>
+  <table>${tr("Titular",val("nome"),"CPF/CNPJ",val("doc"))}${tr("Nº da UC",val("uc"),"Classe",val("classe"))}${tr("Endereço",`${val("end")} – ${val("bairro")}`)}${tr("Município/UF",`${val("cidade")}/${val("uf")}`,"CEP",val("cep"))}${tr("Telefone",val("tel"),"E-mail",val("email"))}${tr("Coordenadas (SIRGAS 2000)",`${fmt(n(P.lat),6)}, ${fmt(n(P.lon),6)}`)}</table>
+  <div class="band">2 · Dados da unidade consumidora</div>
+  <table>${tr("Carga instalada",fmt(n(P.carga))+" kW","Tensão de atendimento",val("tensao"))}
+  <tr><th>Tipo de conexão</th><td colspan="3">${box(P.ligacao==="Monofásico")} Monofásico &nbsp; ${box(P.ligacao==="Bifásico")} Bifásico &nbsp; ${box(P.ligacao==="Trifásico")} Trifásico</td></tr>
+  ${tr("Disjuntor de entrada",val("disj")+" A","Ramal de ligação",val("ramal"))}${tr("Tipo de padrão",val("padrao"),"Mudança de padrão",val("mudaPadrao"))}
+  <tr><th>Tipo de solicitação</th><td colspan="3">${box(t.includes("sem aumento"))} GD em UC existente sem aumento de potência &nbsp; ${box(t.includes("com aumento"))} com aumento &nbsp; ${box(t.includes("nova"))} Ligação nova</td></tr>
+  <tr><th>Modalidade</th><td colspan="3">${["Autoconsumo local","Autoconsumo remoto","Geração compartilhada","Múltiplas unidades consumidoras (EMUC)"].map(m=>box(P.modalidade===m)+" "+m).join(" &nbsp; ")}</td></tr></table>
+  <div class="band">3 · Dados da geração</div>
+  <table>${tr("Potência instalada de geração",fmt(c.pinst)+" kW","Categoria",c.categoria)}
+  <tr><th>Fonte</th><td colspan="3">${box(0)} Hidráulica &nbsp; ${box(1)} Solar fotovoltaica &nbsp; ${box(0)} Eólica &nbsp; ${box(0)} Biomassa &nbsp; ${box(0)} Cogeração qualificada</td></tr>
+  ${tr("Potência dos módulos (CC)",fmt(c.pcc)+" kWp","Potência dos inversores (CA)",fmt(c.pca)+" kW")}</table>
+  <div class="band">4 · Unidades geradoras – solar fotovoltaica</div>
+  <table><tr><th>Item</th><th>Potência do módulo (W)</th><th>Quantidade</th><th>Potência de pico (kWp)</th><th>Área do arranjo (m²)</th><th>Fabricante</th><th>Modelo</th></tr>
+  <tr><td>1</td><td class="v">${val("mP")}</td><td class="v">${c.qtd}</td><td class="v">${fmt(c.pcc)}</td><td class="v">${fmt(c.area)}</td><td class="v">${val("mFab")}</td><td class="v">${val("mMod")}</td></tr>
+  <tr><th>Total</th><td></td><td class="v">${c.qtd}</td><td class="v">${fmt(c.pcc)}</td><td class="v">${fmt(c.area)}</td><td colspan="2"></td></tr></table>
+  <div class="band">5 · Dados dos inversores</div>
+  <table><tr><th>Item</th><th>Fabricante</th><th>Modelo</th><th>Potência (kW)</th><th>Faixa MPPT (V)</th><th>Corrente nominal (A)</th><th>FP</th><th>Rendimento (%)</th><th>DHT corrente (%)</th></tr>
+  <tr><td>1</td><td class="v">${val("iFab")}</td><td class="v">${val("iMod")} (×${n(P.iQ)||1})</td><td class="v">${fmt(c.pca)}</td><td class="v">${val("iMin")}–${val("iMax")}</td><td class="v">${fmt(c.iout,1)}</td><td class="v">${val("iFp")}</td><td class="v">${val("iEff")}</td><td class="v">${val("iDht")}</td></tr></table>
+  <div class="band">6 · Documentação anexada</div>
+  <table>${[
+   ["ART/TRT do responsável técnico pelo projeto e execução",1],["Diagrama unifilar com geração, proteção, inversor e medição",1],["Memorial técnico descritivo",1],
+   ["Certificado de conformidade / registro INMETRO do(s) inversor(es) – NBR 16149, 16150 e IEC 62116",1],["Dados para registro da central geradora (ANEEL)",1],
+   ["Diagrama de blocos e projeto elétrico (acima de 10 kW)",c.anexo==="II"],["Lista de UCs participantes e percentual de rateio",P.modalidade!=="Autoconsumo local"],
+   ["Instrumento jurídico de solidariedade (EMUC / geração compartilhada)",P.modalidade.includes("compartilhada")||P.modalidade.includes("EMUC")],
+   ["Contrato de aluguel ou arrendamento",P.arrend==="Sim"],["Procuração do titular (quando solicitado por terceiro)",1]
+  ].map(([t,on],i)=>`<tr><td style="width:24px">${i+1}</td><td>${t}</td><td style="width:34px;text-align:center">${box(on)}</td></tr>`).join("")}</table>
+  <div class="band">7 · Responsável técnico e solicitante</div>
+  <table>${tr("Responsável técnico",val("rtNome"),"Registro",val("rtReg"))}${tr("ART/TRT",val("rtArt"),"Contato",`${val("rtTel")} · ${val("rtEmail")}`)}</table>
+  <div class="sign"><div>${val("nome")}<br>Titular da UC</div><div>${val("rtNome")}<br>${val("rtTit")} · ${val("rtReg")}</div></div>
+  ${foot("Formulário de solicitação",1,ben.length?2:1)}</div>`].concat(ben.length?[`<div class="sheet">${hdr("Anexo · Lista de unidades consumidoras participantes","Rateio dos créditos de energia · REN ANEEL 1.000/2021")}
+  <table><tr><th>#</th><th>Nº da UC</th><th>Titular</th><th>Endereço</th><th>%</th></tr>${[["Geradora",P.uc,P.nome,P.end,""]].concat(ben).map((r,i)=>`<tr><td>${i?i:"G"}</td><td class="v">${esc(r[0]==="Geradora"?P.uc:r[0])}</td><td class="v">${esc(r[1])}</td><td class="v">${esc(r[2])}</td><td class="v">${esc(r[3])}</td></tr>`).join("")}</table>${foot("Formulário de solicitação",2,2)}</div>`]:[]);
+}
+
+function protTable(){return `<table><tr><th>Função (ANSI)</th><th>Descrição</th><th>Ajuste</th><th>Tempo máx. de atuação</th></tr>
+<tr><td>27</td><td>Subtensão</td><td class="v">V &lt; 0,8 pu (176 V)</td><td class="v">0,4 s</td></tr>
+<tr><td>59</td><td>Sobretensão</td><td class="v">V &gt; 1,1 pu (242 V)</td><td class="v">0,2 s</td></tr>
+<tr><td>81U</td><td>Subfrequência</td><td class="v">f &lt; 57,5 Hz</td><td class="v">0,2 s</td></tr>
+<tr><td>81O</td><td>Sobrefrequência</td><td class="v">f &gt; 62,0 Hz</td><td class="v">0,2 s</td></tr>
+<tr><td>78 / AI</td><td>Anti-ilhamento (IEC 62116)</td><td class="v">detecção ativa</td><td class="v">2,0 s</td></tr>
+<tr><td>25</td><td>Sincronismo</td><td class="v">interno ao inversor</td><td class="v">—</td></tr>
+<tr><td>—</td><td>Reconexão após restabelecimento</td><td class="v">tensão e frequência normais</td><td class="v">20 a 300 s</td></tr></table>`}
+
+function docMemo(c){
+  const pages=[];
+  const tot=3;
+  const months=["M-12","M-11","M-10","M-9","M-8","M-7","M-6","M-5","M-4","M-3","M-2","M-1"];
+  pages.push(`<div class="sheet">${hdr("Memorial técnico descritivo",`Conexão de ${c.categoria.toLowerCase()} distribuída · fonte solar fotovoltaica · ${fmt(c.pinst)} kW · Equatorial Goiás (NT.020.EQTL)`)}
+  <h2>1 · Objetivo</h2><p>Este memorial descreve a central geradora solar fotovoltaica de ${fmt(c.pcc)} kWp em módulos e ${fmt(c.pca)} kW em inversores (potência instalada de ${fmt(c.pinst)} kW), a ser conectada à rede de baixa tensão da Equatorial Goiás na unidade consumidora nº ${val("uc")}, na modalidade <b>${val("modalidade").toLowerCase()}</b> do Sistema de Compensação de Energia Elétrica (Lei 14.300/2022 e REN ANEEL 1.000/2021).</p>
+  <h2>2 · Identificação</h2><table>${tr("Titular",val("nome"),"CPF/CNPJ",val("doc"))}${tr("Nº da UC",val("uc"),"Classe",val("classe"))}${tr("Endereço",`${val("end")}, ${val("bairro")}, ${val("cidade")}/${val("uf")}, CEP ${val("cep")}`)}${tr("Coordenadas",`${fmt(n(P.lat),6)}, ${fmt(n(P.lon),6)}`)}</table>
+  <h2>3 · Ponto de entrega e padrão de entrada</h2><table>${tr("Tensão de atendimento",val("tensao"),"Tipo de ligação",`${val("ligacao")} (${c.ndiv})`)}${tr("Disjuntor de entrada",val("disj")+" A","Condutor do ramal",val("cabEnt")+" mm² Cu")}${tr("Ramal",val("ramal"),"Padrão",val("padrao"))}${tr("Potência disponibilizada (estim.)",fmt(c.pdisp)+" kW","Medição","Substituição por medidor bidirecional pela distribuidora")}</table>
+  <p>Fotos da caixa de medição e do local previsto para o inversor seguem em anexo ao protocolo.</p>
+  <h2>4 · Cargas e histórico de consumo</h2><table>${tr("Carga instalada",fmt(n(P.carga))+" kW","Demanda estimada",fmt(n(P.demanda))+" kW")}</table>
+  <table><tr>${months.map(m=>`<th style="text-align:center">${m}</th>`).join("")}<th>Média</th></tr><tr>${months.map((m,i)=>`<td class="v" style="text-align:center">${c.cons[i]!=null?fmt(c.cons[i],0):"—"}</td>`).join("")}<td class="v">${fmt(c.consMed,0)}</td></tr></table>
+  <p>Consumo médio de ${fmt(c.consMed,0)} kWh/mês. Geração estimada de ${fmt(c.gerMes,0)} kWh/mês (${fmt(c.gerAno,0)} kWh/ano), considerando ${fmt(n(P.hsp))} kWh/m²·dia de irradiação e rendimento global de ${fmt(n(P.pr)*100,0)}%, o que corresponde a ${fmt(c.cobertura,0)}% do consumo médio.</p>
+  <h2>5 · Gerador fotovoltaico</h2><table>${tr("Fabricante / modelo",`${val("mFab")} ${val("mMod")}`)}${tr("Potência nominal",val("mP")+" Wp","Quantidade",c.qtd+" módulos")}${tr("Voc / Vmp",`${val("mVoc")} V / ${val("mVmp")} V`,"Isc / Imp",`${val("mIsc")} A / ${val("mImp")} A`)}${tr("Eficiência",val("mEff")+" %","Dimensões",`${val("mC")} × ${val("mL")} m`)}${tr("Área ocupada",fmt(c.area)+" m²","Estrutura",`${val("telhado")}, ${val("orient")}, ${val("incl")}°`)}${tr("Registro INMETRO",val("mReg"))}</table>
+  ${foot("Memorial técnico descritivo",1,tot)}</div>`);
+  pages.push(`<div class="sheet">${hdr("Memorial técnico descritivo","continuação")}
+  <h2>6 · Inversor</h2><table>${tr("Fabricante / modelo",`${val("iFab")} ${val("iMod")}`,"Quantidade",n(P.iQ)||1)}${tr("Potência nominal CA",fmt(n(P.iP))+" kW ("+fmt(n(P.iP)*1000/Math.max(n(P.iFp),0.01),0)+" VA)","Conexão",val("iFases"))}${tr("Tensão CC máxima",val("iVmax")+" V","Faixa MPPT",`${val("iMin")}–${val("iMax")} V (${val("iNmppt")} MPPT)`)}${tr("Corrente CA de saída",fmt(c.iout,1)+" A","Fator de potência",val("iFp"))}${tr("Eficiência máxima",val("iEff")+" %","DHT de corrente",`&lt; ${val("iDht")} %`)}${tr("Certificação",val("iReg")+" · ensaios ABNT NBR 16149, NBR 16150 e IEC 62116")}${tr("Local de instalação",val("locInv"))}</table>
+  <h2>7 · Configuração do arranjo</h2><table>${tr("Strings",`${val("nStr")} × ${val("mPorStr")} módulos em série`,"Strings por MPPT",c.strPorMppt)}${tr("Voc da string (25 °C)",fmt(c.vocStr,1)+" V","Voc a "+(P.tmin??8)+" °C",fmt(c.vocMax,1)+" V")}${tr("Vmp da string (25 °C)",fmt(c.vmpStr,1)+" V","Vmp a 70 °C",fmt(c.vmpHot,1)+" V")}${tr("Isc por MPPT",fmt(c.iscMppt,2)+" A","Relação CC/CA",fmt(c.ratio,2))}</table>
+  <h2>8 · Dimensionamento de condutores e proteções</h2>
+  <table><tr><th>Circuito</th><th>Condutor</th><th>Proteção</th><th>Queda de tensão</th></tr>
+  <tr><td>CC – arranjo → inversor (${val("dCC")} m)</td><td class="v">${c.cabCC} mm² Cu, cabo solar 1,8 kV CC (NBR 16612)</td><td class="v">Chave seccionadora CC ${c.chaveCC} A / ${Math.max(600,Math.ceil(c.vocMax/100)*100)} V${c.fusivel?`; fusíveis gPV ${c.fusivel} A`:""}</td><td class="v">${fmt(c.dvCC)} %</td></tr>
+  <tr><td>CA – inversor → quadro (${val("dCA")} m)</td><td class="v">${c.cabCA} mm² Cu, 750 V, ${c.condCA}</td><td class="v">Disjuntor termomagnético ${c.disjCA} A, curva C, ${P.iFases.startsWith("Trif")?"tripolar":P.iFases.startsWith("Bif")?"bipolar":"bipolar (F+N) ou unipolar"}</td><td class="v">${fmt(c.dvCA)} %</td></tr>
+  <tr><td>Entrada da UC</td><td class="v">${val("cabEnt")} mm² Cu (existente)</td><td class="v">Disjuntor geral ${val("disj")} A (existente)</td><td class="v">—</td></tr></table>
+  <p>Critérios: corrente CA de projeto 1,25 × ${fmt(c.iout,1)} A; capacidade de condução pela ABNT NBR 5410 (método B1, 2 condutores carregados); queda de tensão limitada a 2 % no circuito CA e 1,5 % no CC.</p>
+  <table><tr><th>Dispositivo de proteção contra surtos</th><th>Especificação</th></tr>
+  <tr><td>DPS CC (string box ou integrado)</td><td class="v">Classe II, Ucpv ≥ ${c.dpsCCv} V CC, In 20 kA, Imáx 40 kA, entre +/– e terra</td></tr>
+  <tr><td>DPS CA (quadro de proteção CA)</td><td class="v">Classe II, Uc 275 V CA, In 20 kA, Imáx 40 kA, em cada fase e neutro</td></tr></table>
+  <h2>9 · Funções de proteção e ajustes</h2><p>As proteções são incorporadas ao inversor, certificado pelo INMETRO, que desconecta a geração da rede nas condições abaixo (ABNT NBR 16149 e PRODIST Módulo 3):</p>${protTable()}
+  ${foot("Memorial técnico descritivo",2,tot)}</div>`);
+  pages.push(`<div class="sheet">${hdr("Memorial técnico descritivo","continuação")}
+  <h2>10 · Aterramento e equipotencialização</h2><p>As estruturas metálicas dos módulos, a carcaça do inversor e os DPS serão interligados ao barramento de equipotencialização principal (BEP) da unidade consumidora por condutor de proteção de cobre de no mínimo 6 mm² (verde/amarelo), conectado à malha de aterramento existente do padrão de entrada, conforme ABNT NBR 5410 e ABNT NBR 16690. O esquema de aterramento é TN-C-S, com o neutro aterrado no padrão de entrada.</p>
+  <h2>11 · Montagem</h2><p>Os módulos serão fixados em estrutura de alumínio sobre telhado ${val("telhado").toLowerCase()}, orientação ${val("orient").toLowerCase()} e inclinação de ${val("incl")}°. O inversor será instalado em ${val("locInv")||"local ventilado e de fácil acesso"}, com a base a 1,30 m do piso, protegido de intempéries. O padrão de entrada permanece ${P.mudaPadrao==="Sim"?"com alteração, conforme projeto anexo":"sem alteração"}, com espaço para o medidor bidirecional instalado pela distribuidora.</p>
+  <h2>12 · Sinalização</h2><p>Junto ao padrão de entrada será fixada placa de advertência em PVC ou alumínio, com os dizeres “CUIDADO – RISCO DE CHOQUE ELÉTRICO – GERAÇÃO PRÓPRIA”, conforme modelo em anexo.</p>
+  <h2>13 · Normas e referências</h2><p>NT.020.EQTL – Conexão de Micro e Minigeração Distribuída ao Sistema de Distribuição; NT da Equatorial para fornecimento em baixa tensão; REN ANEEL 1.000/2021; PRODIST Módulo 3; Lei 14.300/2022; ABNT NBR 5410, NBR 16149, NBR 16150, NBR 16274, NBR 16690 e IEC 62116.</p>
+  <h2>14 · Responsabilidade técnica</h2><table>${tr("Responsável técnico",val("rtNome"),"Título",val("rtTit"))}${tr("Registro",val("rtReg"),"ART/TRT",val("rtArt"))}${tr("Empresa",val("rtEmp"),"Contato",`${val("rtTel")} · ${val("rtEmail")}`)}</table>
+  <p style="margin-top:10px">${val("cidade")||"Goiânia"}/${val("uf")}, ${dataBR()}.</p>
+  <div class="sign" style="margin-top:50px"><div>${val("rtNome")}<br>${val("rtTit")} · ${val("rtReg")}</div><div>${val("nome")}<br>Titular da UC</div></div>
+  ${foot("Memorial técnico descritivo",3,tot)}</div>`);
+  return pages;
+}
+
+/* ---- elementos de desenho (SVG) ---- */
+const S={
+ line:(x1,y1,x2,y2,w=1.6,d="")=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#111" stroke-width="${w}" ${d?`stroke-dasharray="${d}"`:""}/>`,
+ rect:(x,y,w,h,f="none",sw=1.4,d="")=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${f}" stroke="#111" stroke-width="${sw}" ${d?`stroke-dasharray="${d}"`:""}/>`,
+ t:(x,y,s,o={})=>`<text x="${x}" y="${y}" font-size="${o.fs||10}" ${o.a?`text-anchor="${o.a}"`:""} ${o.b?'font-weight="700"':""} fill="${o.c||"#111"}" ${o.r?`transform="rotate(${o.r} ${x} ${y})"`:""}>${s}</text>`,
+ lines:(x,y,arr,o={})=>arr.map((s,i)=>S.t(x,y+i*(o.lh||12),s,o)).join(""),
+ gnd:(x,y)=>S.line(x,y,x,y+10)+S.line(x-9,y+10,x+9,y+10)+S.line(x-6,y+14,x+6,y+14)+S.line(x-3,y+18,x+3,y+18),
+ brk:(x,y,lbl)=>/* vertical breaker on wire going down */ `${S.line(x,y,x,y+12)}<circle cx="${x}" cy="${y+12}" r="2" fill="#111"/>${S.line(x,y+12,x+11,y+32)}${S.line(x,y+34,x,y+48)}<circle cx="${x}" cy="${y+34}" r="2" fill="#111"/>${S.line(x-4,y+18,x+4,y+26)}${S.line(x+4,y+18,x-4,y+26)}`,
+ hbrk:(x,y)=>/* horizontal breaker from x to x+48 */ `${S.line(x,y,x+12,y)}<circle cx="${x+12}" cy="${y}" r="2" fill="#111"/>${S.line(x+12,y,x+32,y-11)}<circle cx="${x+34}" cy="${y}" r="2" fill="#111"/>${S.line(x+34,y,x+48,y)}${S.line(x+17,y-4,x+25,y+4)}${S.line(x+25,y-4,x+17,y+4)}`,
+ hsw:(x,y)=>`${S.line(x,y,x+12,y)}<circle cx="${x+12}" cy="${y}" r="2" fill="#111"/>${S.line(x+12,y,x+32,y-11)}<circle cx="${x+34}" cy="${y}" r="2" fill="#111"/>${S.line(x+34,y,x+48,y)}`,
+ ticks:(x,y,k,vert=false)=>Array.from({length:k},(_,i)=>vert?S.line(x-5,y+i*5+3,x+5,y+i*5-3,1):S.line(x+i*5-3,y+5,x+i*5+3,y-5,1)).join(""),
+ dps:(x,y)=>/* DPS hanging below point x,y */ `${S.line(x,y,x,y+10)}${S.rect(x-9,y+10,18,26,"#fff")}${S.line(x,y+14,x,y+32,1)}<path d="M${x-3} ${y+26} L${x} ${y+32} L${x+3} ${y+26}" fill="none" stroke="#111" stroke-width="1"/>${S.line(x,y+36,x,y+44)}${S.gnd(x,y+44)}`,
+ inv:(x,y,w=70,h=70)=>`${S.rect(x,y,w,h,"#fff",1.8)}${S.line(x,y+h,x+w,y)}${S.t(x+14,y+22,"=",{fs:18,b:1})}${S.t(x+w-24,y+h-10,"~",{fs:20,b:1})}`,
+ pv:(x,y,w=46,h=30)=>`${S.rect(x,y,w,h,"#fff",1.5)}${S.line(x,y+h,x+w/2,y)}${S.line(x+w/2,y,x+w,y+h)}`,
+ meter:(x,y,r=18)=>`<circle cx="${x}" cy="${y}" r="${r}" fill="#fff" stroke="#111" stroke-width="1.6"/>${S.t(x,y+4,"kWh",{fs:9.5,a:"middle",b:1})}`,
+};
+function carimbo(x,y,w,h,title,folha){
+  const c1=w*0.42;
+  return `<g>${S.rect(x,y,w,h,"#fff",1.6)}${S.line(x+c1,y,x+c1,y+h,1)}${S.line(x,y+h*0.5,x+w,y+h*0.5,1)}${S.line(x+w*0.72,y+h*0.5,x+w*0.72,y+h,1)}
+  ${S.t(x+6,y+12,"PROJETO",{fs:7})}${S.t(x+6,y+28,esc(title),{fs:12,b:1})}${S.t(x+6,y+42,`${esc(P.nome||"")} · UC ${esc(P.uc||"")}`,{fs:8.5})}
+  ${S.t(x+c1+6,y+12,"LOCAL",{fs:7})}${S.t(x+c1+6,y+26,esc(`${P.end||""}`).slice(0,60),{fs:8.5})}${S.t(x+c1+6,y+38,esc(`${P.bairro||""} · ${P.cidade||""}/${P.uf||""}`),{fs:8.5})}
+  ${S.t(x+6,y+h*0.5+12,"RESPONSÁVEL TÉCNICO",{fs:7})}${S.t(x+6,y+h*0.5+26,esc(P.rtNome||""),{fs:9,b:1})}${S.t(x+6,y+h*0.5+38,esc(`${P.rtTit||""} · ${P.rtReg||""}`),{fs:8})}
+  ${S.t(x+c1+6,y+h*0.5+12,"EMPRESA · ART",{fs:7})}${S.t(x+c1+6,y+h*0.5+26,esc(P.rtEmp||""),{fs:9})}${S.t(x+c1+6,y+h*0.5+38,esc("ART "+(P.rtArt||"")),{fs:8})}
+  ${S.t(x+w*0.72+6,y+h*0.5+12,"ESCALA · DATA · FOLHA",{fs:7})}${S.t(x+w*0.72+6,y+h*0.5+26,"S/E · "+dataBR(),{fs:9})}${S.t(x+w*0.72+6,y+h*0.5+38,folha,{fs:9,b:1})}</g>`;
+}
+
+function docUnif(c){
+  const W=1079,H=750;
+  const yb=250; // linha principal
+  const ph=P.ligacao==="Monofásico"?2:P.ligacao==="Bifásico"?3:4;
+  const phI=P.iFases.startsWith("Trif")?4:P.iFases.startsWith("Bif")?2:2;
+  let g="";
+  g+=S.rect(4,4,W-8,H-8,"none",1.2);
+  g+=S.t(20,30,"DIAGRAMA UNIFILAR – SISTEMA FOTOVOLTAICO CONECTADO À REDE",{fs:15,b:1});
+  g+=S.t(20,46,`${c.categoria} distribuída · ${fmt(c.pinst)} kW · ${esc(P.modalidade||"")}`,{fs:10});
+  // Rede
+  g+=S.t(30,yb-62,"REDE DE DISTRIBUIÇÃO BT",{fs:9.5,b:1})+S.t(30,yb-50,"EQUATORIAL GOIÁS",{fs:9,b:1})+S.t(30,yb-38,esc(P.tensao||""),{fs:9});
+  g+=S.line(40,yb-30,40,yb+30,3);
+  g+=S.line(40,yb,110,yb)+S.ticks(70,yb,ph);
+  g+=S.t(56,yb+20,`Ramal ${esc(P.ramal||"")}`,{fs:8})+S.t(56,yb+31,`${esc(P.cabEnt||"")} mm² ${c.ndiv}`,{fs:8});
+  // medidor
+  g+=S.meter(130,yb)+S.t(130,yb-26,"MEDIDOR",{fs:8.5,a:"middle",b:1})+S.t(130,yb+32,"bidirecional",{fs:8,a:"middle"})+S.t(130,yb+43,"(distribuidora)",{fs:8,a:"middle"});
+  g+=S.line(148,yb,175,yb);
+  g+=S.hbrk(175,yb)+S.t(199,yb-20,`DG ${esc(P.disj||"")} A`,{fs:9,a:"middle",b:1})+S.t(199,yb+16,"existente",{fs:8,a:"middle"});
+  g+=S.rect(100,yb-75,140,140,"none",1,"6 4")+S.t(104,yb+78,"PADRÃO DE ENTRADA",{fs:8.5,b:1});
+  // aterramento padrão
+  g+=S.line(150,yb+50,150,yb+92,1.2)+S.gnd(150,yb+92)+S.t(160,yb+110,"Aterramento do padrão (TN-C-S)",{fs:8});
+  g+=S.line(223,yb,300,yb);
+  // barramento QDG
+  g+=S.line(300,yb-70,300,yb+165,4)+S.t(306,yb-76,"QDG",{fs:10,b:1})+S.t(306,yb-64,"Quadro de distribuição",{fs:8});
+  // cargas
+  g+=S.line(300,yb+150,340,yb+150)+S.hbrk(340,yb+150)+S.line(388,yb+150,420,yb+150)+S.rect(420,yb+134,90,32,"#fff")+S.t(465,yb+148,"CARGAS DA UC",{fs:8.5,a:"middle",b:1})+S.t(465,yb+160,`${fmt(n(P.carga))} kW instalados`,{fs:8,a:"middle"});
+  // circuito GD
+  g+=S.line(300,yb,340,yb)+S.hbrk(340,yb)+S.t(364,yb-20,`DJ ${c.disjCA} A`,{fs:9,a:"middle",b:1})+S.t(364,yb+18,"curva C",{fs:8,a:"middle"});
+  g+=S.line(388,yb,470,yb)+S.ticks(408,yb,phI);
+  g+=S.dps(450,yb)+S.t(464,yb+30,"DPS CA",{fs:8.5,b:1})+S.t(464,yb+41,"Cl. II 275 V",{fs:8})+S.t(464,yb+52,"20/40 kA",{fs:8});
+  g+=S.rect(320,yb-48,175,155,"none",1,"6 4")+S.t(324,yb+120,"QUADRO DE PROTEÇÃO CA (GD)",{fs:8.5,b:1});
+  g+=S.t(440,yb-8,`${c.cabCA} mm² ${c.condCA}`,{fs:8.5,a:"middle"});
+  g+=S.line(470,yb,530,yb);
+  // inversor
+  g+=S.inv(530,yb-35)+S.t(565,yb-46,"INVERSOR",{fs:9,a:"middle",b:1});
+  g+=S.lines(530,yb+52,[`${esc(P.iFab||"")} ${esc(P.iMod||"")}`,`${fmt(n(P.iP))} kW × ${n(P.iQ)||1} · ${esc(P.iFases||"")}`,`Iout ${fmt(c.iout,1)} A · FP ${esc(P.iFp||"1")}`,`INMETRO · NBR 16149/16150 · IEC 62116`,"Proteções internas: 27, 59, 81U/O,","78 (anti-ilhamento), 25"],{fs:8,lh:11});
+  g+=S.line(565,yb+35,565,yb+42,1)+S.line(600,yb+20,640,yb+20,1)+S.gnd(640,yb+20);
+  // lado CC
+  g+=S.line(600,yb,650,yb);
+  g+=S.hsw(650,yb)+S.t(674,yb-20,`Chave CC ${c.chaveCC} A`,{fs:8.5,a:"middle",b:1});
+  g+=S.line(698,yb,770,yb)+S.ticks(720,yb,2);
+  g+=S.dps(750,yb)+S.t(764,yb+30,"DPS CC",{fs:8.5,b:1})+S.t(764,yb+41,`Cl. II ≥${c.dpsCCv} V`,{fs:8})+(c.fusivel?S.t(764,yb+52,`Fus. gPV ${c.fusivel} A`,{fs:8}):"");
+  g+=S.rect(640,yb-48,170,155,"none",1,"6 4")+S.t(644,yb+120,"PROTEÇÃO CC (STRING BOX)",{fs:8.5,b:1});
+  g+=S.t(735,yb-14,`${c.cabCC} mm² solar`,{fs:8.5,a:"middle"});
+  g+=S.line(770,yb,830,yb);
+  // arranjo
+  const ns=Math.max(1,Math.min(4,n(P.nStr)||1));
+  const top=yb-((ns-1)*46)/2;
+  g+=S.line(830,top,830,top+(ns-1)*46);
+  for(let i=0;i<ns;i++){const y=top+i*46;g+=S.line(830,y,846,y)+S.pv(846,y-15)+S.t(898,y-3,"···",{fs:12,b:1})+S.pv(920,y-15)+S.t(972,y+4,`S${i+1}: ${esc(P.mPorStr||"")} mód.`,{fs:8.5})}
+  g+=S.t(846,top-30,"ARRANJO FOTOVOLTAICO",{fs:9,b:1});
+  g+=S.lines(846,top+(ns-1)*46+34,[`${c.qtd} × ${esc(P.mFab||"")} ${esc(P.mP||"")} Wp`,`${esc(P.nStr||"")} string(s) × ${esc(P.mPorStr||"")} módulos`,`${fmt(c.pcc)} kWp · Voc ${fmt(c.vocStr,0)} V · Isc ${fmt(n(P.mIsc),2)} A`,"Estrutura aterrada ao BEP (6 mm²)"],{fs:8,lh:11});
+  // tabela de dados
+  const tx=20,ty=480;
+  const rows=[["Potência instalada",fmt(c.pinst)+" kW"],["Potência CC / CA",`${fmt(c.pcc)} kWp / ${fmt(c.pca)} kW`],["Tensão de atendimento",esc(P.tensao||"")],["Ligação",`${esc(P.ligacao||"")} · DG ${esc(P.disj||"")} A`],["Geração estimada",fmt(c.gerMes,0)+" kWh/mês"],["Coordenadas",`${fmt(n(P.lat),5)}, ${fmt(n(P.lon),5)}`]];
+  g+=S.rect(tx,ty,330,18*rows.length+20,"#fff",1.2)+S.t(tx+6,ty+13,"DADOS TÉCNICOS",{fs:9,b:1})+S.line(tx,ty+18,tx+330,ty+18,1);
+  rows.forEach((r,i)=>{g+=S.t(tx+6,ty+32+i*18,r[0],{fs:8.5})+S.t(tx+150,ty+32+i*18,r[1],{fs:8.5,b:1})+S.line(tx,ty+38+i*18,tx+330,ty+38+i*18,.5)});
+  // ajustes de proteção
+  const px=370;const pr=[["27","V < 176 V","0,4 s"],["59","V > 242 V","0,2 s"],["81U","f < 57,5 Hz","0,2 s"],["81O","f > 62 Hz","0,2 s"],["78","Anti-ilhamento","2 s"],["Reconexão","20 a 300 s",""]];
+  g+=S.rect(px,ty,250,18*pr.length+20,"#fff",1.2)+S.t(px+6,ty+13,"AJUSTES DE PROTEÇÃO (INVERSOR)",{fs:9,b:1})+S.line(px,ty+18,px+250,ty+18,1);
+  pr.forEach((r,i)=>{g+=S.t(px+6,ty+32+i*18,r[0],{fs:8.5,b:1})+S.t(px+70,ty+32+i*18,r[1],{fs:8.5})+S.t(px+190,ty+32+i*18,r[2],{fs:8.5})});
+  // legenda
+  const lx=640;
+  g+=S.rect(lx,ty,419,128,"#fff",1.2)+S.t(lx+6,ty+13,"LEGENDA",{fs:9,b:1});
+  g+=S.hbrk(lx+8,ty+34)+S.t(lx+64,ty+37,"Disjuntor termomagnético",{fs:8.5});
+  g+=S.hsw(lx+8,ty+60)+S.t(lx+64,ty+63,"Chave seccionadora",{fs:8.5});
+  g+=S.meter(lx+30,ty+96,13)+S.t(lx+64,ty+99,"Medidor bidirecional",{fs:8.5});
+  g+=S.inv(lx+230,ty+24,26,26)+S.t(lx+264,ty+40,"Inversor CC/CA",{fs:8.5});
+  g+=S.pv(lx+226,ty+60,32,20)+S.t(lx+264,ty+74,"Módulo fotovoltaico",{fs:8.5});
+  g+=S.rect(lx+235,ty+90,14,18,"#fff")+S.t(lx+264,ty+102,"DPS · ⏚ Aterramento",{fs:8.5});
+  g+=S.t(lx+120,ty+122,"Traços inclinados = nº de condutores",{fs:8});
+  g+=carimbo(20,ty+150,W-40,96,"Diagrama unifilar","01/01");
+  return [`<div class="sheet land"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">${g}</svg></div>`];
+}
+
+function docBlocos(c){
+  const W=1079,H=750;let g=S.rect(4,4,W-8,H-8,"none",1.2);
+  g+=S.t(20,30,"DIAGRAMA DE BLOCOS – SISTEMA FOTOVOLTAICO CONECTADO À REDE",{fs:15,b:1});
+  g+=S.t(20,46,`${fmt(c.pinst)} kW · ${esc(P.nome||"")} · UC ${esc(P.uc||"")}`,{fs:10});
+  const y=200,h=120,bw=138,gap=36;
+  const blocks=[
+   ["ARRANJO FV",[`${c.qtd} módulos ${esc(P.mP||"")} Wp`,`${fmt(c.pcc)} kWp`,`${esc(P.nStr||"")} × ${esc(P.mPorStr||"")} em série`,`Voc ${fmt(c.vocStr,0)} V`]],
+   ["PROTEÇÃO CC",[`Chave seccionadora ${c.chaveCC} A`,`DPS Cl. II ≥${c.dpsCCv} V`,c.fusivel?`Fusível gPV ${c.fusivel} A`:"Sem fusível (≤2 strings/MPPT)",`Cabo ${c.cabCC} mm² solar`]],
+   ["INVERSOR",[`${esc(P.iFab||"")} ${esc(P.iMod||"")}`,`${fmt(c.pca)} kW · ${c.vOut}`,"Prot. 27/59/81/78/25","INMETRO"]],
+   ["PROTEÇÃO CA",[`Disjuntor ${c.disjCA} A curva C`,"DPS Cl. II 275 V",`Cabo ${c.cabCA} mm² ${c.condCA}`,""]],
+   ["QUADRO GERAL",[`Disjuntor geral ${esc(P.disj||"")} A`,`Cargas ${fmt(n(P.carga))} kW`,"BEP / aterramento",""]],
+   ["MEDIÇÃO",["Medidor bidirecional","(instalado pela","distribuidora)",""]],
+   ["REDE BT",["Equatorial Goiás",esc(P.tensao||""),esc(P.ligacao||""),""]]
+  ];
+  const x0=24;
+  blocks.forEach((b,i)=>{const x=x0+i*(bw+gap);
+    g+=`<rect x="${x}" y="${y}" width="${bw}" height="${h}" fill="${i===2?"#FFF4DE":i===6?"#E9EEF0":"#fff"}" stroke="#111" stroke-width="1.6" rx="3"/>`;
+    g+=S.t(x+bw/2,y+20,b[0],{fs:10.5,a:"middle",b:1})+S.line(x,y+28,x+bw,y+28,1);
+    b[1].forEach((l,j)=>g+=S.t(x+bw/2,y+46+j*16,l,{fs:8.6,a:"middle"}));
+    if(i<blocks.length-1){const ax=x+bw,ay=y+h/2;g+=S.line(ax,ay,ax+gap-6,ay,1.8)+`<path d="M${ax+gap-8} ${ay-5} L${ax+gap} ${ay} L${ax+gap-8} ${ay+5} Z" fill="#111"/>`;
+      g+=S.t(ax+gap/2,ay-8,i<2?"CC":"CA",{fs:8,a:"middle",b:1});}
+  });
+  g+=S.t(x0+2*(bw+gap)+bw/2,y+h+30,"Sentido do fluxo de potência injetada →",{fs:9,a:"middle"});
+  g+=S.line(x0+4*(bw+gap)+bw/2,y+h,x0+4*(bw+gap)+bw/2,y+h+70,1.4)+`<rect x="${x0+4*(bw+gap)+10}" y="${y+h+70}" width="${bw-20}" height="40" fill="#fff" stroke="#111" stroke-width="1.4"/>`+S.t(x0+4*(bw+gap)+bw/2,y+h+94,"CARGAS DA UC",{fs:9,a:"middle",b:1});
+  g+=S.lines(24,560,["Notas:","1. Proteções de sub/sobretensão, sub/sobrefrequência, anti-ilhamento e sincronismo incorporadas ao inversor certificado (NBR 16149/16150, IEC 62116).","2. Massas metálicas, estruturas e DPS conectados ao BEP da unidade consumidora.","3. Diagrama exigido para potência acima de 10 kW (NT.020.EQTL), incluído para referência."],{fs:9,lh:13});
+  g+=carimbo(20,H-118,W-40,96,"Diagrama de blocos","01/01");
+  return [`<div class="sheet land"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">${g}</svg></div>`];
+}
+
+function docPlanta(c){
+  const W=1079,H=750;let g=S.rect(4,4,W-8,H-8,"none",1.2);
+  g+=S.t(20,30,"PLANTA DE SITUAÇÃO E LOCALIZAÇÃO",{fs:15,b:1});
+  g+=S.t(20,46,`${esc(P.end||"")} · ${esc(P.bairro||"")} · ${esc(P.cidade||"")}/${esc(P.uf||"")} · Lat ${fmt(n(P.lat),6)} · Long ${fmt(n(P.lon),6)} (SIRGAS 2000)`,{fs:10});
+  const mx=20,my=60,mw=700,mh=540;
+  const img=plantaImg||P.planta;
+  g+=S.rect(mx,my,mw,mh,"#F4F5F2",1.4);
+  if(img){g+=`<image href="${img}" x="${mx}" y="${my}" width="${mw}" height="${mh}" preserveAspectRatio="xMidYMid slice"/>`;
+    g+=`<rect x="${mx+mw/2-60}" y="${my+mh/2-40}" width="120" height="80" fill="none" stroke="#E0A010" stroke-width="3" stroke-dasharray="8 5"/>`;
+    g+=`<rect x="${mx+mw/2-62}" y="${my+mh/2-62}" width="124" height="18" fill="#111"/>`+S.t(mx+mw/2,my+mh/2-49,"ÁREA DO GERADOR",{fs:10,a:"middle",b:1,c:"#fff"});
+  } else {
+    // croqui gerado
+    g+=`<rect x="${mx}" y="${my+mh-90}" width="${mw}" height="60" fill="#DCDCD6" stroke="none"/>`+S.t(mx+mw/2,my+mh-55,esc((P.end||"VIA PÚBLICA").split(",")[0].toUpperCase()),{fs:12,a:"middle",b:1});
+    g+=`<rect x="${mx+190}" y="${my+80}" width="320" height="360" fill="#fff" stroke="#111" stroke-width="1.4" stroke-dasharray="10 5"/>`+S.t(mx+200,my+96,"LIMITE DO LOTE",{fs:8.5});
+    g+=`<rect x="${mx+230}" y="${my+130}" width="240" height="200" fill="#EFEDE6" stroke="#111" stroke-width="1.8"/>`+S.t(mx+350,my+318,"EDIFICAÇÃO",{fs:9,a:"middle",b:1});
+    const cols=Math.min(10,Math.max(1,Math.ceil(Math.sqrt(c.qtd*2)))),rows=Math.ceil(c.qtd/cols)||1;const pw=Math.min(20,200/cols),ph=Math.min(30,120/rows);
+    for(let i=0;i<c.qtd&&i<60;i++){const r=Math.floor(i/cols),cc=i%cols;g+=`<rect x="${mx+350-cols*pw/2+cc*pw}" y="${my+150+r*ph}" width="${pw-2}" height="${ph-2}" fill="#2B4A7A" stroke="#fff" stroke-width=".8"/>`}
+    g+=S.t(mx+350,my+150+rows*ph+14,`${c.qtd} módulos · ${fmt(c.area,1)} m²`,{fs:8.5,a:"middle"});
+    g+=`<rect x="${mx+250}" y="${my+440}" width="40" height="14" fill="#111"/>`+S.t(mx+300,my+451,"PADRÃO DE ENTRADA / MEDIÇÃO",{fs:8.5,b:1});
+    g+=`<rect x="${mx+440}" y="${my+300}" width="16" height="22" fill="#E0A010" stroke="#111"/>`+S.t(mx+462,my+316,"INVERSOR",{fs:8.5,b:1});
+    g+=`<circle cx="${mx+330}" cy="${my+mh-35}" r="6" fill="#fff" stroke="#111" stroke-width="1.4"/>`+S.t(mx+340,my+mh-14,"Poste da rede BT",{fs:8});
+    g+=S.line(mx+270,my+454,mx+330,my+mh-41,1,"4 3");
+    g+=S.t(mx+10,my+20,"Croqui ilustrativo · anexe a imagem de satélite em “Beneficiárias e anexos”",{fs:9,c:"#7A4A00"});
+  }
+  // norte
+  g+=`<g transform="translate(${mx+mw-50},${my+50})"><circle r="28" fill="#fff" stroke="#111"/><path d="M0 -24 L9 10 L0 4 L-9 10 Z" fill="#111"/>${S.t(0,-30,"N",{fs:12,a:"middle",b:1})}</g>`;
+  // painel direito
+  const rx=740;
+  g+=S.rect(rx,my,319,250,"#fff",1.2)+S.t(rx+8,my+16,"LOCALIZAÇÃO",{fs:10,b:1});
+  // mini mapa esquemático com coordenadas
+  g+=`<rect x="${rx+10}" y="${my+26}" width="299" height="140" fill="#EEF0EA" stroke="#999"/>`;
+  for(let i=1;i<6;i++){g+=S.line(rx+10+i*50,my+26,rx+10+i*50,my+166,.4)+(i<3?S.line(rx+10,my+26+i*46,rx+309,my+26+i*46,.4):"")}
+  g+=`<circle cx="${rx+160}" cy="${my+96}" r="7" fill="#C0392B" stroke="#fff" stroke-width="2"/>`+S.t(rx+172,my+92,`${fmt(n(P.lat),5)}`,{fs:8.5,b:1})+S.t(rx+172,my+104,`${fmt(n(P.lon),5)}`,{fs:8.5,b:1});
+  g+=S.lines(rx+10,my+184,[`${esc(P.cidade||"")} – ${esc(P.uf||"")}`,`${esc(P.bairro||"")} · CEP ${esc(P.cep||"")}`,`Google Maps: ${fmt(n(P.lat),6).replace(",",".")}, ${fmt(n(P.lon),6).replace(",",".")}`],{fs:9,lh:14});
+  g+=S.rect(rx,my+262,319,278,"#fff",1.2)+S.t(rx+8,my+278,"QUADRO DE INFORMAÇÕES",{fs:10,b:1});
+  const info=[["UC",P.uc],["Titular",P.nome],["Potência instalada",fmt(c.pinst)+" kW"],["Módulos",`${c.qtd} × ${P.mP||""} Wp`],["Área do arranjo",fmt(c.area,1)+" m²"],["Inversor",`${P.iFab||""} ${P.iMod||""}`],["Telhado",`${P.telhado||""} · ${P.orient||""} · ${P.incl||""}°`],["Local do inversor",P.locInv],["Padrão",`${P.padrao||""} · ${P.ramal||""}`]];
+  info.forEach((r,i)=>{g+=S.t(rx+8,my+300+i*25,esc(r[0]),{fs:8})+S.t(rx+8,my+312+i*25,esc(String(r[1]??"").slice(0,52)),{fs:9,b:1})});
+  g+=carimbo(20,H-118,W-40,96,"Planta de situação e localização","01/01");
+  return [`<div class="sheet land"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">${g}</svg></div>`];
+}
+
+function docPlaca(){
+  return [`<div class="sheet">${hdr("Placa de advertência","Sinalização do padrão de entrada · Micro e minigeração distribuída")}
+  <p>Fixar junto à caixa de medição, em local visível, de forma permanente. Material: PVC ou alumínio, espessura mínima 1 mm, resistente a intempéries. Dimensões de referência: 25 × 18 cm (confirme na revisão vigente da NT.020.EQTL).</p>
+  <div style="display:flex;justify-content:center;margin:24px 0">
+  <svg viewBox="0 0 500 360" width="500" height="360" xmlns="http://www.w3.org/2000/svg">
+   <rect x="2" y="2" width="496" height="356" rx="10" fill="#FFD200" stroke="#111" stroke-width="4"/>
+   <rect x="16" y="16" width="468" height="328" rx="6" fill="none" stroke="#111" stroke-width="2"/>
+   <path d="M250 40 L320 160 L180 160 Z" fill="#111"/><path d="M250 62 L302 150 L198 150 Z" fill="#FFD200"/>
+   <path d="M256 78 L234 120 L250 120 L240 146 L268 104 L252 104 L262 78 Z" fill="#111"/>
+   <text x="250" y="210" text-anchor="middle" font-size="44" font-weight="700" font-family="Arial,sans-serif" fill="#111">CUIDADO</text>
+   <text x="250" y="254" text-anchor="middle" font-size="27" font-weight="700" font-family="Arial,sans-serif" fill="#111">RISCO DE CHOQUE ELÉTRICO</text>
+   <rect x="40" y="276" width="420" height="50" fill="#111"/>
+   <text x="250" y="311" text-anchor="middle" font-size="28" font-weight="700" font-family="Arial,sans-serif" fill="#FFD200">GERAÇÃO PRÓPRIA</text>
+  </svg></div>
+  <table>${tr("Unidade consumidora",val("uc"),"Potência instalada",fmt(calc().pinst)+" kW")}${tr("Endereço",`${val("end")} – ${val("bairro")} – ${val("cidade")}/${val("uf")}`)}</table>
+  ${foot("Placa de advertência",1,1)}</div>`];
+}
+
+function docBenef(c){
+  const rows=c.benef;
+  return [`<div class="sheet">${hdr("Lista de unidades consumidoras beneficiárias","Rateio dos créditos · "+val("modalidade"))}
+  <table>${tr("UC geradora",val("uc"),"Titular",val("nome"))}${tr("Potência instalada",fmt(c.pinst)+" kW","Geração estimada",fmt(c.gerMes,0)+" kWh/mês")}</table>
+  <table><tr><th>#</th><th>Nº da UC</th><th>Titular</th><th>Endereço</th><th>% dos créditos</th><th>kWh/mês est.</th></tr>
+  ${rows.length?rows.map((r,i)=>`<tr><td>${i+1}</td><td class="v">${esc(r[0])}</td><td class="v">${esc(r[1]||"")}</td><td class="v">${esc(r[2]||"")}</td><td class="v">${esc(r[3]||"")}</td><td class="v">${fmt(c.gerMes*n(r[3])/100,0)}</td></tr>`).join(""):`<tr><td colspan="6">Nenhuma beneficiária informada.</td></tr>`}
+  <tr><th colspan="4">Total</th><td class="v">${fmt(rows.reduce((a,r)=>a+n(r[3]),0),1)} %</td><td></td></tr></table>
+  <p>As unidades listadas pertencem ao mesmo titular ou integram consórcio, cooperativa, condomínio ou associação, conforme a modalidade declarada (Lei 14.300/2022).</p>
+  <div class="sign" style="margin-top:40px"><div>${val("nome")}<br>Titular da UC geradora</div></div>
+  ${foot("Lista de beneficiárias",1,1)}</div>`];
+}
+
+function docCheck(c){
+  const items=[
+   ["Formulário de solicitação de orçamento de conexão (Anexo "+c.anexo+") em Excel, assinado",1,"Gerado"],
+   ["ART/TRT de projeto e execução, assinada pelo RT e pelo contratante, com registro ativo",1,"RT"],
+   ["Memorial técnico descritivo",1,"Gerado"],["Diagrama unifilar (PDF; CAD quando solicitado)",1,"Gerado"],
+   ["Diagrama de blocos",c.anexo==="II","Gerado"],["Planta de situação georreferenciada e layout do arranjo",c.anexo==="II","Gerado"],
+   ["Datasheets do módulo e do inversor",1,"Fabricante"],["Certificado / registro INMETRO do inversor (NBR 16149, 16150, IEC 62116)",1,"Fabricante"],
+   ["Certificado / registro INMETRO dos módulos",1,"Fabricante"],["Fotos do padrão de entrada (caixa de medição) e do local do inversor",1,"Campo"],
+   ["Documento de identificação do titular (RG/CNH ou CNPJ e contrato social)",1,"Cliente"],["Procuração do titular para o responsável pelo protocolo",1,"Cliente"],
+   ["Lista de UCs beneficiárias com percentuais",P.modalidade!=="Autoconsumo local","Gerado"],
+   ["Instrumento jurídico de solidariedade (consórcio, cooperativa, condomínio)",P.modalidade.includes("compartilhada")||P.modalidade.includes("EMUC"),"Cliente"],
+   ["Contrato de aluguel/arrendamento do telhado ou do terreno",P.arrend==="Sim","Cliente"],
+   ["Formulário de troca de padrão / aumento de carga",P.mudaPadrao==="Sim"||P.tipoSolic.includes("com aumento")||P.tipoSolic.includes("nova"),"Gerar no portal"],
+   ["Placa de advertência instalada (verificada na vistoria)",1,"Gerado"]
+  ].filter(i=>i[1]);
+  return [`<div class="sheet">${hdr("Checklist de protocolo","Equatorial Goiás · Portal de Geração Distribuída / Agência Virtual")}
+  <table><tr><th style="width:26px">#</th><th>Documento</th><th style="width:90px">Origem</th><th style="width:50px">OK</th></tr>
+  ${items.map((it,i)=>`<tr><td>${i+1}</td><td>${it[0]}</td><td>${it[2]}</td><td style="text-align:center">${it[2]==="Gerado"?"<span class='x'>[X]</span>":"<span class='x'>[&nbsp;]</span>"}</td></tr>`).join("")}</table>
+  <h2>Prazos de referência (REN ANEEL 1.000/2021)</h2>
+  <table><tr><th>Etapa</th><th>Prazo</th></tr><tr><td>Emissão do orçamento de conexão – microgeração sem obras</td><td class="v">15 dias</td></tr><tr><td>Emissão do orçamento – com obras na rede</td><td class="v">30 dias</td></tr><tr><td>Solicitação de vistoria após o orçamento</td><td class="v">até 120 dias</td></tr><tr><td>Realização da vistoria</td><td class="v">7 dias</td></tr><tr><td>Aprovação do ponto de conexão / troca do medidor</td><td class="v">7 dias após vistoria aprovada</td></tr></table>
+  <h2>Resumo técnico</h2><table>${tr("Potência instalada",fmt(c.pinst)+" kW ("+c.categoria+")","Formulário","Anexo "+c.anexo)}${tr("Gerador",`${c.qtd} × ${val("mP")} Wp = ${fmt(c.pcc)} kWp`,"Inversor",`${val("iFab")} ${val("iMod")}`)}${tr("Geração estimada",fmt(c.gerMes,0)+" kWh/mês","Cobertura do consumo",fmt(c.cobertura,0)+" %")}</table>
+  ${foot("Checklist de protocolo",1,1)}</div>`];
+}
+const BUILD={form:docForm,memo:docMemo,unif:docUnif,blocos:docBlocos,planta:docPlanta,placa:docPlaca,benef:docBenef,check:docCheck};
+
+/* ---------------- renderização ---------------- */
+function render(){
+  const c=calc();
+  $("#kpis").innerHTML=[["Potência instalada",fmt(c.pinst)+" kW"],["Gerador CC",fmt(c.pcc)+" kWp"],["Geração estimada",fmt(c.gerMes,0)+" kWh/mês"],["Formulário","Anexo "+c.anexo]].map(([a,b])=>`<div class="kpi"><small>${a}</small><strong>${b}</strong></div>`).join("");
+  $("#checks").innerHTML=checks(c).map(([s,t])=>`<div class="chk ${s}"><b>${s==="ok"?"✓":s==="warn"?"!":"✕"}</b><span>${t}</span></div>`).join("")+(P._exemplo?`<div class="chk warn"><b>!</b><span><span class="tag-ex">Exemplo</span> Dados fictícios de demonstração. Abra “Projetos → Novo projeto em branco” para começar o seu.</span></div>`:"");
+  const docs=activeDocs(); if(!docs.find(d=>d.id===currentDoc))currentDoc="form";
+  $("#tabs").innerHTML=docs.map(d=>`<button class="tab" role="tab" type="button" aria-selected="${d.id===currentDoc}" data-d="${d.id}"><span class="dot"></span>${d.short}</button>`).join("");
+  const d=DOCS.find(x=>x.id===currentDoc);
+  $("#docTitle").textContent=d.t;
+  $("#docBtns").innerHTML=`<button class="btn" type="button" data-pdf="${d.id}">Baixar PDF</button>${d.id==="form"?' <button class="btn" type="button" id="bXlsx">Baixar Excel</button>':""}${["unif","blocos","planta","placa"].includes(d.id)?` <button class="btn" type="button" data-svg="${d.id}">SVG</button>`:""}`;
+  const pages=BUILD[d.id](c);
+  const desk=$("#desk");
+  const avail=desk.clientWidth-28;
+  desk.innerHTML=pages.map(p=>`<div class="pagebox">${p}</div>`).join("");
+  desk.querySelectorAll(".pagebox").forEach(b=>{const sh=b.firstElementChild;const w=sh.classList.contains("land")?1123:794,h=sh.classList.contains("land")?794:1123;const s=Math.min(1,avail/w);b.style.width=w*s+"px";b.style.height=h*s+"px";sh.style.transform=`scale(${s})`;sh.style.transformOrigin="0 0"});
+}
+$("#tabs").addEventListener("click",e=>{const b=e.target.closest("[data-d]");if(b){currentDoc=b.dataset.d;render()}});
+window.addEventListener("resize",()=>{clearTimeout(rT);rT=setTimeout(render,150)});
+
+/* ---------------- exportação ---------------- */
+let downloads=null;
+async function saveFile(filename,data){
+  try{
+    const blob=data instanceof Blob?data:new Blob([data],{type:filename.endsWith(".svg")?"image/svg+xml":"application/octet-stream"});
+    if(navigator.canShare&&/Android|iPhone|iPad/i.test(navigator.userAgent)){const f=new File([blob],filename,{type:blob.type||"application/octet-stream"});if(navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:filename});toast("Arquivo pronto: "+filename);return true}catch(e){if(e&&e.name==="AbortError"){toast("Compartilhamento cancelado.");return false}}}}
+    const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
+    toast("Arquivo salvo: "+filename);return true;
+  }catch(e){toast("Não foi possível salvar ("+e.message+").");return false}
+}
+async function docPdfBlob(id,c){
+  const {jsPDF}=window.jspdf;
+  const holder=document.createElement("div");holder.style.cssText="position:fixed;left:-20000px;top:0;";document.body.appendChild(holder);
+  let pdf=null;
+  try{
+    const pages=BUILD[id](c);
+    for(const html of pages){
+      holder.innerHTML=html;const sh=holder.firstElementChild;const land=sh.classList.contains("land");
+      const canvas=await html2canvas(sh,{scale:2,backgroundColor:"#ffffff",useCORS:true,logging:false});
+      const img=canvas.toDataURL("image/jpeg",0.92);
+      if(!pdf)pdf=new jsPDF({orientation:land?"landscape":"portrait",unit:"mm",format:"a4"});else pdf.addPage("a4",land?"landscape":"portrait");
+      pdf.addImage(img,"JPEG",0,0,land?297:210,land?210:297);
+    }
+  }finally{holder.remove()}
+  return pdf.output("blob");
+}
+function svgOf(id,c){const html=BUILD[id](c)[0];const m=html.match(/<svg[\s\S]*<\/svg>/);return m?m[0]:""}
+function xlsxBlob(c){
+  const rows=[
+   ["FORMULÁRIO DE SOLICITAÇÃO DE ORÇAMENTO DE CONEXÃO – MICRO E MINIGERAÇÃO DISTRIBUÍDA"],["Equatorial Goiás · NT.020.EQTL · Anexo "+c.anexo],[],
+   ["1. IDENTIFICAÇÃO DA UNIDADE CONSUMIDORA"],["Titular",P.nome],["CPF/CNPJ",P.doc],["Nº da UC",P.uc],["Classe",P.classe],["Endereço",P.end],["Bairro",P.bairro],["Município/UF",`${P.cidade}/${P.uf}`],["CEP",P.cep],["Telefone",P.tel],["E-mail",P.email],["Latitude",n(P.lat)],["Longitude",n(P.lon)],[],
+   ["2. DADOS DA UNIDADE CONSUMIDORA"],["Carga instalada (kW)",n(P.carga)],["Tensão de atendimento",P.tensao],["Tipo de conexão",P.ligacao],["Disjuntor de entrada (A)",n(P.disj)],["Ramal",P.ramal],["Tipo de solicitação",P.tipoSolic],["Modalidade",P.modalidade],[],
+   ["3. DADOS DA GERAÇÃO"],["Potência instalada (kW)",+c.pinst.toFixed(2)],["Fonte","Solar fotovoltaica"],["Categoria",c.categoria],[],
+   ["4. UNIDADES GERADORAS – SOLAR FOTOVOLTAICA"],["Item","Potência do módulo (W)","Quantidade","Potência de pico (kWp)","Área do arranjo (m²)","Fabricante","Modelo"],
+   [1,n(P.mP),c.qtd,+c.pcc.toFixed(2),+c.area.toFixed(2),P.mFab,P.mMod],["TOTAL","",c.qtd,+c.pcc.toFixed(2),+c.area.toFixed(2)],[],
+   ["5. DADOS DOS INVERSORES"],["Item","Fabricante","Modelo","Potência nominal (kW)","Faixa de tensão de operação (V)","Corrente nominal (A)","Fator de potência","Rendimento (%)","DHT de corrente (%)"],
+   [1,P.iFab,P.iMod+" (x"+(n(P.iQ)||1)+")",+c.pca.toFixed(2),`${P.iMin}-${P.iMax}`,+c.iout.toFixed(1),n(P.iFp),n(P.iEff),n(P.iDht)],[],
+   ["6. RESPONSÁVEL TÉCNICO"],["Nome",P.rtNome],["Título",P.rtTit],["Registro",P.rtReg],["ART/TRT",P.rtArt],["Telefone",P.rtTel],["E-mail",P.rtEmail]
+  ];
+  const wb=XLSX.utils.book_new();const ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=[{wch:34},{wch:26},{wch:14},{wch:20},{wch:22},{wch:18},{wch:18},{wch:14},{wch:16}];
+  XLSX.utils.book_append_sheet(wb,ws,"Solicitação");
+  if(c.benef.length){const w2=XLSX.utils.aoa_to_sheet([["Nº da UC","Titular","Endereço","% dos créditos"],...c.benef.map(r=>[r[0],r[1]||"",r[2]||"",n(r[3])])]);XLSX.utils.book_append_sheet(wb,w2,"Beneficiárias")}
+  const out=XLSX.write(wb,{bookType:"xlsx",type:"array"});return new Blob([out],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+}
+const NAMES={form:"01_Formulario_Solicitacao",memo:"02_Memorial_Descritivo",unif:"03_Diagrama_Unifilar",blocos:"04_Diagrama_de_Blocos",planta:"05_Planta_Situacao",placa:"06_Placa_Advertencia",benef:"07_Lista_Beneficiarias",check:"00_Checklist_Protocolo"};
+document.addEventListener("click",async e=>{
+  const b=e.target.closest("[data-pdf],[data-svg],#bXlsx");if(!b)return;
+  const c=calc();b.disabled=true;
+  try{
+    if(b.dataset.pdf){toast("Gerando PDF…");await saveFile(`${NAMES[b.dataset.pdf]}_${slug()}.pdf`,await docPdfBlob(b.dataset.pdf,c))}
+    else if(b.dataset.svg){await saveFile(`${NAMES[b.dataset.svg]}_${slug()}.svg`,svgOf(b.dataset.svg,c))}
+    else await saveFile(`${NAMES.form}_${slug()}.xlsx`,xlsxBlob(c));
+  }catch(err){toast("Erro ao gerar: "+err.message)}finally{b.disabled=false}
+});
+$("#bAll").addEventListener("click",async()=>{
+  const b=$("#bAll");b.disabled=true;const c=calc();
+  try{
+    const zip=new JSZip();const folder=zip.folder(`Homologacao_${slug()}`);
+    for(const d of activeDocs()){b.textContent=`Gerando ${d.short}…`;folder.file(`${NAMES[d.id]}.pdf`,await docPdfBlob(d.id,c));
+      if(["unif","blocos","planta"].includes(d.id))folder.file(`${NAMES[d.id]}.svg`,svgOf(d.id,c))}
+    folder.file(`${NAMES.form}.xlsx`,xlsxBlob(c));
+    folder.file(`projeto_${slug()}.json`,JSON.stringify({...P,planta:""},null,2));
+    b.textContent="Compactando…";const blob=await zip.generateAsync({type:"blob"});
+    const ok=await saveFile(`Homologacao_EquatorialGO_${slug()}.zip`,blob);
+    if(ok)toast(`${activeDocs().length} documentos gerados em um pacote .zip`);
+  }catch(err){toast("Erro ao gerar: "+err.message)}finally{b.disabled=false;b.textContent="Gerar todos os documentos"}
+});
+
+/* ---------------- projetos ---------------- */
+function projects(){return load("hgo_projects")||{}}
+$("#bSave").addEventListener("click",()=>{const all=projects();const id=P._id||("p"+Date.now());P._id=id;P._saved=new Date().toISOString();all[id]={...P,planta:P.planta&&P.planta.length<400000?P.planta:""};const ok=store("hgo_projects",all)&&store("hgo_current",P);toast(ok?"Projeto salvo neste navegador":"Não foi possível salvar neste navegador")});
+function openDrawer(){const all=projects();const ids=Object.keys(all).sort((a,b)=>(all[b]._saved||"").localeCompare(all[a]._saved||""));
+  $("#plist").innerHTML=ids.length?ids.map(id=>`<div class="pitem"><div><b>${esc(all[id].nome||"Sem titular")}</b><small>UC ${esc(all[id].uc||"—")} · ${all[id]._saved?new Date(all[id]._saved).toLocaleString("pt-BR"):""}</small></div><button class="btn" type="button" data-open="${id}">Abrir</button><button class="btn" type="button" data-del="${id}" aria-label="Excluir">Excluir</button></div>`).join(""):`<p class="note">Nenhum projeto salvo ainda.</p>`;
+  $("#drawer").hidden=false}
+$("#bProjects").addEventListener("click",openDrawer);
+$("#bClose").addEventListener("click",()=>$("#drawer").hidden=true);
+$("#drawer").addEventListener("click",e=>{
+  if(e.target.id==="drawer"){$("#drawer").hidden=true;return}
+  const o=e.target.closest("[data-open]"),d=e.target.closest("[data-del]");
+  if(o){P={...projects()[o.dataset.open]};plantaImg=P.planta||null;afterLoad()}
+  if(d){const b=d;if(b.dataset.armed){const all=projects();delete all[b.dataset.del];store("hgo_projects",all);openDrawer()}else{b.dataset.armed="1";b.textContent="Confirmar"}}
+});
+function afterLoad(){store("hgo_current",P);buildFormFresh();render();$("#drawer").hidden=true}
+function buildFormFresh(){const f=$("#form");const nf=f.cloneNode(false);f.replaceWith(nf);buildForm()}
+$("#bNew").addEventListener("click",()=>{P={...BLANK};plantaImg=null;afterLoad();toast("Novo projeto em branco")});
+$("#bExample").addEventListener("click",()=>{P={...EXAMPLE};plantaImg=null;afterLoad()});
+$("#bImport").addEventListener("click",()=>$("#fImport").click());
+$("#fImport").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{P=JSON.parse(r.result);delete P._id;plantaImg=P.planta||null;afterLoad();toast("Projeto importado")}catch(err){toast("Arquivo .json inválido")}};r.readAsText(f)});
+
+/* ---------------- equipamentos estimados pela potência ---------------- */
+function estModulo(W){
+  let voc,vmp,C,L,beta;
+  if(W<=470){voc=41.6;vmp=34.6;C=W<=420?1.722:1.903;L=1.134;beta=-0.28}
+  else if(W<=565){voc=49.7;vmp=41.8;C=2.278;L=1.134;beta=-0.275}
+  else if(W<=640){voc=52.2;vmp=43.9;C=2.382;L=1.134;beta=-0.25}
+  else{voc=46.2;vmp=38.6;C=2.384;L=1.303;beta=-0.25}
+  const imp=W/vmp,isc=imp*1.065;
+  return {mVoc:voc,mVmp:vmp,mImp:+imp.toFixed(2),mIsc:+isc.toFixed(2),mC:C,mL:L,mBeta:beta,mEff:+(W/(C*L*10)).toFixed(1)};
+}
+function estInversor(kW,ligacao){
+  const tri=ligacao==="Trifásico"&&kW>=5 || kW>10;
+  if(tri){const nm=kW<=12?2:kW<=25?3:kW<=50?4:6;
+    return {iFases:"Trifásico 380/220 V",iVmax:1100,iMin:180,iMax:1000,iNmppt:nm,iImax:32,iIsc:40,iIout:+(kW*1000/(Math.sqrt(3)*380)).toFixed(1),iEff:98.4,iDht:3,iFp:1}}
+  return {iFases:"Monofásico 220 V",iVmax:600,iMin:80,iMax:550,iNmppt:kW<=3.6?1:kW<=6?2:3,iImax:16,iIsc:20,iIout:+(kW*1000/220).toFixed(1),iEff:97.6,iDht:3,iFp:1};
+}
+function autoStrings(){
+  const q=n(P.mQ),voc=n(P.mVoc),vmp=n(P.mVmp),beta=n(P.mBeta)/100||-0.0028,tmin=n(P.tmin)||8;
+  if(!q||!voc)return;
+  const maxS=Math.max(1,Math.floor(n(P.iVmax)/(voc*(1+beta*(tmin-25)))));
+  const minS=Math.max(1,Math.ceil(n(P.iMin)/(vmp*(1+beta*45))));
+  const mppts=Math.max(1,n(P.iNmppt))*Math.max(1,n(P.iQ));
+  let best=null;
+  for(let ns=Math.ceil(q/maxS);ns<=q;ns++){if(q%ns)continue;const per=q/ns;if(per<minS)break;
+    const iscOk=Math.ceil(ns/mppts)*n(P.mIsc)<=n(P.iIsc);best={ns,per};if(iscOk)break}
+  if(!best){const ns=Math.ceil(q/maxS);best={ns,per:Math.ceil(q/ns)}}
+  P.nStr=best.ns;P.mPorStr=best.per;
+}
+
+/* ---------------- documentos → imagens ---------------- */
+let sample=null,imgLimits=null,qFiles=[];
+function scaleToBlob(src,w,h,max=1800){
+  const s=Math.min(1,max/Math.max(w,h));const cv=document.createElement("canvas");cv.width=Math.round(w*s);cv.height=Math.round(h*s);
+  cv.getContext("2d").drawImage(src,0,0,cv.width,cv.height);return new Promise(r=>cv.toBlob(r,"image/jpeg",0.85));
+}
+async function fileToImages(f){
+  if(f.type==="application/pdf"||/\.pdf$/i.test(f.name)){
+    if(!window.pdfjsLib)throw new Error("leitor de PDF indisponível");
+    const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await f.arrayBuffer())}).promise;const out=[];
+    for(let i=1;i<=Math.min(pdf.numPages,2);i++){const pg=await pdf.getPage(i);const vp=pg.getViewport({scale:2});
+      const cv=document.createElement("canvas");cv.width=vp.width;cv.height=vp.height;await pg.render({canvasContext:cv.getContext("2d"),viewport:vp}).promise;
+      out.push(await scaleToBlob(cv,cv.width,cv.height))}
+    return out;
+  }
+  const url=URL.createObjectURL(f);
+  try{const im=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url});return [await scaleToBlob(im,im.naturalWidth,im.naturalHeight)]}
+  finally{URL.revokeObjectURL(url)}
+}
+function renderChips(){$("#qChips").innerHTML=qFiles.map((f,i)=>`<span class="chip"><span>${esc(f.name)}</span><button type="button" data-rm="${i}" aria-label="Remover ${esc(f.name)}">×</button></span>`).join("")}
+function addFiles(list){for(const f of list){if(f.type.startsWith("image/")||f.type==="application/pdf"||/\.pdf$/i.test(f.name))qFiles.push(f)}renderChips()}
+$("#qFiles").addEventListener("change",e=>{addFiles(e.target.files);e.target.value=""});
+$("#qChips").addEventListener("click",e=>{const b=e.target.closest("[data-rm]");if(b){qFiles.splice(+b.dataset.rm,1);renderChips()}});
+const drop=$("#drop");
+["dragenter","dragover"].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add("over")}));
+["dragleave","drop"].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove("over")}));
+drop.addEventListener("drop",e=>addFiles(e.dataTransfer.files));
+
+const DOC_KEYS={nome:"nome completo do titular da UC",doc:"CPF ou CNPJ do titular",rg:"RG com órgão emissor/UF",uc:"número da unidade consumidora / conta contrato",
+  classe:"classe [Residencial | Comercial | Industrial | Rural | Poder público]",tel:"telefone",email:"e-mail",end:"logradouro e número da instalação (endereço da UC, não o de correspondência)",
+  bairro:"bairro/setor da instalação",cidade:"município da instalação",cep:"CEP da instalação",uf:"UF",
+  ligacao:"tipo de fornecimento [Monofásico | Bifásico | Trifásico]",consumo:"histórico de consumo em kWh dos últimos 12 meses, do mais antigo ao mais recente, separado por vírgulas",
+  lat:"latitude aproximada do endereço em graus decimais (estimativa pelo endereço, se não constar)",lon:"longitude aproximada do endereço em graus decimais"};
+
+$("#qGo").addEventListener("click",async()=>{
+  const msg=t=>$("#qMsg").textContent=t;
+  const iP=n($("#q_iP").value),iQ=n($("#q_iQ").value)||1,mP=n($("#q_mP").value),mQ=n($("#q_mQ").value);
+  if(!iP||!mP||!mQ){msg("Informe a potência do inversor, a potência e a quantidade de módulos.");return}
+  const btn=$("#qGo");btn.disabled=true;
+  try{
+    const rt=load("hgo_rt")||{};
+    const Q={...BLANK,...rt,projeto:"Novo projeto",dataDoc:new Date().toISOString().slice(0,10)};
+    let found=0,aiNote="";
+    if(qFiles.length&&sample){
+      msg("Preparando documentos…");
+      const imgs=[];for(const f of qFiles){try{imgs.push(...await fileToImages(f))}catch(e){aiNote=`Não consegui abrir ${f.name}. `}}
+      const max=imgLimits?.maxCount||5;
+      const prompt=`As imagens são documentos de um cliente de energia solar em Goiás: documento de identidade (RG/CNH), CPF ou cartão CNPJ e a conta de energia da Equatorial Goiás.
+Devolva SOMENTE um objeto JSON com estas chaves, preenchendo apenas o que estiver legível (omita o que não encontrar):
+${Object.entries(DOC_KEYS).map(([k,d])=>`- ${k}: ${d}`).join("\n")}
+Regras: o titular da UC é o nome que consta na conta de energia; números (lat, lon) como número com ponto decimal; nos campos com opções use exatamente uma das opções; não invente dados que não estejam nos documentos, exceto lat/lon aproximados pelo endereço.`;
+      const out={};
+      for(let i=0;i<imgs.length;i+=max){
+        msg(`Lendo documentos${imgs.length>max?` (${i/max+1}/${Math.ceil(imgs.length/max)})`:""}…`);
+        const r=await sample.json(prompt,{images:imgs.slice(i,i+max),modelTier:"default"});
+        for(const [k,v] of Object.entries(r||{})){if(k in DOC_KEYS&&v!==null&&v!==""&&out[k]==null)out[k]=v}
+      }
+      for(const [k,v] of Object.entries(out)){Q[k]=String(v);found++}
+      if(out.lat!=null)Q._coordAprox=true;
+      if(Q.ligacao==="Trifásico"){Q.tensao="380/220 V";Q.disj=Q.disj||63}else if(Q.ligacao==="Bifásico"){Q.tensao="380/220 V";Q.disj=Q.disj||50}else{Q.tensao="220 V (F-N)";Q.disj=Q.disj||50}
+      Q._disjPadrao=true;
+    } else if(qFiles.length&&!sample){aiNote="A leitura automática não está disponível nesta visualização; complete os dados do cliente abaixo. "}
+    else {Q.disj=50;Q._disjPadrao=true}
+    Object.assign(Q,{iP,iQ,mP,mQ},estModulo(mP),estInversor(iP,Q.ligacao));
+    ["iFab","iMod","mFab","mMod"].forEach(k=>{const v=$("#q_"+k).value.trim();Q[k]=v});
+    Q._equipEst=true;
+    P=Q;autoStrings();plantaImg=null;
+    store("hgo_current",P);buildFormFresh();currentDoc="form";render();
+    const miss=["nome","doc","uc","end","cidade"].filter(k=>!P[k]);
+    msg(`${aiNote}${found?found+" campos lidos dos documentos. ":""}${miss.length?"Faltam: "+miss.map(k=>SECTIONS.flatMap(s=>s.f).find(f=>f[0]===k)[1]).join(", ")+". ":""}Confira os alertas e os documentos ao lado.`);
+  }catch(e){msg(e&&e.code==="not_granted"?"Permissão negada para o Claude ler os documentos.":e&&e.code==="rate_limited"?"Muitas leituras seguidas; tente de novo em instantes.":"Não foi possível ler os documentos ("+(e&&(e.code||e.message)||"erro")+").")}
+  finally{btn.disabled=false}
+});
+
+/* ---------------- RT lembrado entre projetos ---------------- */
+const RT_KEYS=["rtNome","rtTit","rtReg","rtTel","rtEmail","rtEmp"];
+document.addEventListener("input",e=>{const k=e.target.dataset&&e.target.dataset.k;if(k&&RT_KEYS.includes(k)){const rt={};RT_KEYS.forEach(x=>rt[x]=P[x]??"");rt[k]=e.target.value;store("hgo_rt",rt)}});
+
+function blobToB64(b){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]);r.onerror=rej;r.readAsDataURL(b)})}
+async function initAI(){
+  if(window.pdfjsLib&&window.pdfjsWorker)pdfjsLib.GlobalWorkerOptions.workerSrc="";
+  try{$("#q_code").value=localStorage.getItem("hgo_code")||""}catch(e){}
+  $("#q_code").addEventListener("change",e=>{try{localStorage.setItem("hgo_code",e.target.value.trim())}catch(err){}});
+  imgLimits={maxCount:5};
+  sample={json:async(_prompt,{images})=>{
+    if(!navigator.onLine)throw new Error("sem internet; a leitura automática precisa de conexão");
+    const body={images:await Promise.all(images.map(blobToB64))};
+    const r=await fetch("api/ler-documentos",{method:"POST",headers:{"content-type":"application/json","x-app-code":$("#q_code").value.trim()},body:JSON.stringify(body)});
+    const j=await r.json().catch(()=>({}));
+    if(r.status===401)throw new Error("código de acesso inválido; confira em “Código de acesso”");
+    if(!r.ok)throw new Error(j.error||("erro "+r.status));
+    return j.dados||{};
+  }};
+}
+if("serviceWorker" in navigator&&location.protocol!=="file:")window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+
+/* ---------------- início ---------------- */
+plantaImg=P.planta||null;
+buildForm();render();initAI();
+</script>
+</body>
+</html>

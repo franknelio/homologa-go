@@ -1,0 +1,10 @@
+{
+  "name": "homologa-go",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Gera os documentos de homologação de micro e minigeração fotovoltaica para a Equatorial Goiás.",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.0.0"
+  }
+}
