@@ -95,6 +95,7 @@ details.sec[open]>summary .chev{transform:rotate(90deg)}
 .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px;padding:2px 12px 12px}
 .fields .full{grid-column:1/-1}
 .qloc{margin-top:8px}.qds{display:grid;grid-template-columns:auto 1fr;gap:6px 8px;align-items:center;margin:8px 0;font-size:12px;color:var(--muted)}.qds .btn{font-size:12.5px;padding:5px 10px}
+.inmop{display:flex;flex-wrap:wrap;gap:4px;width:100%}.inmop .btn{font-size:11px;padding:3px 8px;font-weight:500}
 .inm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;font-size:12px;color:var(--muted)}.inm .btn{padding:4px 10px;font-size:12px}
 .f label{display:block;font-size:12px;color:var(--muted);margin-bottom:2px;letter-spacing:.2px}
 .f input,.f select,.f textarea{width:100%;border:1px solid var(--line);border-radius:5px;background:var(--bg);padding:6px 8px;font-size:14px;min-width:0}
@@ -1276,19 +1277,21 @@ async function buscarInmetro(t){
   const b=document.querySelector(`[data-inm="${t}"]`);if(b)b.disabled=true;
   st("Consultando o INMETRO, pode levar até 1 minuto…");
   try{
-    const r=await fetch(`api/inmetro?fab=${encodeURIComponent(fab)}&modelo=${encodeURIComponent(mod)}`,{headers:{authorization:"Bearer "+sessao.access_token}});
+    const r=await fetch(`api/inmetro?fab=${encodeURIComponent(fab)}&modelo=${encodeURIComponent(mod)}&pot=${n(P[t+"P"])||""}`,{headers:{authorization:"Bearer "+sessao.access_token}});
     const j=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(j.error||"erro "+r.status);
     const a=j.encontrado;
-    if(!a){st(`Não achei o modelo ${mod} entre ${j.total} registros da marca ${fab}. Confira o modelo ou consulte registro.inmetro.gov.br.`);toast(`Registro INMETRO do ${nome} não encontrado`);return}
+    const opc=(lista)=>{const e=$("#inm_"+t);if(!e||!lista.length)return;e.insertAdjacentHTML("beforeend",`<span class="inmop">${lista.map(o=>`<button type="button" class="btn" data-inmreg="${t}|${esc(o.registro)}">${esc(o.modelo)} · ${esc(o.registro)} · ${esc(o.situacao||"")}</button>`).join("")}</span>`)};
+    if(!a){st(`Não achei o modelo ${mod}${n(P[t+"P"])&&t==="m"?` de ${P.mP} W`:""} entre ${j.total} registros da marca ${fab}.${j.opcoes.length?" Parecidos (toque para usar):":" Confira o modelo ou consulte registro.inmetro.gov.br."}`);opc(j.opcoes.slice(0,6));const sec=document.querySelector(`details[data-s="${t==="m"?"mod":"inv"}"]`);if(sec)sec.open=true;toast(`Registro INMETRO do ${nome} não encontrado`);return}
     P[t+"Reg"]=`Registro INMETRO nº ${a.registro}`;delete P._exemplo;syncForm();store("hgo_current",P);render();
     const outros=j.opcoes.filter(o=>o.registro!==a.registro).slice(0,3).map(o=>`${o.modelo} (${o.registro})`);
-    st(`${a.registro} · ${a.situacao||""} · ${a.empresa||""} · modelo ${a.modelo}${a.exato?"":" (nome parecido, confira)"}${outros.length?" · outros: "+outros.join(", "):""}`);
+    st(`${a.registro} · ${a.situacao||""} · ${a.empresa||""} · modelo ${a.modelo}${a.exato?"":" (nome parecido, confira)"}${outros.length?" · outras opções:":""}`);opc(j.opcoes.filter(o=>o.registro!==a.registro).slice(0,3));
     toast(`Registro INMETRO do ${nome}: ${a.registro}`);
   }catch(e){st("Não consegui consultar: "+e.message)}
   finally{if(b)b.disabled=false}
 }
 document.addEventListener("click",e=>{const b=e.target.closest("[data-inm]");if(b)buscarInmetro(b.dataset.inm)});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-inmreg]");if(!b)return;const [t,reg]=b.dataset.inmreg.split("|");P[t+"Reg"]=`Registro INMETRO nº ${reg}`;syncForm();store("hgo_current",P);render();toast(`Registro ${reg} aplicado`)});
 
 /* ---------------- localização e imagem de satélite ---------------- */
 async function buscarLocal(){
