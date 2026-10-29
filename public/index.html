@@ -1380,6 +1380,11 @@ $("#bAll").addEventListener("click",async()=>{
       b.textContent=`Gerando ${d.short}…`;
       try{await gravar(`${NAMES[d.id]}.pdf`,await docPdfBlob(d.id,c))}catch(e){erros.push(`${d.short}: ${e&&e.message||e}`)}
     }
+    for(const [t,rot] of [["i","inversor"],["m","modulo"]]){
+      const reg=String(P[t+"Reg"]||"").match(/\d{6}\/\d{4}/)?.[0];if(!reg)continue;
+      b.textContent=`Baixando INMETRO do ${rot}…`;
+      try{const blob=await pdfInmetro(reg);await gravar(`08_INMETRO_${rot}_${reg.replace("/","-")}.pdf`,blob)}catch(e){erros.push(`INMETRO do ${rot} (${reg}): ${e.message}`)}
+    }
     if(artArq){b.textContent="Assinando a ART/TRT…";try{await gravar("00_ART_TRT_assinada.pdf",await artAssinadaBlob())}catch(e){erros.push("ART/TRT: "+e.message)}}
     if(pendentes.length){
       b.textContent="Compactando…";const zip=new JSZip();const folder=zip.folder(nomePasta());pendentes.forEach(([nome,blob])=>folder.file(nome,blob));
@@ -1396,6 +1401,14 @@ function destino_ok(l){return l.some(x=>/\.zip$/.test(x))?"":` na pasta "${nomeP
 
 /* ---------------- projetos (nuvem + cópia no aparelho) ---------------- */
 let sb=null,sessao=null,modoLocal=false;
+// PDF oficial do registro INMETRO, guardado no aparelho para não baixar de novo
+async function pdfInmetro(reg){
+  const k="inm:"+reg,salvo=await kv("get",k).catch(()=>null);if(salvo instanceof Blob&&salvo.size)return salvo;
+  if(!sessao)throw new Error("entre na sua conta para baixar");
+  const r=await fetch(`api/inmetro?pdf=${encodeURIComponent(reg)}`,{headers:{authorization:"Bearer "+sessao.access_token}});
+  if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||"erro "+r.status);
+  const blob=await r.blob();kv("put",k,blob).catch(()=>{});return blob;
+}
 function projects(){return load("hgo_projects")||{}}
 const novoId=()=>(crypto.randomUUID?crypto.randomUUID():"p"+Date.now());
 function semImagemGrande(x){return {...x,planta:x.planta&&x.planta.length<400000?x.planta:""}}

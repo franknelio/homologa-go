@@ -71,6 +71,16 @@ async function registrosDaMarca(marca, limite) {
 
 export default async function handler(req, res) {
   if (!(await usuarioLogado(req.headers.authorization))) return res.status(401).json({ error: "entre na sua conta para consultar o INMETRO" });
+  if (req.query.pdf) {
+    const reg = String(req.query.pdf).match(/^\d{6}\/\d{4}$/)?.[0];
+    if (!reg) return res.status(400).json({ error: "registro inválido" });
+    try {
+      const pdf = await pdfRegistro(reg);
+      res.setHeader("content-type", "application/pdf");
+      res.setHeader("cache-control", "private, max-age=86400");
+      return res.status(200).send(pdf);
+    } catch (e) { return res.status(502).json({ error: "não consegui baixar o registro no INMETRO (" + (e.message || e) + ")" }) }
+  }
   const fab = String(req.query.fab || "").trim(), modelo = String(req.query.modelo || "").trim();
   if (!fab || !modelo) return res.status(400).json({ error: "informe fabricante e modelo" });
   try {
@@ -78,6 +88,27 @@ export default async function handler(req, res) {
   } catch (e) {
     res.status(502).json({ error: "não consegui consultar o INMETRO agora (" + (e.message || e) + ")" });
   }
+}
+
+// PDF oficial "Detalhes do Registro" (botão Exportar PDF da consulta pública do INMETRO)
+export async function pdfRegistro(reg) {
+  const u = BASE + "detalhe.aspx?pag=1&NumeroRegistro=" + encodeURIComponent(reg);
+  const r1 = await fetch(u, { headers: UA, signal: AbortSignal.timeout(20000) });
+  if (!r1.ok) throw new Error("INMETRO respondeu " + r1.status);
+  const cookie = (r1.headers.getSetCookie?.() || []).map((c) => c.split(";")[0]).join("; ");
+  const h = await r1.text();
+  const ent = (v) => v.replace(/&amp;/g, "&").replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  const form = new URLSearchParams();
+  for (const m of h.matchAll(/<input[^>]*type="hidden"[^>]*>/gi)) {
+    const nome = m[0].match(/name="([^"]+)"/)?.[1];
+    if (nome) form.set(nome, ent(m[0].match(/value="([^"]*)"/)?.[1] ?? ""));
+  }
+  form.set("__EVENTTARGET", "ctl00$MainContent$btnExportarPdf");
+  form.set("__EVENTARGUMENT", "");
+  const r = await fetch(u, { method: "POST", body: form, signal: AbortSignal.timeout(30000), headers: { ...UA, "content-type": "application/x-www-form-urlencoded", cookie, referer: u } });
+  const buf = Buffer.from(await r.arrayBuffer());
+  if (buf.subarray(0, 4).toString() !== "%PDF") throw new Error("o INMETRO não devolveu o PDF");
+  return buf;
 }
 
 // pontua o quanto um modelo registrado corresponde ao modelo procurado
