@@ -253,7 +253,7 @@ const SECTIONS = [
   ["nome","Nome do titular da UC","text","full"],["doc","CPF / CNPJ"],["rg","RG / Inscrição estadual"],
   ["uc","Nº da UC (conta contrato)"],["classe","Classe","sel",["Residencial","Comercial","Industrial","Rural","Poder público"]],
   ["tel","Telefone"],["email","E-mail"],["end","Logradouro e número","text","full"],["bairro","Bairro / Setor"],["cidade","Município"],
-  ["cep","CEP"],["uf","UF"],["lat","Latitude","num",null,"graus, ex. -16.6869"],["lon","Longitude","num",null,"graus, ex. -49.2648"]]},
+  ["cep","CEP"],["uf","UF"],["loc","Localização (link do Google Maps, coordenadas ou endereço)","text","full"],["lat","Latitude","num",null,"graus, ex. -16.6869"],["lon","Longitude","num",null,"graus, ex. -49.2648"]]},
  {id:"con", t:"Conexão e padrão de entrada", f:[
   ["tipoSolic","Tipo de solicitação","sel",["Conexão de GD em UC existente sem aumento de potência disponibilizada","Conexão de GD em UC existente com aumento de potência disponibilizada","Ligação nova com GD"],"full"],
   ["modalidade","Modalidade de compensação","sel",["Autoconsumo local","Autoconsumo remoto","Geração compartilhada","Múltiplas unidades consumidoras (EMUC)"],"full"],
@@ -411,8 +411,9 @@ function fd([k,l,t="text",o,u]){
   else if(t==="file") inp=`<input id="${id}" type="file" accept="image/*" data-file="1">`;
   else inp=`<input id="${id}" data-k="${k}" type="${t==="date"?"date":"text"}" ${t==="num"?'inputmode="decimal"':""} value="${val(k)}">`;
   const unit=(t==="num"||t==="file")&&u?`<span class="u">${esc(u)}</span>`:"";
+  const loc=k==="loc"?`<div class="inm"><button class="btn" type="button" id="bLoc">Buscar localização e imagem</button><span id="locSt">Cole o link do ponto no Google Maps, as coordenadas ou o endereço.</span></div>`:"";
   const inm=(k==="mReg"||k==="iReg")?`<div class="inm"><button class="btn" type="button" data-inm="${k[0]}">Buscar no INMETRO</button><span id="inm_${k[0]}"></span></div>`:"";
-  return `<div class="f${full}"><label for="${id}">${esc(l)} ${unit}</label>${inp}${inm}</div>`;
+  return `<div class="f${full}"><label for="${id}">${esc(l)} ${unit}</label>${inp}${inm}${loc}</div>`;
 }
 function syncForm(){document.querySelectorAll("[data-k]").forEach(e=>{const k=e.dataset.k;if(e.tagName==="SELECT"){if(P[k])e.value=P[k]}else e.value=P[k]??""})}
 let rT;
@@ -634,7 +635,6 @@ function docUnif(c){
   g+=S.lines(1072,yb+102,["DPS CA Classe II 275V","In=20kA","Imax=40kA"],{fs:10.5,lh:13});
   g+=S.rect(1072,yb+142,46,22,"#fff",1.2)+S.t(1095,yb+158,"BEP",{fs:13,a:"middle"});
   g+=S.line(qx+qw,qy+qh,qx+qw+25,qy+qh+25,1.2)+U.gnd(qx+qw+25,qy+qh+25)+S.lines(qx+qw+40,qy+qh+20,["6mm²","EPR 90°C 0,6/1KV","Classe 05"],{fs:10.5,lh:13});
-  g+=U.placaB(1530,95,140)+S.line(1530,140,qx+qw,qy,1.2);
 
   /* ---------- strings, string box e inversor ---------- */
   const nsDraw=Math.min(ns,4), y0=720, yMax=960;
@@ -712,7 +712,7 @@ function docUnif(c){
   const img=plantaImg||P.planta;
   g+=S.rect(60,by+24,480,330,"#EEF0EA",1.3);
   if(img)g+=`<image href="${img}" x="60" y="${by+24}" width="480" height="330" preserveAspectRatio="xMidYMid slice"/><circle cx="300" cy="${by+189}" r="9" fill="#D7261E" stroke="#fff" stroke-width="3"/>`;
-  else g+=S.lines(300,by+180,["Anexe a imagem de satélite (Google Earth/Maps)","em “Beneficiárias e anexos”"],{fs:12,a:"middle",lh:16});
+  else g+=S.lines(300,by+180,["Informe a localização no formulário","(Titular e unidade consumidora) e toque em","“Buscar localização e imagem”"],{fs:12,a:"middle",lh:16});
   g+=S.t(665,by+70,`LATITUDE ${dms(n(P.lat),"N","S")}`,{fs:13,a:"middle"})+S.t(665,by+90,`LONGITUDE ${dms(n(P.lon),"L","O")}`,{fs:13,a:"middle"});
   g+=S.t(665,by+130,"NORTE",{fs:15,a:"middle"});
   g+=`<g transform="translate(665,${by+205})"><circle r="44" fill="none" stroke="#111" stroke-width="1.2"/><path d="M0 -58 L9 -9 L58 0 L9 9 L0 58 L-9 9 L-58 0 L-9 -9 Z" fill="#fff" stroke="#111" stroke-width="1.2"/><path d="M0 -58 L9 -9 L0 0 Z M58 0 L9 9 L0 0 Z M0 58 L-9 9 L0 0 Z M-58 0 L-9 -9 L0 0 Z" fill="#111"/></g>`;
@@ -738,12 +738,11 @@ function docUnif(c){
     ["Tensão CA",tri?"220 / 380 V":"220 V"],["Frequência","60 Hz"],["Tensão máx. entrada CC",`${esc(P.iVmax||"")} V`],["Nº de MPPT",P.iNmppt||"—"],["Grau de proteção",P.iIP||"IP65"]]);
   // placas
   const px=1610;
-  g+=S.t(px+130,by+8,"DETALHES – PLACAS DE ADVERTÊNCIA",{fs:13,a:"middle"});
-  g+=U.placaA(px,by+28,125)+S.line(px,by+130,px+125,by+130,1)+S.t(px+62,by+144,"250 mm",{fs:9.5,a:"middle"})+S.line(px-8,by+28,px-8,by+118,1)+S.t(px-12,by+73,"180 mm",{fs:9.5,a:"middle",r:-90});
-  g+=U.placaB(px+150,by+28,135)+S.line(px+150,by+108,px+285,by+108,1)+S.t(px+217,by+122,"270 mm",{fs:9.5,a:"middle"})+S.line(px+292,by+28,px+292,by+98,1)+S.t(px+304,by+63,"140 mm",{fs:9.5,a:"middle",r:90});
+  g+=S.t(px+130,by+8,"DETALHE – PLACA DE ADVERTÊNCIA",{fs:13,a:"middle"});
+  const pa=px+60;
+  g+=U.placaA(pa,by+28,150)+S.line(pa,by+142,pa+150,by+142,1)+S.t(pa+75,by+156,"250 mm",{fs:9.5,a:"middle"})+S.line(pa-8,by+28,pa-8,by+136,1)+S.t(pa-12,by+82,"180 mm",{fs:9.5,a:"middle",r:-90});
   const n1=wrapTxt("NOTA 1: SERÁ INSTALADA JUNTO AO PADRÃO DE ENTRADA UMA PLACA DE ADVERTÊNCIA: espessura 2 mm; chapa galvalume nº 22 USG (0,79 mm), cantos arredondados; fundo amarelo em epóxi; letras pretas em tinta eletrostática em pó; fundo anticorrosivo de no mínimo 30 µm (frente e verso).",62);
-  const n2=wrapTxt("NOTA 2: SERÁ INSTALADA UMA PLACA DE ADVERTÊNCIA NO POSTE ONDE SE ENCONTRA O TRANSFORMADOR DE DISTRIBUIÇÃO E NO QUADRO GERAL DE DISTRIBUIÇÃO: chapa de fibra de vidro resistente a intempéries e corrosão, cantos arredondados, 140 x 270 mm, fundo amarelo em epóxi, letras pretas. NOTA 3: A PLACA DO POSTE SERÁ INSTALADA PELO INSTALADOR, COM PARAFUSO OU FITA DE AÇO INOX.",62);
-  g+=S.lines(px-10,by+168,n1,{fs:8.6,lh:11})+S.lines(px-10,by+174+n1.length*11,n2,{fs:8.6,lh:11});
+  g+=S.lines(px-10,by+184,n1,{fs:8.6,lh:11});
 
   /* ---------- coluna direita: legenda, notas e carimbo ---------- */
   const lx=1910,lw=450;
@@ -757,7 +756,7 @@ function docUnif(c){
   leg.forEach(([sym,txt],i)=>{const y=135+i*40;g+=`<g transform="translate(0,${y})">${sym}</g>`+S.lines(lx+105,y+4-(txt.length>44?6:0),wrapTxt(txt,46),{fs:10.5,lh:12})});
   g+=S.lines(lx+12,135+leg.length*40,["SEÇÃO NÃO INFORMADA = 2,5 mm² · ISOLAÇÃO NÃO INFORMADA = 750 V","ELETRODUTO NÃO INFORMADO = PVC FLEXÍVEL CORRUGADO Ø 3/4\""],{fs:9.5,lh:13});
   let ny=645;
-  NOTAS_UNIF.forEach(t=>{const ls=wrapTxt(t,84);g+=S.lines(lx,ny,ls,{fs:9,lh:11});ny+=ls.length*11+3});
+  NOTAS_UNIF.map((t,i)=>t.replace(/^NOTA \d+/,"NOTA "+(i+2))).forEach(t=>{const ls=wrapTxt(t,84);g+=S.lines(lx,ny,ls,{fs:9,lh:11});ny+=ls.length*11+3});
   // carimbo
   const cy0=1040,ce=H-40;
   g+=S.rect(lx,cy0,lw,ce-cy0,"#fff",1.6);
@@ -772,7 +771,7 @@ function docUnif(c){
   y+=36;g+=S.line(lx,y,lx+lw,y,1.2);
   g+=S.t(lx+8,y+40,"RT:",{fs:11})+S.line(lx+120,y+38,lx+lw-40,y+38,.8)+S.lines(lx+lw/2+40,y+52,[up(P.rtNome),esc(`${P.rtTit||""} · ${P.rtReg||""}`),esc(`ART/TRT nº ${P.rtArt||""}`)],{fs:10,a:"middle",lh:12});
   y+=96;g+=S.t(lx+8,y+30,"PROP.:",{fs:11})+S.line(lx+120,y+22,lx+lw-40,y+22,.8)+S.lines(lx+lw/2+40,y+36,[up(P.nome),`CPF/CNPJ: ${esc(P.doc||"")}`],{fs:10,a:"middle",lh:12});
-  y+=62;g+=S.line(lx,y,lx+lw,y,1.2)+S.t(lx+6,y+12,"CONTEÚDO:",{fs:8})+S.lines(lx+lw*.25,y+26,["DIAGRAMA UNIFILAR","DETALHES","PLACAS DE ADVERTÊNCIA"],{fs:10,a:"middle",lh:12})+S.line(lx+lw*.5,y,lx+lw*.5,y+64,1)+S.t(lx+lw*.5+6,y+12,"RESPONSÁVEL TÉCNICO:",{fs:8})+S.t(lx+lw*.75,y+36,up(P.rtNome).slice(0,34),{fs:10,a:"middle"})+(P.rtEmp?S.t(lx+lw*.75,y+52,up(P.rtEmp).slice(0,34),{fs:9,a:"middle"}):"");
+  y+=62;g+=S.line(lx,y,lx+lw,y,1.2)+S.t(lx+6,y+12,"CONTEÚDO:",{fs:8})+S.lines(lx+lw*.25,y+26,["DIAGRAMA UNIFILAR","DETALHES","PLACA DE ADVERTÊNCIA"],{fs:10,a:"middle",lh:12})+S.line(lx+lw*.5,y,lx+lw*.5,y+64,1)+S.t(lx+lw*.5+6,y+12,"RESPONSÁVEL TÉCNICO:",{fs:8})+S.t(lx+lw*.75,y+36,up(P.rtNome).slice(0,34),{fs:10,a:"middle"})+(P.rtEmp?S.t(lx+lw*.75,y+52,up(P.rtEmp).slice(0,34),{fs:9,a:"middle"}):"");
   y+=64;g+=S.line(lx,y,lx+lw,y,1.2);
   const cell=(x1,x2,yy,lab,v)=>S.line(lx+lw*x1,yy,lx+lw*x1,yy+44,1)+S.t(lx+lw*x1+5,yy+11,lab,{fs:7.5})+S.t(lx+lw*(x1+x2)/2,yy+33,v,{fs:10,a:"middle"});
   g+=S.t(lx+5,y+11,"ASSUNTO:",{fs:7.5})+S.t(lx+lw*.25,y+33,`${c.categoria.toUpperCase()} DISTRIBUÍDA FOTOVOLTAICA`,{fs:9.5,a:"middle"})+cell(.52,.7,y,"ESCALA:","INDICADA")+cell(.7,.82,y,"FOLHA:","1/1")+cell(.82,1,y,"DATA:",dataBR());
@@ -1193,6 +1192,38 @@ async function buscarInmetro(t){
   finally{if(b)b.disabled=false}
 }
 document.addEventListener("click",e=>{const b=e.target.closest("[data-inm]");if(b)buscarInmetro(b.dataset.inm)});
+
+/* ---------------- localização e imagem de satélite ---------------- */
+async function buscarLocal(){
+  const st=x=>{const e=$("#locSt");if(e)e.textContent=x},b=$("#bLoc");
+  const q=(P.loc||"").trim()||(n(P.lat)&&n(P.lon)?`${P.lat},${P.lon}`:"")||[P.end,P.bairro,P.cidade,P.uf].filter(Boolean).join(", ");
+  if(!q){st("Informe a localização.");return}
+  if(!navigator.onLine||!sessao){st("A busca precisa de internet e login.");return}
+  if(b)b.disabled=true;st("Buscando a localização…");
+  try{
+    const r=await fetch("api/local?q="+encodeURIComponent(q),{headers:{authorization:"Bearer "+sessao.access_token}});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(j.error||"erro "+r.status);
+    P.lat=+j.lat.toFixed(6);P.lon=+j.lon.toFixed(6);delete P._coordAprox;delete P._exemplo;syncForm();
+    st("Baixando a imagem de satélite…");
+    plantaImg=await imagemSatelite(j.lat,j.lon);P.planta=plantaImg.length<1500000?plantaImg:"";
+    store("hgo_current",P);render();
+    st(`Ponto ${fmt(P.lat,6)}, ${fmt(P.lon,6)}${j.nome?" ("+j.nome+")":""}. Imagem inserida na planta de situação; confira se o telhado está no centro.`);
+    toast("Imagem de satélite adicionada");
+  }catch(e){st("Não consegui: "+e.message)}
+  finally{if(b)b.disabled=false}
+}
+async function imagemSatelite(lat,lon,z=19,W=1024,H=704){
+  const N=2**z,cx=(lon+180)/360*N*256,sl=Math.sin(lat*Math.PI/180),cy=(0.5-Math.log((1+sl)/(1-sl))/(4*Math.PI))*N*256;
+  const cv=document.createElement("canvas");cv.width=W;cv.height=H;const g=cv.getContext("2d");
+  const x0=Math.floor((cx-W/2)/256),x1=Math.floor((cx+W/2)/256),y0=Math.floor((cy-H/2)/256),y1=Math.floor((cy+H/2)/256),jobs=[];
+  for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)jobs.push(new Promise((ok,ko)=>{const im=new Image();im.onload=()=>{g.drawImage(im,x*256-(cx-W/2),y*256-(cy-H/2));ok()};im.onerror=()=>ko(new Error("falha ao baixar a imagem"));im.src=`api/tile?z=${z}&x=${x}&y=${y}`}));
+  await Promise.all(jobs);
+  g.fillStyle="rgba(255,255,255,.8)";g.fillRect(W-150,H-18,150,18);g.fillStyle="#333";g.font="11px Arial";g.fillText("Imagem: Esri World Imagery",W-144,H-5);
+  return cv.toDataURL("image/jpeg",.85);
+}
+document.addEventListener("click",e=>{if(e.target.closest("#bLoc"))buscarLocal()});
+document.addEventListener("change",e=>{if(e.target.dataset&&e.target.dataset.k==="loc"&&e.target.value.trim())buscarLocal()});
 
 /* ---------------- RT lembrado entre projetos ---------------- */
 const RT_KEYS=["rtNome","rtTit","rtReg","rtTel","rtEmail","rtEmp"];
