@@ -204,10 +204,11 @@ details.sec[open]>summary .chev{transform:rotate(90deg)}
 <div id="toast" class="toast" hidden></div>
 <div id="login" class="login" hidden><form id="loginForm" class="loginbox" novalidate>
   <div class="brand"><b>Homologa<i>GO</i></b></div>
-  <p>Entre com o e-mail e a senha cadastrados para a sua empresa.</p>
+  <p>Entre com o seu e-mail e senha. No primeiro acesso, use “Criar conta”.</p>
   <div class="f"><label for="lEmail">E-mail</label><input id="lEmail" type="email" autocomplete="username" required></div>
   <div class="f"><label for="lSenha">Senha</label><input id="lSenha" type="password" autocomplete="current-password" required></div>
   <button class="btn primary" type="submit" id="lGo">Entrar</button>
+  <button class="btn" type="button" id="lNova">Criar conta com este e-mail e senha</button>
   <p class="msg" id="lMsg" role="status"></p>
   <button class="btn" type="button" id="lOffline" hidden>Continuar sem login (só neste aparelho)</button>
 </form></div>
@@ -1031,6 +1032,14 @@ $("#loginForm").addEventListener("submit",async e=>{
   const {error}=await sb.auth.signInWithPassword({email:$("#lEmail").value.trim(),password:$("#lSenha").value});
   $("#lGo").disabled=false;
   if(error)m.textContent=error.message==="Invalid login credentials"?"E-mail ou senha incorretos.":"Não foi possível entrar: "+error.message;
+});
+$("#lNova").addEventListener("click",async()=>{
+  const m=$("#lMsg");m.textContent="";const email=$("#lEmail").value.trim(),senha=$("#lSenha").value;
+  if(!email||senha.length<8){m.textContent="Informe o e-mail e uma senha com pelo menos 8 caracteres.";return}
+  if(!navigator.onLine){m.textContent="Sem internet. Conecte-se para criar a conta.";return}
+  const {data,error}=await sb.auth.signUp({email,password:senha});
+  if(error){m.textContent="Não foi possível criar a conta: "+error.message;return}
+  if(!data.session)m.textContent="Conta criada. Abra o e-mail de confirmação que enviamos e depois entre aqui.";
 });
 $("#lOffline").addEventListener("click",()=>{modoLocal=true;$("#login").hidden=true;mostrarUsuario()});
 $("#bSair").addEventListener("click",async()=>{if(sb)await sb.auth.signOut();sessao=null;$("#drawer").hidden=true;$("#login").hidden=false;mostrarUsuario()});

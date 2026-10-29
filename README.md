@@ -30,6 +30,7 @@ Os projetos ficam na conta do usuário (Supabase) e também numa cópia no apare
    - `SUPABASE_URL` – a Project URL do passo anterior.
    - `SUPABASE_ANON_KEY` – a chave anon public.
    - `ANTHROPIC_API_KEY` – chave criada em console.anthropic.com (cobrada por uso; cada leitura de documentos custa alguns centavos).
+   - `EMAILS_PERMITIDOS` – e-mails (separados por vírgula) que podem usar a leitura automática.
 3. Faça o deploy e entre com o usuário criado no Supabase.
 4. Opcional: em **Settings → Domains**, ligue um domínio próprio.
 

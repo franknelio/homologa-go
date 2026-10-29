@@ -1,7 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 
 // Lê fotos de RG/CNH, CPF/CNPJ e conta de energia e devolve os campos do projeto.
-// Variáveis de ambiente: ANTHROPIC_API_KEY, SUPABASE_URL e SUPABASE_ANON_KEY.
+// Variáveis de ambiente: ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY e
+// EMAILS_PERMITIDOS (lista separada por vírgulas de quem pode usar a leitura; vazia libera todos os logados).
 // Só usuários com login válido no Supabase podem usar a leitura (evita gastos de terceiros).
 const client = new Anthropic();
 
@@ -41,13 +42,17 @@ async function usuarioLogado(authorization) {
   const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
     headers: { apikey: SUPABASE_ANON_KEY, authorization },
   }).catch(() => null);
-  return Boolean(r?.ok);
+  if (!r?.ok) return false;
+  const permitidos = (process.env.EMAILS_PERMITIDOS || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  if (!permitidos.length) return true;
+  const usuario = await r.json().catch(() => null);
+  return permitidos.includes(String(usuario?.email || "").toLowerCase());
 }
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "use POST" });
   if (!(await usuarioLogado(req.headers.authorization))) {
-    return res.status(401).json({ error: "faça login para usar a leitura automática" });
+    return res.status(401).json({ error: "seu usuário não tem permissão para a leitura automática" });
   }
   const images = Array.isArray(req.body?.images) ? req.body.images.slice(0, 5) : [];
   if (!images.length) return res.status(400).json({ error: "nenhuma imagem enviada" });
