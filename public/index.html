@@ -429,7 +429,7 @@ function checks(c){
   if(!P.rtArt) add("warn","Informe o número da ART/TRT do responsável técnico.");
   if(P._equipEst) add("warn","Especificações elétricas do módulo e do inversor estimadas pela potência. Confira com o datasheet em “Módulos” e “Inversor” e informe marca, modelo e registro INMETRO.");
   if(P._coordAprox) add("warn","Coordenadas aproximadas pelo endereço. Confira no Google Maps antes de protocolar.");
-  if(!n(P.carga)) add("warn",`Carga instalada não informada; usei ${fmt(cargaInst())} kW, a potência do disjuntor de entrada. Ajuste em Conexão e padrão de entrada se souber a carga real.`);
+  if(!n(P.carga)) add("warn",`Carga instalada não informada; usei ${fmt(cargaInst())} kW, a potência do inversor. Ajuste em Conexão e padrão de entrada se souber a carga real.`);
   if(P._disjPadrao) add("warn",`Disjuntor de entrada assumido em ${P.disj} A (a conta não informa). Confirme no padrão.`);
   return r;
 }
@@ -530,11 +530,10 @@ function protTable(){return `<table><tr><th>Função (ANSI)</th><th>Descrição<
 <tr><td>25</td><td>Sincronismo</td><td class="v">interno ao inversor</td><td class="v">—</td></tr>
 <tr><td>—</td><td>Reconexão após restabelecimento</td><td class="v">tensão e frequência normais</td><td class="v">20 a 300 s</td></tr></table>`}
 
-// carga instalada informada; se vazia, usa a potência disponibilizada pelo disjuntor de entrada (V × I)
+// carga instalada informada; se vazia, usa a potência total dos inversores (regra do usuário)
 function cargaInst(){
   if(n(P.carga))return n(P.carga);
-  const I=n(P.disj)||0,lig=P.ligacao||"Monofásico";
-  return Math.round((lig==="Trifásico"?Math.sqrt(3)*0.38*I:lig==="Bifásico"?2*0.22*I:0.22*I)*100)/100;
+  return Math.round(n(P.iP)*(n(P.iQ)||1)*100)/100;
 }
 function catAtend(){
   if(P.catAtend&&P.catAtend!=="Automática")return P.catAtend;
