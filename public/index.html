@@ -198,6 +198,7 @@ details.sec[open]>summary .chev{transform:rotate(90deg)}
         <div class="f"><label for="q_mQ">Qtd. de módulos</label><input id="q_mQ" inputmode="numeric" placeholder="ex. 10"></div>
       </div>
       <div class="f qloc"><label for="q_loc">Localização <span class="u">link do Google Maps, coordenadas ou endereço</span></label><input id="q_loc" placeholder="ex. -16.7008, -49.2803"></div>
+      <div class="f qloc"><label for="q_art">Nº da ART / TRT <span class="u">do responsável técnico</span></label><input id="q_art" placeholder="ex. GO20260000000 ou BR20260000000"></div>
       <div class="qds">
         <label class="btn" for="q_dsI">Datasheet do inversor (PDF)<input type="file" id="q_dsI" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_dsI_n"></span>
         <label class="btn" for="q_dsM">Datasheet do módulo (PDF)<input type="file" id="q_dsM" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_dsM_n"></span>
@@ -1228,6 +1229,7 @@ Regras: o titular da UC é o nome que consta na conta de energia; números (lat,
     }
     ["iFab","iMod","mFab","mMod"].forEach(k=>{const v=$("#q_"+k).value.trim();if(v||Q[k]==null)Q[k]=v});
     Q.loc=$("#q_loc").value.trim();
+    {const art=$("#q_art").value.trim();if(art)Q.rtArt=art}
     Q._equipEst=dsOk.length<2;
     P=Q;autoStrings();plantaImg=null;
     P._id=novoId();store("hgo_current",P);buildFormFresh();currentDoc="form";render();salvarProjeto(true);
