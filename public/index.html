@@ -146,6 +146,20 @@ details.sec[open]>summary .chev{transform:rotate(90deg)}
 .sheet .foot{position:absolute;left:46px;right:46px;bottom:18px;font-size:9.5px;color:#555;display:flex;justify-content:space-between;border-top:1px solid #999;padding-top:3px}
 .sheet .sign{display:flex;gap:40px;margin-top:26px}
 .sheet .sign div{flex:1;border-top:1px solid #111;text-align:center;padding-top:3px;font-size:10.5px}
+.sheet.memo{font-family:Calibri,Carlito,Arial,sans-serif;font-size:12px;padding:40px 46px}
+.memo .mtit{border:1.5px solid #111;background:#ddd;text-align:center;font-weight:700;padding:3px;margin:18px 0 12px}
+.memo .mbox{border:1px solid #111;background:#d9d9d9}
+.memo .ml{background:#c0c0c0;padding:1px 3px}.memo .mbox>.mv{padding:1px 3px;min-height:16px}
+.memo .mrow{display:flex;align-items:center;gap:6px}.memo .mbox .mrow .mv{padding:1px 3px}
+.memo .mv{background:#c0c0c0;min-height:16px;padding:1px 6px}.memo .mv.f{flex:1;background:#d9d9d9}.memo .mv.s{min-width:40px;text-align:center}.memo .mv.m{min-width:110px}
+.memo .mp{margin:10px 0 4px}.memo .mt{margin-top:8px}.memo .mlab{min-width:150px}
+.memo .mrat{display:flex;align-items:center;gap:40px;margin-left:26px}.memo .mrat table{width:350px;border-collapse:collapse;margin:0}
+.memo .mrat th{border:1px solid #111;font-weight:400;text-align:left;padding:1px 3px;background:#fff}.memo .mrat td{border:1px solid #111;background:#c0c0c0;text-align:center;height:16px;padding:0}.memo .mrat td.nb{border:none;background:none}
+.memo .mopt{border:1px solid #111;padding:4px 6px}.memo .mopt.mr{flex:1;display:flex;justify-content:space-between}
+.memo .rd{display:inline-flex;align-items:center;gap:5px;font-size:10px}.memo .rd i{width:11px;height:11px;border:1px solid #333;border-radius:50%;display:inline-block;position:relative}.memo .rd i.on:after{content:"";position:absolute;inset:2px;border-radius:50%;background:#111}
+.memo .marea{border:1px solid #111;background:#c0c0c0;padding:3px 4px}
+.memo .ml2{margin:8px 0 1px}.memo .mbar{border:1px solid #111;background:#c0c0c0;padding:1px 3px;min-height:16px}
+.memo .msig{position:absolute;left:66px;right:46px;bottom:120px}.memo .msig .ln{border-top:1px solid #111;margin-bottom:3px}.memo .msig .mv.f{background:#eee}
 .sheet .hdr{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2.5px solid #111;padding-bottom:6px;margin-bottom:8px}
 .sheet .hdr .r{text-align:right;font-size:10px;color:#333}
 .sheet svg text{font-family:var(--f-body)}
@@ -261,7 +275,7 @@ const SECTIONS = [
   ["disj","Disjuntor de entrada","num",null,"A"],["poste","Nº do poste da rede","text",null,"aparece no diagrama unifilar"],["cabEnt","Condutor do ramal de entrada","num",null,"mm²"],
   ["carga","Carga instalada","num",null,"kW"],["demanda","Demanda estimada","num",null,"kW"],
   ["ramal","Ramal de ligação","sel",["Aéreo","Subterrâneo"]],["padrao","Padrão de entrada","sel",["Poste auxiliar","Muro / mureta","Fachada","Pontalete"]],
-  ["mudaPadrao","Haverá troca/mudança do padrão?","sel",["Não","Sim"]],["arrend","Telhado arrendado a terceiros?","sel",["Não","Sim"]],
+  ["catAtend","Categoria de atendimento","sel",["Automática","M1","M2","M3","B1","B2","T1","T2","T3","T4"]],["mudaPadrao","Haverá troca/mudança do padrão?","sel",["Não","Sim"]],["arrend","Telhado arrendado a terceiros?","sel",["Não","Sim"]],
   ["consumo","Histórico de consumo (12 meses, kWh)","area","full","Separe por vírgula, do mais antigo ao mais recente"]]},
  {id:"mod", t:"Módulos fotovoltaicos", f:[
   ["mFab","Fabricante"],["mMod","Modelo"],["mP","Potência nominal (Pmax)","num",null,"Wp"],["mQ","Quantidade","num",null,"un."],
@@ -490,44 +504,72 @@ function protTable(){return `<table><tr><th>Função (ANSI)</th><th>Descrição<
 <tr><td>25</td><td>Sincronismo</td><td class="v">interno ao inversor</td><td class="v">—</td></tr>
 <tr><td>—</td><td>Reconexão após restabelecimento</td><td class="v">tensão e frequência normais</td><td class="v">20 a 300 s</td></tr></table>`}
 
+function catAtend(){
+  if(P.catAtend&&P.catAtend!=="Automática")return P.catAtend;
+  const d=n(P.disj);
+  if(P.ligacao==="Monofásico")return d<=32?"M1":d<=50?"M2":"M3";
+  if(P.ligacao==="Bifásico")return d<=50?"B1":"B2";
+  return d<=40?"T1":d<=63?"T2":d<=100?"T3":"T4";
+}
+function descArranjo(c){
+  const ns=Math.max(1,n(P.nStr)),ms=n(P.mPorStr),nm=Math.max(1,n(P.iNmppt)*Math.max(1,n(P.iQ))),por={};
+  for(let i=0;i<ns;i++){const m=i%nm+1;por[m]=(por[m]||0)+1}
+  const z=v=>String(v).padStart(2,"0");
+  const partes=Object.entries(por).map(([m,k])=>`${z(k)} arranjo${k>1?"s":""} de ${z(ms)} módulos de ${fmt(n(P.mP),0)}W em série na ${m} MPPT`);
+  const lista=partes.length>1?partes.slice(0,-1).join(", ")+" e "+partes.at(-1):partes[0];
+  return `Sistema Fotovoltaico conectado à rede com ${lista}. Conectado a ${z(n(P.iQ)||1)} inversor${(n(P.iQ)||1)>1?"es":""} de frequência ${esc(String(P.iFab||"").toUpperCase())} de ${fmt(n(P.iP),n(P.iP)%1?1:0)} kW.`;
+}
 function docMemo(c){
-  const pages=[];
-  const tot=3;
-  const months=["M-12","M-11","M-10","M-9","M-8","M-7","M-6","M-5","M-4","M-3","M-2","M-1"];
-  pages.push(`<div class="sheet">${hdr("Memorial técnico descritivo",`Conexão de ${c.categoria.toLowerCase()} distribuída · fonte solar fotovoltaica · ${fmt(c.pinst)} kW · Equatorial Goiás (NT.020.EQTL)`)}
-  <h2>1 · Objetivo</h2><p>Este memorial descreve a central geradora solar fotovoltaica de ${fmt(c.pcc)} kWp em módulos e ${fmt(c.pca)} kW em inversores (potência instalada de ${fmt(c.pinst)} kW), a ser conectada à rede de baixa tensão da Equatorial Goiás na unidade consumidora nº ${val("uc")}, na modalidade <b>${val("modalidade").toLowerCase()}</b> do Sistema de Compensação de Energia Elétrica (Lei 14.300/2022 e REN ANEEL 1.000/2021).</p>
-  <h2>2 · Identificação</h2><table>${tr("Titular",val("nome"),"CPF/CNPJ",val("doc"))}${tr("Nº da UC",val("uc"),"Classe",val("classe"))}${tr("Endereço",`${val("end")}, ${val("bairro")}, ${val("cidade")}/${val("uf")}, CEP ${val("cep")}`)}${tr("Coordenadas",`${fmt(n(P.lat),6)}, ${fmt(n(P.lon),6)}`)}</table>
-  <h2>3 · Ponto de entrega e padrão de entrada</h2><table>${tr("Tensão de atendimento",val("tensao"),"Tipo de ligação",`${val("ligacao")} (${c.ndiv})`)}${tr("Disjuntor de entrada",val("disj")+" A","Condutor do ramal",val("cabEnt")+" mm² Cu")}${tr("Ramal",val("ramal"),"Padrão",val("padrao"))}${tr("Potência disponibilizada (estim.)",fmt(c.pdisp)+" kW","Medição","Substituição por medidor bidirecional pela distribuidora")}</table>
-  <p>Fotos da caixa de medição e do local previsto para o inversor seguem em anexo ao protocolo.</p>
-  <h2>4 · Cargas e histórico de consumo</h2><table>${tr("Carga instalada",fmt(n(P.carga))+" kW","Demanda estimada",fmt(n(P.demanda))+" kW")}</table>
-  <table><tr>${months.map(m=>`<th style="text-align:center">${m}</th>`).join("")}<th>Média</th></tr><tr>${months.map((m,i)=>`<td class="v" style="text-align:center">${c.cons[i]!=null?fmt(c.cons[i],0):"—"}</td>`).join("")}<td class="v">${fmt(c.consMed,0)}</td></tr></table>
-  <p>Consumo médio de ${fmt(c.consMed,0)} kWh/mês. Geração estimada de ${fmt(c.gerMes,0)} kWh/mês (${fmt(c.gerAno,0)} kWh/ano), considerando ${fmt(n(P.hsp))} kWh/m²·dia de irradiação e rendimento global de ${fmt(n(P.pr)*100,0)}%, o que corresponde a ${fmt(c.cobertura,0)}% do consumo médio.</p>
-  <h2>5 · Gerador fotovoltaico</h2><table>${tr("Fabricante / modelo",`${val("mFab")} ${val("mMod")}`)}${tr("Potência nominal",val("mP")+" Wp","Quantidade",c.qtd+" módulos")}${tr("Voc / Vmp",`${val("mVoc")} V / ${val("mVmp")} V`,"Isc / Imp",`${val("mIsc")} A / ${val("mImp")} A`)}${tr("Eficiência",val("mEff")+" %","Dimensões",`${val("mC")} × ${val("mL")} m`)}${tr("Área ocupada",fmt(c.area)+" m²","Estrutura",`${val("telhado")}, ${val("orient")}, ${val("incl")}°`)}${tr("Registro INMETRO",val("mReg"))}</table>
-  ${foot("Memorial técnico descritivo",1,tot)}</div>`);
-  pages.push(`<div class="sheet">${hdr("Memorial técnico descritivo","continuação")}
-  <h2>6 · Inversor</h2><table>${tr("Fabricante / modelo",`${val("iFab")} ${val("iMod")}`,"Quantidade",n(P.iQ)||1)}${tr("Potência nominal CA",fmt(n(P.iP))+" kW ("+fmt(n(P.iP)*1000/Math.max(n(P.iFp),0.01),0)+" VA)","Conexão",val("iFases"))}${tr("Tensão CC máxima",val("iVmax")+" V","Faixa MPPT",`${val("iMin")}–${val("iMax")} V (${val("iNmppt")} MPPT)`)}${tr("Corrente CA de saída",fmt(c.iout,1)+" A","Fator de potência",val("iFp"))}${tr("Eficiência máxima",val("iEff")+" %","DHT de corrente",`&lt; ${val("iDht")} %`)}${tr("Certificação",val("iReg")+" · ensaios ABNT NBR 16149, NBR 16150 e IEC 62116")}${tr("Local de instalação",val("locInv"))}</table>
-  <h2>7 · Configuração do arranjo</h2><table>${tr("Strings",`${val("nStr")} × ${val("mPorStr")} módulos em série`,"Strings por MPPT",c.strPorMppt)}${tr("Voc da string (25 °C)",fmt(c.vocStr,1)+" V","Voc a "+(P.tmin??8)+" °C",fmt(c.vocMax,1)+" V")}${tr("Vmp da string (25 °C)",fmt(c.vmpStr,1)+" V","Vmp a 70 °C",fmt(c.vmpHot,1)+" V")}${tr("Isc por MPPT",fmt(c.iscMppt,2)+" A","Relação CC/CA",fmt(c.ratio,2))}</table>
-  <h2>8 · Dimensionamento de condutores e proteções</h2>
-  <table><tr><th>Circuito</th><th>Condutor</th><th>Proteção</th><th>Queda de tensão</th></tr>
-  <tr><td>CC – arranjo → inversor (${val("dCC")} m)</td><td class="v">${c.cabCC} mm² Cu, cabo solar 1,8 kV CC (NBR 16612)</td><td class="v">Chave seccionadora CC ${c.chaveCC} A / ${Math.max(600,Math.ceil(c.vocMax/100)*100)} V${c.fusivel?`; fusíveis gPV ${c.fusivel} A`:""}</td><td class="v">${fmt(c.dvCC)} %</td></tr>
-  <tr><td>CA – inversor → quadro (${val("dCA")} m)</td><td class="v">${c.cabCA} mm² Cu, 750 V, ${c.condCA}</td><td class="v">Disjuntor termomagnético ${c.disjCA} A, curva C, ${P.iFases.startsWith("Trif")?"tripolar":P.iFases.startsWith("Bif")?"bipolar":"bipolar (F+N) ou unipolar"}</td><td class="v">${fmt(c.dvCA)} %</td></tr>
-  <tr><td>Entrada da UC</td><td class="v">${val("cabEnt")} mm² Cu (existente)</td><td class="v">Disjuntor geral ${val("disj")} A (existente)</td><td class="v">—</td></tr></table>
-  <p>Critérios: corrente CA de projeto 1,25 × ${fmt(c.iout,1)} A; capacidade de condução pela ABNT NBR 5410 (método B1, 2 condutores carregados); queda de tensão limitada a 2 % no circuito CA e 1,5 % no CC.</p>
-  <table><tr><th>Dispositivo de proteção contra surtos</th><th>Especificação</th></tr>
-  <tr><td>DPS CC (string box ou integrado)</td><td class="v">Classe II, Ucpv ≥ ${c.dpsCCv} V CC, In 20 kA, Imáx 40 kA, entre +/– e terra</td></tr>
-  <tr><td>DPS CA (quadro de proteção CA)</td><td class="v">Classe II, Uc 275 V CA, In 20 kA, Imáx 40 kA, em cada fase e neutro</td></tr></table>
-  <h2>9 · Funções de proteção e ajustes</h2><p>As proteções são incorporadas ao inversor, certificado pelo INMETRO, que desconecta a geração da rede nas condições abaixo (ABNT NBR 16149 e PRODIST Módulo 3):</p>${protTable()}
-  ${foot("Memorial técnico descritivo",2,tot)}</div>`);
-  pages.push(`<div class="sheet">${hdr("Memorial técnico descritivo","continuação")}
-  <h2>10 · Aterramento e equipotencialização</h2><p>As estruturas metálicas dos módulos, a carcaça do inversor e os DPS serão interligados ao barramento de equipotencialização principal (BEP) da unidade consumidora por condutor de proteção de cobre de no mínimo 6 mm² (verde/amarelo), conectado à malha de aterramento existente do padrão de entrada, conforme ABNT NBR 5410 e ABNT NBR 16690. O esquema de aterramento é TN-C-S, com o neutro aterrado no padrão de entrada.</p>
-  <h2>11 · Montagem</h2><p>Os módulos serão fixados em estrutura de alumínio sobre telhado ${val("telhado").toLowerCase()}, orientação ${val("orient").toLowerCase()} e inclinação de ${val("incl")}°. O inversor será instalado em ${val("locInv")||"local ventilado e de fácil acesso"}, com a base a 1,30 m do piso, protegido de intempéries. O padrão de entrada permanece ${P.mudaPadrao==="Sim"?"com alteração, conforme projeto anexo":"sem alteração"}, com espaço para o medidor bidirecional instalado pela distribuidora.</p>
-  <h2>12 · Sinalização</h2><p>Junto ao padrão de entrada será fixada placa de advertência em PVC ou alumínio, com os dizeres “CUIDADO – RISCO DE CHOQUE ELÉTRICO – GERAÇÃO PRÓPRIA”, conforme modelo em anexo.</p>
-  <h2>13 · Normas e referências</h2><p>NT.020.EQTL – Conexão de Micro e Minigeração Distribuída ao Sistema de Distribuição; NT da Equatorial para fornecimento em baixa tensão; REN ANEEL 1.000/2021; PRODIST Módulo 3; Lei 14.300/2022; ABNT NBR 5410, NBR 16149, NBR 16150, NBR 16274, NBR 16690 e IEC 62116.</p>
-  <h2>14 · Responsabilidade técnica</h2><table>${tr("Responsável técnico",val("rtNome"),"Título",val("rtTit"))}${tr("Registro",val("rtReg"),"ART/TRT",val("rtArt"))}${tr("Empresa",val("rtEmp"),"Contato",`${val("rtTel")} · ${val("rtEmail")}`)}</table>
-  <p style="margin-top:10px">${val("cidade")||"Goiânia"}/${val("uf")}, ${dataBR()}.</p>
-  <div class="sign" style="margin-top:50px"><div>${val("rtNome")}<br>${val("rtTit")} · ${val("rtReg")}</div><div>${val("nome")}<br>Titular da UC</div></div>
-  ${foot("Memorial técnico descritivo",3,tot)}</div>`);
-  return pages;
+  const v=k=>esc(String(P[k]??"")),up=k=>esc(String(P[k]??"").toUpperCase());
+  const rad=(on,t)=>`<span class="rd"><i class="${on?"on":""}"></i>${t}</span>`;
+  const cat=catAtend(),z=x=>String(x).padStart(2,"0");
+  const fasesInv=P.iFases.startsWith("Trif")?3:1,polos=P.iFases.startsWith("Trif")?"Tripolar":"Mono";
+  const nMppt=Math.min(Math.max(1,n(P.nStr)),Math.max(1,n(P.iNmppt)*Math.max(1,n(P.iQ))));
+  const vDps=c.vocMax>1000?1500:1000;
+  const benef=c.benef.length?c.benef.map(r=>[r[0],r[3]?fmt(n(r[3]),n(r[3])%1?2:0)+"%":""]):[[P.uc,"100%"]];
+  const somaR=c.benef.length?c.benef.reduce((a,r)=>a+n(r[3]),0):100;
+  const linhasR=[...benef,...Array(Math.max(0,5-benef.length)).fill(["",""])];
+  const cabec=`<div class="mtit">Memorial Descritivo Simplificado - Geração Distribuída Fotovoltaica</div>`;
+  const p1=`<div class="sheet memo">${cabec}
+  <div class="mbox">
+   <div class="ml">Nome do Cliente/Preposto:</div><div class="mv">${up("nome")}</div>
+   <div class="mrow"><span class="ml">E-mail:</span><span class="mv f">${v("email")}</span><span class="ml">Telefone:</span><span class="mv">${v("tel")}</span></div>
+   <div class="ml">CPF/CNPJ:</div><div class="mv">${v("doc")}</div>
+   <div class="ml">Nome do Responsável Técnico:</div><div class="mv">${up("rtNome")}</div>
+   <div class="mrow"><span class="ml">E-mail:</span><span class="mv f">${v("rtEmail")}</span><span class="ml">Telefone:</span><span class="mv">${v("rtTel")}</span></div>
+   <div class="mrow"><span class="ml">Registro:</span><span class="mv f">${v("rtReg")}</span></div>
+   <div class="mrow"><span class="ml">Título Profissional:</span><span class="mv f">${v("rtTit")}</span></div>
+   <div class="ml">Endereço da obra:</div><div class="mv">${up("end")}</div>
+   <div class="mrow"><span class="ml">Bairro:</span><span class="mv f">${up("bairro")}</span></div>
+   <div class="mrow"><span class="ml">Cidade:</span><span class="mv f">${up("cidade")}-${up("uf")||"GO"}</span></div>
+   <div class="mrow"><span class="ml">Unidade Consumidora:</span><span class="mv f">${v("uc")}</span></div>
+  </div>
+  <p class="mp">Compensação do excedente de Energia (caso exista)</p>
+  <div class="mrat"><table><tr><th>Unidade Consumidora (UC)</th><th>Rateio (percentual - %)</th></tr>${linhasR.map(r=>`<tr><td>${esc(r[0]||"")}</td><td>${esc(r[1]||"")}</td></tr>`).join("")}<tr><td class="nb"></td><td class="nb"><b>${fmt(somaR,2)}%</b></td></tr></table>
+   <span>${Math.abs(somaR-100)<0.01?"O rateio está correto.":"O rateio deve somar 100%."}</span></div>
+  <div class="mrow mt"><span>Objetivo: Instalação de Sistema</span><span class="mv">${c.pinst<=75?"microgeração (≤ 75kWp)":"minigeração (&gt; 75kWp)"}</span><span>através de geração fotovoltaica</span><span class="mv">${fmt(c.pinst)}</span><span>kW.</span></div>
+  <p class="mp">1 - Descrição do Sistema de Medição Existente</p>
+  <div class="mopt"><div class="mrow">${rad(false,"Grupo A")}<span style="flex:1"></span>${rad(true,"Grupo B")}<span style="width:120px"></span></div>
+   <div class="mrow"><span>Transformador:</span><span class="mv s"></span><span>kVA</span><span style="flex:1"></span><span>Categoria de Atendimento:</span><span class="mv s">${cat}</span><span style="width:60px"></span></div></div>
+  <div class="mrow mt"><span class="mlab">Tipo de conexão:</span><div class="mopt mr">${rad(P.ligacao==="Monofásico","Monofásica")}${rad(P.ligacao==="Bifásico","Bifásica")}${rad(P.ligacao==="Trifásico","Trifásica")}</div></div>
+  <div class="mrow mt"><span class="mlab">Tensão de Atendimento:</span><div class="mopt mr">${rad(true,"380/220V")}${rad(false,"13,8kV")}${rad(false,"34,5kV")}</div></div>
+  <div class="mrow mt"><span class="mlab">Ramal:</span><div class="mopt mr">${rad(P.ramal!=="Subterrâneo","Aéreo")}${rad(P.ramal==="Subterrâneo","Subterrâneo")}<span></span></div></div>
+  <div class="mrow mt"><span>Disjuntor:</span><span class="mv s">${v("disj")}</span><span>A</span><span style="width:30px"></span><span>Condutor:</span><span class="mv m">${v("cabEnt")}</span></div>
+  <div class="mrow mt"><span>Número do poste de derivação para unidade consumidora:</span><span class="mv m">${v("poste")}</span></div>
+  <p class="mp">2 - Sistema Fotovoltaico</p><p class="mp">Descrição</p>
+  <div class="marea" style="height:64px">${descArranjo(c)}</div>
+  </div>`;
+  const p2=`<div class="sheet memo">${cabec}
+  <div class="ml2">Inversor:</div><div class="mbar">${z(n(P.iQ)||1)} UNIDADE${(n(P.iQ)||1)>1?"S":""} - INVERSOR DE FREQUÊNCIA ${fmt(n(P.iP),n(P.iP)%1?1:0)} kW, ${up("iFab")}-${up("iMod")}</div>
+  <div class="ml2">Módulo Fotovoltaico:</div><div class="mbar">${z(c.qtd)} UNIDADES - ${up("mFab")} ${up("mMod")} ${esc(String(P.mTipo||"Monocristalino").split(" ")[0].slice(0,4).toUpperCase())}</div>
+  <div class="mrow mt"><span>Condutor CA:</span><span class="mv m">${c.cabCA} mm²</span><span style="width:12px"></span><span>Condutor CC:</span><span class="mv m">${c.cabCC} mm²</span></div>
+  <div class="ml2">Dispositivo de proteção CA:</div><div class="mbar">01 UNID - Disjuntor Termomagnético ${polos} C${c.disjCA}/${fasesInv>1?"400":"230"}V, ${fasesInv} UNID - Dispositivo Protetor Surto 20kA/275V</div>
+  <div class="ml2">Dispositivo de proteção CC:</div><div class="mbar">${nMppt} UNID Dispositivo Protetor Surto 20kA/${vDps}V Bipolar, ${nMppt} UNID Chave Seccionadora CC ${c.chaveCC}A/${vDps}V</div>
+  <div class="ml2">Observações</div>
+  <div class="marea" style="height:150px">${P.rtArt?`N° DA ${/^Técnico/.test(P.rtTit||"")?"TRT":"ART"} ${v("rtArt")}<br>`:""}LATITUDE ${dms(n(P.lat),"N","S")}<br>LONGITUDE ${dms(n(P.lon),"E","W")}</div>
+  <div class="msig"><div class="ln"></div><div class="mrow"><span class="ml">Nome do Responsável Técnico:</span><span class="mv f">${up("rtNome")}</span></div><div class="mrow"><span class="ml">Registro:</span><span class="mv f">${v("rtReg")}</span></div></div>
+  </div>`;
+  return [p1,p2];
 }
 
 /* ---- elementos de desenho (SVG) ---- */
