@@ -94,6 +94,7 @@ details.sec>summary .chev{margin-left:auto;color:var(--muted);transition:transfo
 details.sec[open]>summary .chev{transform:rotate(90deg)}
 .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px;padding:2px 12px 12px}
 .fields .full{grid-column:1/-1}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}.chips .chip{border:1.5px solid var(--line,#ccc);background:#fff;border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer;color:inherit}.chips .chip[aria-pressed="true"]{background:#B87500;border-color:#B87500;color:#fff;font-weight:700}.chips.falta{outline:2px solid #c0392b;outline-offset:3px;border-radius:10px}
 .qloc{margin-top:8px}.qds{display:grid;grid-template-columns:auto 1fr;gap:6px 8px;align-items:center;margin:8px 0;font-size:12px;color:var(--muted)}.qds .btn{font-size:12.5px;padding:5px 10px}
 .inmop{display:flex;flex-wrap:wrap;gap:4px;width:100%}.inmop .btn{font-size:11px;padding:3px 8px;font-weight:500}
 .inm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;font-size:12px;color:var(--muted)}.inm .btn{padding:4px 10px;font-size:12px}
@@ -245,6 +246,8 @@ details.sec[open]>summary .chev{transform:rotate(90deg)}
       </div>
       <div class="f qloc"><label for="q_loc">Localização <span class="u">link do Google Maps, coordenadas ou endereço</span></label><input id="q_loc" placeholder="ex. -16.7008, -49.2803"></div>
       <div class="f qloc"><label for="q_art">Nº da ART / TRT <span class="u">do responsável técnico</span></label><input id="q_art" placeholder="ex. GO20260000000 ou BR20260000000"></div>
+      <div class="f qloc"><label>Modalidade de compensação <span class="u">escolha uma</span></label><div class="chips" id="qMod"></div>
+        <div class="qds" id="qRatBox" hidden><label class="btn" for="q_rat">Contas das UCs do rateio (PDF/foto)<input type="file" id="q_rat" multiple accept="application/pdf,.pdf,image/*" hidden></label><span id="q_rat_n"></span></div></div>
       <div class="qds">
         <label class="btn" for="q_dsI">Datasheet do inversor (PDF)<input type="file" id="q_dsI" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_dsI_n"></span>
         <label class="btn" for="q_dsM">Datasheet do módulo (PDF)<input type="file" id="q_dsM" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_dsM_n"></span>
@@ -325,7 +328,7 @@ const SECTIONS = [
   ["cep","CEP"],["uf","UF"],["loc","Localização (link do Google Maps, coordenadas ou endereço)","text","full"],["lat","Latitude","num",null,"graus, ex. -16.6869"],["lon","Longitude","num",null,"graus, ex. -49.2648"]]},
  {id:"con", t:"Conexão e padrão de entrada", f:[
   ["tipoSolic","Tipo de solicitação","sel",["Conexão de GD em UC existente sem aumento de potência disponibilizada","Conexão de GD em UC existente com aumento de potência disponibilizada","Ligação nova com GD"],"full"],
-  ["modalidade","Modalidade de compensação","sel",["Autoconsumo local","Autoconsumo remoto","Geração compartilhada","Múltiplas unidades consumidoras (EMUC)"],"full"],
+  ["modalidade","Modalidade de compensação","chips",["Autoconsumo local","Autoconsumo remoto","Geração compartilhada","Múltiplas unidades consumidoras (EMUC)"],"full"],
   ["ligacao","Tipo de ligação","sel",["Monofásico","Bifásico","Trifásico"]],["tensao","Tensão de atendimento","sel",["220 V (F-N)","380/220 V"]],
   ["disj","Disjuntor de entrada","num",null,"A"],["poste","Nº do poste da rede","text",null,"aparece no diagrama unifilar"],["cabEnt","Condutor do ramal de entrada","num",null,"mm²"],
   ["carga","Carga instalada","num",null,"kW (vazio = soma do levantamento de carga)"],["demanda","Demanda estimada","num",null,"kW"],
@@ -507,6 +510,7 @@ function fd([k,l,t="text",o,u]){
   let inp;
   if(t==="sel") inp=`<select id="${id}" data-k="${k}">${o.map(x=>`<option ${P[k]===x?"selected":""}>${esc(x)}</option>`).join("")}</select>`;
   else if(t==="area") inp=`<textarea id="${id}" data-k="${k}" placeholder="${esc(u||"")}">${val(k)}</textarea>`;
+  else if(t==="chips") inp=`<div class="chips" data-chips="${k}">${o.map(x=>`<button type="button" class="chip" data-chip="${esc(x)}" aria-pressed="${P[k]===x}">${esc(x.replace(" (EMUC)",""))}</button>`).join("")}</div>`;
   else if(t==="sig") inp=`<div class="sigbox">${assinRT?`<img src="${assinRT}" alt="Assinatura">`:"<span>Nenhuma assinatura salva</span>"}</div><div class="inm"><label class="btn">Enviar imagem da assinatura<input type="file" id="sigFile" accept="image/*" hidden></label>${assinRT?`<button class="btn" type="button" id="sigDel">Remover</button>`:""}<span id="sigSt">Entra sozinha em todos os documentos.</span></div>`;
   else if(t==="file") inp=`<input id="${id}" type="file" accept="image/*" data-file="1">`;
   else inp=`<input id="${id}" data-k="${k}" type="${t==="date"?"date":"text"}" ${t==="num"?'inputmode="decimal"':""} value="${val(k)}">`;
@@ -516,7 +520,8 @@ function fd([k,l,t="text",o,u]){
   const inm=k==="rtArt"?`<div class="inm"><label class="btn">Ler ART/TRT (PDF)<input type="file" data-ds="a" accept="application/pdf,.pdf,image/*" hidden></label><button class="btn" type="button" id="bArtSig">Baixar ART/TRT assinada</button><span id="inm_a"></span></div>`:(k==="mReg"||k==="iReg")?`<div class="inm"><label class="btn">Ler datasheet (PDF)<input type="file" data-ds="${k[0]}" accept="application/pdf,.pdf,image/*" hidden></label><button class="btn" type="button" data-inm="${k[0]}">Buscar no INMETRO</button><span id="inm_${k[0]}"></span></div>`:"";
   return `<div class="f${full}"><label for="${id}">${esc(l)} ${unit}</label>${inp}${inm}${loc}${rat}</div>`;
 }
-function syncForm(){document.querySelectorAll("[data-k]").forEach(e=>{const k=e.dataset.k;if(e.tagName==="SELECT"){if(P[k])e.value=P[k]}else e.value=P[k]??""})}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-chip]");if(!b)return;const g=b.closest("[data-chips]"),k=g.dataset.chips;P[k]=b.dataset.chip;delete P._exemplo;g.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",c===b));store("hgo_current",P);render()});
+function syncForm(){document.querySelectorAll("[data-chips]").forEach(g=>g.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",P[g.dataset.chips]===c.dataset.chip)));document.querySelectorAll("[data-k]").forEach(e=>{const k=e.dataset.k;if(e.tagName==="SELECT"){if(P[k])e.value=P[k]}else e.value=P[k]??""})}
 let rT;
 function onInput(e){
   const el=e.target;
@@ -1494,10 +1499,17 @@ const DOC_KEYS={nome:"nome completo do titular da UC",doc:"CPF ou CNPJ do titula
   ligacao:"tipo de fornecimento [Monofásico | Bifásico | Trifásico]",consumo:"histórico de consumo em kWh dos últimos 12 meses, do mais antigo ao mais recente, separado por vírgulas",
   lat:"latitude aproximada do endereço em graus decimais (estimativa pelo endereço, se não constar)",lon:"longitude aproximada do endereço em graus decimais"};
 
+const MODS=["Autoconsumo local","Autoconsumo remoto","Geração compartilhada","Múltiplas unidades consumidoras (EMUC)"];
+let qModSel="";
+function desenharQMod(){$("#qMod").innerHTML=MODS.map(m=>`<button type="button" class="chip" data-qmod="${esc(m)}" aria-pressed="${m===qModSel}">${esc(m.replace(" (EMUC)",""))}</button>`).join("");$("#qRatBox").hidden=!qModSel||qModSel==="Autoconsumo local"}
+desenharQMod();
+$("#qMod").addEventListener("click",e=>{const b=e.target.closest("[data-qmod]");if(!b)return;qModSel=b.dataset.qmod;$("#qMod").classList.remove("falta");desenharQMod()});
+$("#q_rat").addEventListener("change",e=>{const f=[...e.target.files];$("#q_rat_n").textContent=f.length?f.length+" conta(s)":""});
 $("#qGo").addEventListener("click",async()=>{
   const msg=t=>$("#qMsg").textContent=t;
   const iP=n($("#q_iP").value),iQ=n($("#q_iQ").value)||1,mP=n($("#q_mP").value),mQ=n($("#q_mQ").value);
   if(!iP||!mP||!mQ){msg("Informe a potência do inversor, a potência e a quantidade de módulos.");return}
+  if(!qModSel){msg("Escolha a modalidade de compensação.");$("#qMod").classList.add("falta");$("#qMod").scrollIntoView({block:"center",behavior:"smooth"});return}
   const btn=$("#qGo");btn.disabled=true;
   try{
     const rt=load("hgo_rt")||{};
@@ -1533,11 +1545,14 @@ Regras: o titular da UC é o nome que consta na conta de energia; números (lat,
     ["iFab","iMod","mFab","mMod"].forEach(k=>{const v=$("#q_"+k).value.trim();if(v||Q[k]==null)Q[k]=v});
     Q.loc=$("#q_loc").value.trim();
     {const art=$("#q_art").value.trim();if(art)Q.rtArt=art}
-    Q._equipEst=dsOk.length<2;
+    Q._equipEst=dsOk.length<2;Q.modalidade=qModSel;
     P=Q;autoStrings();plantaImg=null;
     P._id=novoId();store("hgo_current",P);if(artArq)kv("put","art:"+P._id,artArq).catch(()=>{});buildFormFresh();currentDoc="form";render();salvarProjeto(true);
     ["i","m"].forEach(t=>{if(P[t+"Fab"]&&P[t+"Mod"])buscarInmetro(t)});
     if(P.loc)buscarLocal();
+    const contas=qModSel!=="Autoconsumo local"?[...$("#q_rat").files]:[];
+    qModSel="";desenharQMod();$("#q_rat").value="";$("#q_rat_n").textContent="";
+    if(contas.length)lerContasRateio(contas);
     if(dsOk.length)aiNote+=dsOk.length>1?"Datasheets do inversor e do módulo lidos. ":`Datasheet do ${dsOk[0]==="i"?"inversor":"módulo"} lido. `;
     const miss=["nome","doc","uc","end","cidade"].filter(k=>!P[k]);
     msg(`${aiNote}${found?found+" campos lidos dos documentos. ":""}${miss.length?"Faltam: "+miss.map(k=>SECTIONS.flatMap(s=>s.f).find(f=>f[0]===k)[1]).join(", ")+". ":""}Confira os alertas e os documentos ao lado.`);
@@ -1672,9 +1687,9 @@ function calcRateio(){
   gravarRateio(L);st(`Rateio calculado pelo consumo médio de ${L.length} UCs (total ${fmt(tot,0)} kWh/mês).`);
 }
 document.addEventListener("click",e=>{if(e.target.closest("#bRat"))calcRateio()});
-document.addEventListener("change",async e=>{
-  if(e.target.id!=="ratFiles"||!e.target.files.length)return;
-  const st=x=>{const s2=$("#ratSt");if(s2)s2.textContent=x},fs=[...e.target.files];e.target.value="";
+document.addEventListener("change",e=>{if(e.target.id!=="ratFiles"||!e.target.files.length)return;const fs=[...e.target.files];e.target.value="";lerContasRateio(fs)});
+async function lerContasRateio(fs){
+  const st=x=>{const s2=$("#ratSt");if(s2)s2.textContent=x;toast(x)};
   if(!navigator.onLine||!sessao){st("A leitura das contas precisa de internet e login.");return}
   if(P.modalidade==="Autoconsumo local"){P.modalidade="Autoconsumo remoto";syncForm()}
   const L=linhasRateio();let ok=0;
@@ -1687,7 +1702,7 @@ document.addEventListener("change",async e=>{
     }catch(err){st(`Conta ${f.name}: ${err.message}`)}
   }
   gravarRateio(L);if(ok)calcRateio();
-});
+}
 
 /* ---------------- registro INMETRO (consulta pública) ---------------- */
 const inmBusca={},inmFeito=new Set();
