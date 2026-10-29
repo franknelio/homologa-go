@@ -292,6 +292,7 @@ const SECTIONS = [
   ["iDht","DHT de corrente","num",null,"%"],["iDim","Dimensões","text",null,"ex. 375 x 350 x 160 mm"],["iPeso","Peso","num",null,"kg"],["iIP","Grau de proteção","text",null,"ex. IP65"],["iReg","Registro INMETRO / certificado","text","full"]]},
  {id:"arr", t:"Arranjo e instalação", f:[
   ["nStr","Nº de strings","num",null,"un."],["mPorStr","Módulos por string","num",null,"un."],
+  ["strDet","Strings por MPPT (opcional, quando forem diferentes)","text","full","ex. 2x11; 2x10 = MPPT 1 com 2 strings de 11 e MPPT 2 com 2 strings de 10"],
   ["telhado","Tipo de telhado / estrutura","sel",["Cerâmico","Fibrocimento","Metálico (trapezoidal)","Laje","Solo"]],["orient","Orientação","sel",["Norte","Nordeste","Noroeste","Leste","Oeste","Sul"]],
   ["incl","Inclinação","num",null,"graus"],["hsp","Irradiação (HSP)","num",null,"kWh/m²·dia"],
   ["pr","Rendimento global (PR)","num",null,"ex. 0,80"],["tmin","Temperatura mínima","num",null,"°C"],
@@ -342,6 +343,15 @@ function slug(){return (P.nome||"projeto").normalize("NFD").replace(/[̀-ͯ]/g,"
 /* ---------------- cálculos ---------------- */
 const BRK=[6,10,16,20,25,32,40,50,63,70,80,100,125,160,200];
 const CAB=[[1.5,17.5],[2.5,24],[4,32],[6,41],[10,57],[16,76],[25,101],[35,125],[50,151],[70,192],[95,232]]; // NBR 5410 B1, Cu/PVC, 2 carregados
+// lista de strings [{m: módulos em série, mppt: nº do MPPT}], do campo strDet ou de nStr × mPorStr
+function listaStrings(){
+  const det=String(P.strDet||"").trim(),out=[];
+  if(det){det.split(/[;\n]/).map(x=>x.trim()).filter(Boolean).forEach((seg,i)=>seg.split("+").forEach(it=>{const m=it.trim().match(/^(?:(\d+)\s*[x×*]\s*)?(\d+)$/i);if(m)for(let k=0;k<(+m[1]||1);k++)out.push({m:+m[2],mppt:i+1})}));if(out.length)return out}
+  const ns=Math.max(1,n(P.nStr)),ms=n(P.mPorStr),nm=Math.max(1,n(P.iNmppt)*Math.max(1,n(P.iQ))),spm=Math.ceil(ns/nm);
+  for(let i=0;i<ns;i++)out.push({m:ms,mppt:Math.min(nm,Math.floor(i/spm)+1)});
+  return out;
+}
+function porMppt(L){const g={};L.forEach(s=>{(g[s.mppt]??=[]).push(s.m)});return Object.entries(g).map(([mppt,ms])=>({mppt:+mppt,ms}))}
 function calc(){
   const c={};
   c.qtd=n(P.mQ); c.pcc=c.qtd*n(P.mP)/1000; c.pca=n(P.iP)*Math.max(1,n(P.iQ));
@@ -353,11 +363,13 @@ function calc(){
   const I=n(P.disj);
   c.pdisp=P.ligacao==="Monofásico"?vfn*I/1000:P.ligacao==="Bifásico"?2*vfn*I/1000:Math.sqrt(3)*vff*I/1000;
   // strings
-  const ms=n(P.mPorStr), ns=Math.max(1,n(P.nStr)), beta=n(P.mBeta)/100||-0.0028, tmin=P.tmin===""||P.tmin==null?8:n(P.tmin);
+  const SL=listaStrings(), G=porMppt(SL), msMax=Math.max(...SL.map(x=>x.m)), msMin=Math.min(...SL.map(x=>x.m));
+  c.strings=SL; c.mppts=G; c.qtdStr=SL.reduce((a,x)=>a+x.m,0);
+  const ms=msMax, ns=SL.length, beta=n(P.mBeta)/100||-0.0028, tmin=P.tmin===""||P.tmin==null?8:n(P.tmin);
   c.vocStr=ms*n(P.mVoc); c.vocMax=c.vocStr*(1+beta*(tmin-25));
-  c.vmpStr=ms*n(P.mVmp); c.vmpHot=c.vmpStr*(1+beta*(70-25));
+  c.vmpStr=ms*n(P.mVmp); c.vmpHot=msMin*n(P.mVmp)*(1+beta*(70-25));
   const nm=Math.max(1,n(P.iNmppt)*Math.max(1,n(P.iQ)));
-  c.strPorMppt=Math.ceil(ns/nm);
+  c.strPorMppt=Math.max(...G.map(g=>g.ms.length));
   c.iscMppt=c.strPorMppt*n(P.mIsc); c.impMppt=c.strPorMppt*n(P.mImp);
   // saída CA
   const vOut=P.iFases.startsWith("Trif")?vff:220;
@@ -393,7 +405,7 @@ function checks(c){
   if(!c.pinst){add("bad","Informe módulos e inversor para calcular a potência.");return r}
   add(c.pinst<=75?"ok":"warn",`${c.categoria} de ${fmt(c.pinst)} kW → usar formulário Anexo ${c.anexo} (${c.anexo==="I"?"até 10 kW":"acima de 10 kW, exige diagrama de blocos e projeto elétrico"}).`);
   if(c.pdisp) add(c.pinst<=c.pdisp?"ok":"bad",`Potência disponibilizada pelo padrão ≈ ${fmt(c.pdisp)} kW (disjuntor ${P.disj} A). ${c.pinst<=c.pdisp?"A geração cabe no padrão atual.":"A geração excede: é preciso aumento de carga/troca de padrão."}`);
-  const qs=n(P.nStr)*n(P.mPorStr); if(qs&&qs!==c.qtd) add("bad",`Strings somam ${qs} módulos, mas a quantidade informada é ${c.qtd}.`);
+  const qs=c.qtdStr; if(qs&&qs!==c.qtd) add("bad",`Strings somam ${qs} módulos, mas a quantidade informada é ${c.qtd}.`);
   if(c.vocMax&&n(P.iVmax)) add(c.vocMax<=n(P.iVmax)?"ok":"bad",`Voc da string a ${P.tmin??8} °C = ${fmt(c.vocMax,0)} V (limite do inversor ${P.iVmax} V).`);
   if(c.vmpHot&&n(P.iMin)) add(c.vmpHot>=n(P.iMin)&&c.vmpStr<=n(P.iMax)?"ok":"warn",`Vmp da string entre ${fmt(c.vmpHot,0)} V (70 °C) e ${fmt(c.vmpStr,0)} V (25 °C); faixa MPPT ${P.iMin}–${P.iMax} V.`);
   if(n(P.iIsc)) add(c.iscMppt<=n(P.iIsc)?"ok":"bad",`Isc por MPPT = ${fmt(c.iscMppt,1)} A (máx. ${P.iIsc} A).`);
@@ -509,22 +521,19 @@ function catAtend(){
   const d=n(P.disj);
   if(P.ligacao==="Monofásico")return d<=32?"M1":d<=50?"M2":"M3";
   if(P.ligacao==="Bifásico")return d<=50?"B1":"B2";
-  return d<=40?"T1":d<=63?"T2":d<=100?"T3":"T4";
+  return d<=50?"T1":d<=63?"T2":d<=100?"T3":"T4";
 }
 function descArranjo(c){
-  const ns=Math.max(1,n(P.nStr)),ms=n(P.mPorStr),nm=Math.max(1,n(P.iNmppt)*Math.max(1,n(P.iQ))),por={};
-  for(let i=0;i<ns;i++){const m=i%nm+1;por[m]=(por[m]||0)+1}
-  const z=v=>String(v).padStart(2,"0");
-  const partes=Object.entries(por).map(([m,k])=>`${z(k)} arranjo${k>1?"s":""} de ${z(ms)} módulos de ${fmt(n(P.mP),0)}W em série na ${m} MPPT`);
-  const lista=partes.length>1?partes.slice(0,-1).join(", ")+" e "+partes.at(-1):partes[0];
-  return `Sistema Fotovoltaico conectado à rede com ${lista}. Conectado a ${z(n(P.iQ)||1)} inversor${(n(P.iQ)||1)>1?"es":""} de frequência ${esc(String(P.iFab||"").toUpperCase())} de ${fmt(n(P.iP),n(P.iP)%1?1:0)} kW.`;
+  const z=v=>String(v).padStart(2,"0"),iq=n(P.iQ)||1;
+  const partes=c.mppts.flatMap(g=>{const cont={};g.ms.forEach(m=>cont[m]=(cont[m]||0)+1);return Object.entries(cont).map(([m,k])=>`${z(k)} arranjo de ${z(m)} módulos de ${fmt(n(P.mP),0)}W em série na ${g.mppt} MPPT`)});
+  return `Sistema Fotovoltaico conectado à rede com ${partes.join(" + ")}. Conectado a ${z(iq)} inversor${iq>1?"es":""} de frequência ${esc(String(P.iFab||"").toUpperCase())} de ${fmt(n(P.iP),n(P.iP)%1?1:0)} kW.`;
 }
 function docMemo(c){
   const v=k=>esc(String(P[k]??"")),up=k=>esc(String(P[k]??"").toUpperCase());
   const rad=(on,t)=>`<span class="rd"><i class="${on?"on":""}"></i>${t}</span>`;
   const cat=catAtend(),z=x=>String(x).padStart(2,"0");
   const fasesInv=P.iFases.startsWith("Trif")?3:1,polos=P.iFases.startsWith("Trif")?"Tripolar":"Mono";
-  const nMppt=Math.min(Math.max(1,n(P.nStr)),Math.max(1,n(P.iNmppt)*Math.max(1,n(P.iQ))));
+  const nMppt=c.mppts.length;
   const vDps=c.vocMax>1000?1500:1000;
   const benef=c.benef.length?c.benef.map(r=>[r[0],r[3]?fmt(n(r[3]),n(r[3])%1?2:0)+"%":""]):[[P.uc,"100%"]];
   const somaR=c.benef.length?c.benef.reduce((a,r)=>a+n(r[3]),0):100;
@@ -560,13 +569,13 @@ function docMemo(c){
   <div class="marea" style="height:64px">${descArranjo(c)}</div>
   </div>`;
   const p2=`<div class="sheet memo">${cabec}
-  <div class="ml2">Inversor:</div><div class="mbar">${z(n(P.iQ)||1)} UNIDADE${(n(P.iQ)||1)>1?"S":""} - INVERSOR DE FREQUÊNCIA ${fmt(n(P.iP),n(P.iP)%1?1:0)} kW, ${up("iFab")}-${up("iMod")}</div>
-  <div class="ml2">Módulo Fotovoltaico:</div><div class="mbar">${z(c.qtd)} UNIDADES - ${up("mFab")} ${up("mMod")} ${esc(String(P.mTipo||"Monocristalino").split(" ")[0].slice(0,4).toUpperCase())}</div>
+  <div class="ml2">Inversor:</div><div class="mbar">${z(n(P.iQ)||1)} UNIDADE${(n(P.iQ)||1)>1?"S":""} - INVERSOR DE FREQUÊNCIA ${fmt(n(P.iP),n(P.iP)%1?1:0)} kW, ${up("iFab")} ${up("iMod")}</div>
+  <div class="ml2">Módulo Fotovoltaico:</div><div class="mbar">${z(c.qtd)} UNIDADES - ${up("mFab")} ${up("mMod")}${/bifacial/i.test(P.mTipo||"")?" BIFACIAL":""} ${fmt(n(P.mP),0)}W ${/poli/i.test(P.mTipo||"")?"POLI":"MONO"}</div>
   <div class="mrow mt"><span>Condutor CA:</span><span class="mv m">${c.cabCA} mm²</span><span style="width:12px"></span><span>Condutor CC:</span><span class="mv m">${c.cabCC} mm²</span></div>
-  <div class="ml2">Dispositivo de proteção CA:</div><div class="mbar">01 UNID - Disjuntor Termomagnético ${polos} C${c.disjCA}/${fasesInv>1?"400":"230"}V, ${fasesInv} UNID - Dispositivo Protetor Surto 20kA/275V</div>
-  <div class="ml2">Dispositivo de proteção CC:</div><div class="mbar">${nMppt} UNID Dispositivo Protetor Surto 20kA/${vDps}V Bipolar, ${nMppt} UNID Chave Seccionadora CC ${c.chaveCC}A/${vDps}V</div>
+  <div class="ml2">Dispositivo de proteção CA:</div><div class="mbar">01 UNID - Disjuntor Termomagnético ${polos} C${c.disjCA}/${fasesInv>1?"400":"230"}V, ${fasesInv} UNID - Dispositivo Protetor Surto 10kA/275V</div>
+  <div class="ml2">Dispositivo de proteção CC:</div><div class="mbar">${nMppt} UNID Dispositivo Protetor Surto 20kA/${vDps}V Bipolar</div>
   <div class="ml2">Observações</div>
-  <div class="marea" style="height:150px">${P.rtArt?`N° DA ${/^Técnico/.test(P.rtTit||"")?"TRT":"ART"} ${v("rtArt")}<br>`:""}LATITUDE ${dms(n(P.lat),"N","S")}<br>LONGITUDE ${dms(n(P.lon),"E","W")}</div>
+  <div class="marea" style="height:150px">${P.rtArt?`N° DA ${/^[A-Za-z]/.test(P.rtArt)?"":/^Técnico/.test(P.rtTit||"")?"TRT ":"ART "}${v("rtArt")}<br>`:""}LATITUDE ${dms(n(P.lat),"N","S")}<br>LONGITUDE ${dms(n(P.lon),"E","W")}</div>
   <div class="msig"><div class="ln"></div><div class="mrow"><span class="ml">Nome do Responsável Técnico:</span><span class="mv f">${up("rtNome")}</span></div><div class="mrow"><span class="ml">Registro:</span><span class="mv f">${v("rtReg")}</span></div></div>
   </div>`;
   return [p1,p2];
@@ -636,7 +645,7 @@ function docUnif(c){
   const fases=nf-1;
   const tri=P.iFases.startsWith("Trif");
   const nInv=tri?4:2;
-  const iQ=Math.max(1,n(P.iQ)), per=Math.max(1,n(P.mPorStr)||c.qtd||1), ns=Math.max(1,n(P.nStr)||1);
+  const iQ=Math.max(1,n(P.iQ)), per=Math.max(1,Math.max(...c.strings.map(x=>x.m))||c.qtd||1), ns=c.strings.length;
   const mP=n(P.mP), sec=c.cabCC;
   let g=S.rect(20,20,W-40,H-40,"none",3);
   g+=S.t(1000,78,"DIAGRAMA UNIFILAR",{fs:34,a:"middle"});
@@ -682,27 +691,27 @@ function docUnif(c){
   const nsDraw=Math.min(ns,4), y0=720, yMax=960;
   const sp=nsDraw>1?Math.min(150,(yMax-y0)/(nsDraw-1)):0, ret=Math.max(46,Math.min(70,sp?sp*.62:70));
   const nmTot=Math.max(1,n(P.iNmppt)*iQ), spm=Math.max(1,c.strPorMppt||1);
-  const rows=Array.from({length:nsDraw},(_,i)=>({i,y:y0+i*sp,m:Math.min(nmTot-1,Math.floor(i/spm))}));
+  let acum=0;const rows=Array.from({length:nsDraw},(_,i)=>{const s=c.strings[i],r={i,y:y0+i*sp,m:Math.min(nmTot-1,s.mppt-1),per:Math.max(1,s.m),ini:acum};acum+=s.m;return r});
   g+=S.t(560,y0-70,"O DIMENSIONAMENTO DO INVERSOR E MÓDULOS É DE RESPONSABILIDADE DO PROJETISTA.",{fs:13,a:"middle"});
   const bx=990,bxe=1380,x0=290;
   rows.forEach(r=>{
     const y=r.y,yr=y+ret;
-    const idx=per<=7?Array.from({length:per},(_,j)=>j):[0,1,2,3,4,-1,per-1];
+    const per=r.per,idx=per<=7?Array.from({length:per},(_,j)=>j):[0,1,2,3,4,-1,per-1];
     let x=x0;
     g+=S.line(x0-25,y,x0,y,1.3)+S.line(x0-25,y,x0-25,yr,1.3)+S.line(x0-25,yr,bx+30,yr,1.3);
     idx.forEach((j,k)=>{
       if(j<0){g+=S.t(x+30,y+5,"· · ·",{fs:16,a:"middle",b:1})+S.line(x,y,x+12,y,1.3)+S.line(x+48,y,x+60,y,1.3);x+=60;return}
-      g+=U.pv(x,y,`PV ${r.i*per+j+1}`)+S.line(x+37,y+16,x+37,y+22,1.2)+U.gnd(x+37,y+22);
+      g+=U.pv(x,y,`PV ${r.ini+j+1}`)+S.line(x+37,y+16,x+37,y+22,1.2)+U.gnd(x+37,y+22);
       if(k<idx.length-1){g+=S.line(x+74,y,x+84,y,1.3)+S.t(x+79,y-8,"+",{fs:11,a:"middle"})}
       x+=84;
     });
     const xe=x-10;
     g+=S.line(xe,y,bx+30,y,1.3);
     g+=S.t(xe+12,y-8,`+ 1#${sec}mm²`,{fs:10})+S.t(xe+12,yr-8,`– 1#${sec}mm²`,{fs:10})+S.t(xe+12,y+20,`SÉRIE N°${r.i+1} · MPPT ${r.m+1}`,{fs:10});
-    g+=S.lines(50,y-24,[`${per} MÓDULOS EM SÉRIE`,`${up(P.mFab)} ${mP} W`,`Vmp = ${fmt(c.vmpStr,1)} V`,`Imp = ${fmt(n(P.mImp),2)} A`,`P = ${fmt(per*mP/1000,2)} kWp`],{fs:9.5,lh:12});
+    g+=S.lines(50,y-24,[`${per} MÓDULOS EM SÉRIE`,`${up(P.mFab)} ${mP} W`,`Vmp = ${fmt(per*n(P.mVmp),1)} V`,`Imp = ${fmt(n(P.mImp),2)} A`,`P = ${fmt(per*mP/1000,2)} kWp`],{fs:9.5,lh:12});
     if(c.fusivel)g+=S.line(bx+30,y,bx+30,y,1)+U.fus(bx+2,y);
   });
-  if(ns>nsDraw)g+=S.t(1180,yMax+ret+105,`+ ${ns-nsDraw} STRING(S) IDÊNTICA(S) NÃO REPRESENTADA(S): ${ns} STRINGS DE ${per} MÓDULOS NO TOTAL`,{fs:11,a:"middle"});
+  if(ns>nsDraw)g+=S.t(1180,yMax+ret+105,(new Set(c.strings.map(x=>x.m)).size>1?`+ ${ns-nsDraw} STRING(S) NÃO REPRESENTADA(S): ${ns} STRINGS (${c.mppts.map(g=>`MPPT ${g.mppt}: ${g.ms.length}x${g.ms[0]}`).join(" · ")}) · ${c.qtdStr} MÓDULOS NO TOTAL`:`+ ${ns-nsDraw} STRING(S) IDÊNTICA(S) NÃO REPRESENTADA(S): ${ns} STRINGS DE ${per} MÓDULOS NO TOTAL`),{fs:11,a:"middle"});
   const yNotas=y0+(nsDraw-1)*sp+ret+42+(ns>nsDraw?0:0);
   g+=S.lines(60,yNotas,["NOTA: TODOS OS CONDUTORES USADOS NO ATERRAMENTO DOS MÓDULOS SÃO: 6mm² EPR 90°C 0,6/1KV, Classe 05.",`CONDUTOR PARA CIRCUITO EM CORRENTE CONTÍNUA: ${sec}mm², tensão máxima 1800 Vcc, temperatura máxima 120 °C, resistente à radiação UV (ABNT NBR 16612).`],{fs:10,lh:13});
   // string box
@@ -743,7 +752,7 @@ function docUnif(c){
   g+=S.line(ix+iw,yAC,1880,yAC,1.4)+S.line(1880,yAC,1880,yPV,1.4)+U.cab(1815,yAC,nInv,true,[`${nInv}#${c.cabCA}mm² + T`,"PVC 70°C 750V"]);
   // dados de entrada em STC
   const stc=[`ENTRADA DO INVERSOR EM CONDIÇÕES STC*`];
-  for(let m=0;m<Math.min(nmTot,Math.ceil(ns/spm));m++){const k=Math.min(spm,ns-m*spm);stc.push(`MPPT ${m+1}: ${k} string(s) · Vop = ${fmt(c.vmpStr,1)} V · I = ${fmt(k*n(P.mImp),2)} A · P = ${fmt(k*per*mP/1000,2)} kWp`)}
+  c.mppts.forEach(g=>{const k=g.ms.length,mm=Math.max(...g.ms);stc.push(`MPPT ${g.mppt}: ${k} string(s) de ${mm} módulos · Vop = ${fmt(mm*n(P.mVmp),1)} V · I = ${fmt(k*n(P.mImp),2)} A · P = ${fmt(g.ms.reduce((a,b)=>a+b,0)*mP/1000,2)} kWp`)});
   stc.push(`POTÊNCIA PICO DE ENTRADA CC = ${fmt(c.pcc,2)} kWp · POTÊNCIA NOMINAL CA = ${fmt(c.pca,2)} kW`,"*STC: irradiância 1000 W/m², temperatura do módulo 25 °C, massa de ar 1,5");
   g+=S.lines(60,yNotas+40,stc,{fs:10.5,lh:14});
 
