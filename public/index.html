@@ -327,11 +327,11 @@ const SECTIONS = [
   ["modalidade","Modalidade de compensação","sel",["Autoconsumo local","Autoconsumo remoto","Geração compartilhada","Múltiplas unidades consumidoras (EMUC)"],"full"],
   ["ligacao","Tipo de ligação","sel",["Monofásico","Bifásico","Trifásico"]],["tensao","Tensão de atendimento","sel",["220 V (F-N)","380/220 V"]],
   ["disj","Disjuntor de entrada","num",null,"A"],["poste","Nº do poste da rede","text",null,"aparece no diagrama unifilar"],["cabEnt","Condutor do ramal de entrada","num",null,"mm²"],
-  ["carga","Carga instalada","num",null,"kW (vazio = soma do levantamento de carga ou potência do inversor)"],["demanda","Demanda estimada","num",null,"kW"],
+  ["carga","Carga instalada","num",null,"kW (vazio = soma do levantamento de carga)"],["demanda","Demanda estimada","num",null,"kW"],
   ["ramal","Ramal de ligação","sel",["Aéreo","Subterrâneo"]],["padrao","Padrão de entrada","sel",["Poste auxiliar","Muro / mureta","Fachada","Pontalete"]],
   ["catAtend","Categoria de atendimento","sel",["Automática","M1","M2","M3","B1","B2","T1","T2","T3","T4"]],["mudaPadrao","Haverá troca/mudança do padrão?","sel",["Não","Sim"]],["arrend","Telhado arrendado a terceiros?","sel",["Não","Sim"]],
   ["cxMat","Material da caixa de medição","sel",["METAL","POLICARBONATO"]],["cxDim","Dimensões da caixa de medição","text",null,"ex. 380mm X 500mm X 186,4mm"],
-  ["cargas","Levantamento de carga (opcional)","area","full","Um equipamento por linha: descrição ; potência W ; quantidade (ex. CHUVEIRO ; 5000 ; 2)"],
+  ["cargas","Levantamento de carga (opcional)","area","full","Vazio = lista automática com 65% da potência do inversor. Ou um equipamento por linha: descrição ; potência W ; quantidade"],
   ["consumo","Histórico de consumo (12 meses, kWh)","area","full","Separe por vírgula, do mais antigo ao mais recente"]]},
  {id:"mod", t:"Módulos fotovoltaicos", f:[
   ["mFab","Fabricante"],["mMod","Modelo"],["mP","Potência nominal (Pmax)","num",null,"Wp"],["mQ","Quantidade","num",null,"un."],
@@ -478,7 +478,7 @@ function checks(c){
   if(!P.rtArt) add("warn","Informe o número da ART/TRT do responsável técnico.");
   if(P._equipEst) add("warn","Especificações elétricas do módulo e do inversor estimadas pela potência. Confira com o datasheet em “Módulos” e “Inversor” e informe marca, modelo e registro INMETRO.");
   if(P._coordAprox) add("warn","Coordenadas aproximadas pelo endereço. Confira no Google Maps antes de protocolar.");
-  if(!n(P.carga)&&!listaCargas().length) add("warn",`Carga instalada não informada; usei ${fmt(cargaInst())} kW, a potência do inversor. Ajuste em Conexão e padrão de entrada se souber a carga real.`);
+  if(!n(P.carga)&&!String(P.cargas||"").trim()&&cargaInst()) add("ok",`Levantamento de carga gerado automaticamente com eletrodomésticos e eletrônicos: ${fmt(cargaInst())} kW (35% abaixo da potência do inversor).`);
   if(P._disjPadrao) add("warn",`Disjuntor de entrada assumido em ${P.disj} A (a conta não informa). Confirme no padrão.`);
   return r;
 }
@@ -542,11 +542,10 @@ function protTable(){return `<table><tr><th>Função (ANSI)</th><th>Descrição<
 <tr><td>25</td><td>Sincronismo</td><td class="v">interno ao inversor</td><td class="v">—</td></tr>
 <tr><td>—</td><td>Reconexão após restabelecimento</td><td class="v">tensão e frequência normais</td><td class="v">20 a 300 s</td></tr></table>`}
 
-// carga instalada informada; se vazia, usa a potência total dos inversores (regra do usuário)
+// carga instalada informada; se vazia, a soma do levantamento de carga (digitado ou automático)
 function cargaInst(){
   if(n(P.carga))return n(P.carga);
-  const lc=listaCargas();if(lc.length)return Math.round(lc.reduce((a,r)=>a+r.p*r.q,0)/10)/100;
-  return Math.round(n(P.iP)*(n(P.iQ)||1)*100)/100;
+  const lc=listaCargas();return Math.round(lc.reduce((a,r)=>a+r.p*r.q,0)/10)/100;
 }
 function catAtend(){
   if(P.catAtend&&P.catAtend!=="Automática")return P.catAtend;
@@ -641,7 +640,30 @@ function vnUC(){return P.ligacao==="Monofásico"?220:380}
 // potência disponibilizada pelo modelo da Equatorial: PD = Vn × Idg × NF / 1000, PD(kW) = PD(kVA) × 0,92
 function pdEq(){const nf=P.ligacao==="Trifásico"?Math.sqrt(3):1,kva=vnUC()*n(P.disj)*nf/1000;return {nf,kva,kw:kva*0.92}}
 // levantamento de carga: "descrição; potência W; quantidade" por linha
-function listaCargas(){return String(P.cargas||"").split(/\n/).map(l=>l.split(";").map(s=>s.trim())).filter(r=>r[0]&&n(r[1])).map(r=>({d:r[0],p:n(r[1]),q:n(r[2])||1}))}
+// levantamento de carga: o digitado em "cargas" ou, se vazio, eletrodomésticos e eletrônicos gerados
+// automaticamente somando 65% da potência dos inversores (35% abaixo, regra do usuário) ou a carga informada
+function listaCargas(){
+  const dig=String(P.cargas||"").split(/\n/).map(l=>l.split(";").map(s=>s.trim())).filter(r=>r[0]&&n(r[1])).map(r=>({d:r[0],p:n(r[1]),q:n(r[2])||1}));
+  return dig.length?dig:cargasAuto();
+}
+function cargasAuto(){
+  const alvo=Math.round((n(P.carga)||n(P.iP)*(n(P.iQ)||1)*0.65)*1000);if(!alvo)return [];
+  // [descrição, W, quantidade máxima], na ordem em que entram
+  const k=Math.max(1,Math.floor(alvo/15000)); // instalações maiores repetem os equipamentos
+  const CAT=[["GELADEIRA",150,k],["TELEVISOR",120,2*k],["LAMPADAS LED",10,0],["CHUVEIRO ELETRICO",5500,alvo>=7000?k:0],["MICRO-ONDAS",1200,k],["MAQUINA DE LAVAR",500,k],["COMPUTADOR",300,k],["FERRO DE PASSAR",1000,k],["AR COND. 12000 BTU",1200,3*k],["FREEZER",300,k],["VENTILADOR",100,3*k],["LIQUIDIFICADOR",300,k],["AIR FRYER",1500,k]];
+  const out=[];let soma=0;
+  const lamp={d:"LAMPADAS LED",p:10,q:Math.min(15,Math.floor(alvo*0.04/10))};
+  for(const [d,p,max] of CAT){
+    if(d==="LAMPADAS LED"){if(lamp.q&&soma+lamp.q*10<=alvo){out.push(lamp);soma+=lamp.q*10}continue}
+    let q=0;while(q<max&&soma+p<=alvo){q++;soma+=p}
+    if(q)out.push({d,p,q});
+    if(out.length>=10)break;
+  }
+  const resto=alvo-soma;
+  if(resto>=100){const q=Math.floor(resto/100);out.push({d:"TOMADAS DE USO GERAL",p:100,q});soma+=q*100}
+  const fim=alvo-soma;if(fim>=10){const l=out.find(x=>x.d==="LAMPADAS LED");if(l)l.q+=Math.floor(fim/10);else out.push({d:"LAMPADAS LED",p:10,q:Math.floor(fim/10)})}
+  return out;
+}
 function localCaixa(){return {"Muro / mureta":"MURO DO CLIENTE","Poste auxiliar":"POSTE AUXILIAR","Fachada":"FACHADA DO IMÓVEL","Pontalete":"PONTALETE"}[P.padrao]||UP(P.padrao||"MURO DO CLIENTE")}
 function invTab(){const t=P.iFases.startsWith("Trif");return {polos:t?3:1,v:t?380:220}}
 const AMP_CC={2.5:30,4:38,6:46,10:64,16:85};
