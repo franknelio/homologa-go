@@ -1313,14 +1313,23 @@ async function buscarLocal(){
   }catch(e){st("Não consegui: "+e.message)}
   finally{if(b)b.disabled=false}
 }
+// usa o maior zoom (até z) que tenha imagem em todos os blocos; em área rural o zoom 19 costuma faltar
 async function imagemSatelite(lat,lon,z=19,W=1024,H=704){
-  const N=2**z,cx=(lon+180)/360*N*256,sl=Math.sin(lat*Math.PI/180),cy=(0.5-Math.log((1+sl)/(1-sl))/(4*Math.PI))*N*256;
   const cv=document.createElement("canvas");cv.width=W;cv.height=H;const g=cv.getContext("2d");
-  const x0=Math.floor((cx-W/2)/256),x1=Math.floor((cx+W/2)/256),y0=Math.floor((cy-H/2)/256),y1=Math.floor((cy+H/2)/256),jobs=[];
-  for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)jobs.push(new Promise((ok,ko)=>{const im=new Image();im.onload=()=>{g.drawImage(im,x*256-(cx-W/2),y*256-(cy-H/2));ok()};im.onerror=()=>ko(new Error("falha ao baixar a imagem"));im.src=`api/tile?z=${z}&x=${x}&y=${y}`}));
-  await Promise.all(jobs);
-  g.fillStyle="rgba(255,255,255,.8)";g.fillRect(W-150,H-18,150,18);g.fillStyle="#333";g.font="11px Arial";g.fillText("Imagem: Esri World Imagery",W-144,H-5);
-  return cv.toDataURL("image/jpeg",.85);
+  let erro;
+  for(let zz=z;zz>=z-4;zz--){
+    const s=2**(z-zz),T=256*s,N=2**zz,cx=(lon+180)/360*N*T,sl=Math.sin(lat*Math.PI/180),cy=(0.5-Math.log((1+sl)/(1-sl))/(4*Math.PI))*N*T;
+    const x0=Math.floor((cx-W/2)/T),x1=Math.floor((cx+W/2)/T),y0=Math.floor((cy-H/2)/T),y1=Math.floor((cy+H/2)/T),ims=[];
+    for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)ims.push(new Promise((ok,ko)=>{const im=new Image();im.onload=()=>ok([im,x,y]);im.onerror=()=>ko(new Error("sem imagem de satélite neste ponto"));im.src=`api/tile?z=${zz}&x=${x}&y=${y}`}));
+    try{
+      const prontos=await Promise.all(ims);
+      g.imageSmoothingQuality="high";
+      for(const [im,x,y] of prontos)g.drawImage(im,x*T-(cx-W/2),y*T-(cy-H/2),T,T);
+      g.fillStyle="rgba(255,255,255,.8)";g.fillRect(W-150,H-18,150,18);g.fillStyle="#333";g.font="11px Arial";g.fillText("Imagem: Esri World Imagery",W-144,H-5);
+      return cv.toDataURL("image/jpeg",.85);
+    }catch(e){erro=e}
+  }
+  throw erro;
 }
 document.addEventListener("click",e=>{if(e.target.closest("#bLoc"))buscarLocal()});
 document.addEventListener("change",e=>{if(e.target.dataset&&e.target.dataset.k==="loc"&&e.target.value.trim())buscarLocal()});
