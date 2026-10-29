@@ -158,6 +158,7 @@ details.sec[open]>summary .chev{transform:rotate(90deg)}
   <span class="who" id="who"></span>
   <button class="btn" id="bProjects" type="button">Projetos</button>
   <button class="btn" id="bSave" type="button">Salvar</button>
+  <button class="btn" id="bPasta" type="button" title="Escolher a pasta onde ficam as pastas dos clientes">Pasta</button>
   <button class="btn amber" id="bAll" type="button">Gerar todos os documentos</button>
 </header>
 
@@ -824,17 +825,37 @@ document.addEventListener("click",async e=>{
     else await saveFile(`${NAMES.form}_${slug()}.xlsx`,xlsxBlob(c));
   }catch(err){toast("Erro ao gerar: "+err.message)}finally{b.disabled=false}
 });
+/* pasta dos clientes: no computador (Edge/Chrome) grava os PDFs direto numa pasta com o nome do cliente */
+const podePasta="showDirectoryPicker" in window;
+function idb(op,val){return new Promise((ok,erro)=>{const r=indexedDB.open("hgo",1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");
+  r.onerror=()=>erro(r.error);r.onsuccess=()=>{try{const t=r.result.transaction("kv",op==="get"?"readonly":"readwrite").objectStore("kv");
+  const q=op==="get"?t.get("pasta"):t.put(val,"pasta");q.onsuccess=()=>ok(q.result);q.onerror=()=>erro(q.error)}catch(e){erro(e)}}})}
+async function escolherPasta(){
+  const h=await window.showDirectoryPicker({id:"hgo-clientes",mode:"readwrite",startIn:"documents"});
+  try{await idb("put",h)}catch(e){}$("#bPasta").textContent="Pasta: "+h.name;toast("Os clientes serão salvos em: "+h.name);return h}
+async function pastaBase(){
+  let h=null;try{h=await idb("get")}catch(e){}
+  if(h&&(await h.queryPermission({mode:"readwrite"})==="granted"||await h.requestPermission({mode:"readwrite"})==="granted"))return h;
+  toast("Escolha a pasta onde ficarão as pastas dos clientes");return escolherPasta()}
+function nomePasta(){return ((P.nome||"").replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ").trim().slice(0,80))||"Cliente sem nome"}
+if(podePasta){idb("get").then(h=>{if(h)$("#bPasta").textContent="Pasta: "+h.name}).catch(()=>{})}else $("#bPasta").hidden=true;
+$("#bPasta").addEventListener("click",()=>escolherPasta().catch(e=>{if(e.name!=="AbortError")toast("Não foi possível usar a pasta: "+e.message)}));
+
 $("#bAll").addEventListener("click",async()=>{
   const b=$("#bAll");b.disabled=true;const c=calc();
   try{
-    const zip=new JSZip();const folder=zip.folder(`Homologacao_${slug()}`);
-    for(const d of activeDocs()){b.textContent=`Gerando ${d.short}…`;folder.file(`${NAMES[d.id]}.pdf`,await docPdfBlob(d.id,c));
-      if(["unif","blocos","planta"].includes(d.id))folder.file(`${NAMES[d.id]}.svg`,svgOf(d.id,c))}
-    folder.file(`${NAMES.form}.xlsx`,xlsxBlob(c));
-    folder.file(`projeto_${slug()}.json`,JSON.stringify({...P,planta:""},null,2));
+    let destino=null;
+    if(podePasta){try{const base=await pastaBase();destino=await base.getDirectoryHandle(nomePasta(),{create:true})}
+      catch(e){if(e.name==="AbortError"){toast("Nenhuma pasta escolhida.");return}throw e}}
+    const arquivos=[];
+    for(const d of activeDocs()){b.textContent=`Gerando ${d.short}…`;const nome=`${NAMES[d.id]}.pdf`;const blob=await docPdfBlob(d.id,c);
+      if(destino){const w=await (await destino.getFileHandle(nome,{create:true})).createWritable();await w.write(blob);await w.close()}
+      else arquivos.push([nome,blob])}
+    if(destino){toast(`${activeDocs().length} PDFs salvos na pasta "${nomePasta()}"`);return}
+    const zip=new JSZip();const folder=zip.folder(nomePasta());arquivos.forEach(([nome,blob])=>folder.file(nome,blob));
     b.textContent="Compactando…";const blob=await zip.generateAsync({type:"blob"});
-    const ok=await saveFile(`Homologacao_EquatorialGO_${slug()}.zip`,blob);
-    if(ok)toast(`${activeDocs().length} documentos gerados em um pacote .zip`);
+    const ok=await saveFile(`${nomePasta()}.zip`,blob);
+    if(ok)toast(`${arquivos.length} PDFs na pasta "${nomePasta()}" dentro do .zip`);
   }catch(err){toast("Erro ao gerar: "+err.message)}finally{b.disabled=false;b.textContent="Gerar todos os documentos"}
 });
 
