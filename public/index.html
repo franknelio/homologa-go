@@ -479,7 +479,10 @@ function checks(c){
   if(n(P.iIsc)) add(c.iscMppt<=n(P.iIsc)?"ok":"bad",`Isc por MPPT = ${fmt(c.iscMppt,1)} A (máx. ${P.iIsc} A).`);
   if(n(P.disj)&&c.disjCAcalc>n(P.disj)) add("warn",`A corrente de saída do inversor (${fmt(c.iout,1)} A) pede disjuntor de ${c.disjCAcalc} A, acima do disjuntor do padrão (${P.disj} A). Avalie aumento de carga.`);
   if(c.ratio) add(c.ratio<=1.35?"ok":"warn",`Relação CC/CA = ${fmt(c.ratio,2)} (${c.ratio<=1.35?"dentro do usual":"sobrecarregamento alto, confira o datasheet"}).`);
-  if(!P.mReg||!P.iReg) add("warn","Informe os registros INMETRO de módulo e inversor (exigidos na solicitação).");
+  for(const [t,nm] of [["m","módulo"],["i","inversor"]]){
+    if(P[t+"Reg"])add(P["_inm"+t]?"warn":"ok",`INMETRO do ${nm}: ${esc(P[t+"Reg"])}${P["_inm"+t]?` (registro da ${esc(P["_inm"+t])}; o modelo exato não consta, confira)`:""}.`);
+    else add("warn",inmBusca[t]?`Buscando o registro INMETRO do ${nm}…`:`Registro INMETRO do ${nm} não encontrado. Toque em “Buscar no INMETRO” em ${t==="m"?"Módulos":"Inversor"} ou informe o número.`);
+  }
   if(P.modalidade!=="Autoconsumo local"&&!c.benef.length) add("warn","Modalidade com rateio: preencha a lista de UCs beneficiárias.");
   if(c.benef.length){const s=c.benef.reduce((a,r)=>a+n(r[3]),0); add(Math.abs(s-100)<0.01?"ok":"bad",`Rateio das beneficiárias soma ${fmt(s,1)}%.`)}
   if(!P.rtArt) add("warn","Informe o número da ART/TRT do responsável técnico.");
@@ -518,7 +521,7 @@ let rT;
 function onInput(e){
   const el=e.target;
   if(el.dataset.file){const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{plantaImg=r.result;P.planta=plantaImg.length<1500000?plantaImg:"";render()};r.readAsDataURL(f);return}
-  const k=el.dataset.k;if(!k)return;P[k]=el.value;delete P._exemplo;
+  const k=el.dataset.k;if(!k)return;P[k]=el.value;delete P._exemplo;if(k==="mReg"||k==="iReg")delete P["_inm"+k[0]];
   if(/^(m|i)[A-Z]/.test(k))delete P._equipEst;if(k==="lat"||k==="lon")delete P._coordAprox;if(k==="disj")delete P._disjPadrao;
   clearTimeout(rT);rT=setTimeout(()=>{store("hgo_current",P);render()},250);
 }
@@ -1420,7 +1423,7 @@ $("#drawer").addEventListener("click",async e=>{
     if(x){P={...x,_id:id};delete P._pendente;delete P._soNuvem;plantaImg=P.planta||null;afterLoad()}else toast("Não foi possível abrir este projeto sem internet")}
   if(d){if(d.dataset.armed){const id=d.dataset.del;const all=projects();delete all[id];store("hgo_projects",all);if(sb&&sessao)await sb.from("projetos").delete().eq("id",id);openDrawer()}else{d.dataset.armed="1";d.textContent="Confirmar"}}
 });
-function afterLoad(){store("hgo_current",P);buildFormFresh();render();$("#drawer").hidden=true;carregarArt()}
+function afterLoad(){store("hgo_current",P);buildFormFresh();render();$("#drawer").hidden=true;carregarArt();inmetroAuto()}
 function buildFormFresh(){const f=$("#form");const nf=f.cloneNode(false);f.replaceWith(nf);buildForm()}
 $("#bNew").addEventListener("click",()=>{P={...BLANK,...(load("hgo_rt")||{})};plantaImg=null;afterLoad();toast("Novo projeto em branco")});
 $("#bExample").addEventListener("click",()=>{P={...EXAMPLE};plantaImg=null;afterLoad()});
@@ -1680,26 +1683,30 @@ document.addEventListener("change",async e=>{
 });
 
 /* ---------------- registro INMETRO (consulta pública) ---------------- */
+const inmBusca={},inmFeito=new Set();
+function inmetroAuto(){if(!sessao||!navigator.onLine)return;["i","m"].forEach(t=>{const k=`${P._id}|${t}|${P[t+"Fab"]}|${P[t+"Mod"]}`;if(!P[t+"Reg"]&&P[t+"Fab"]&&P[t+"Mod"]&&!inmBusca[t]&&!inmFeito.has(k)){inmFeito.add(k);buscarInmetro(t)}})}
 async function buscarInmetro(t){
   const nome=t==="m"?"módulo":"inversor",fab=(P[t+"Fab"]||"").trim(),mod=(P[t+"Mod"]||"").trim();
   const st=x=>{const e=$("#inm_"+t);if(e)e.textContent=x};
   if(!fab||!mod){st(`Informe fabricante e modelo do ${nome}.`);return}
   if(!navigator.onLine||!sessao){st("A consulta precisa de internet e login.");return}
   const b=document.querySelector(`[data-inm="${t}"]`);if(b)b.disabled=true;
-  st("Consultando o INMETRO, pode levar até 1 minuto…");
+  st("Consultando o INMETRO, pode levar até 1 minuto…");inmBusca[t]=true;render();
   try{
     const r=await fetch(`api/inmetro?fab=${encodeURIComponent(fab)}&modelo=${encodeURIComponent(mod)}&pot=${n(P[t+"P"])||""}`,{headers:{authorization:"Bearer "+sessao.access_token}});
     const j=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(j.error||"erro "+r.status);
-    const a=j.encontrado;
+    let a=j.encontrado,familia=false;
+    // sem o modelo exato, usa o registro ativo da mesma série (o registro do INMETRO vale para a família)
+    if(!a&&j.opcoes&&j.opcoes.length){const serie=x=>String(x||"").toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,8);const f=j.opcoes.find(o=>serie(o.modelo)===serie(mod)&&/ativo/i.test(o.situacao||""));if(f){a=f;familia=true}}
     const opc=(lista)=>{const e=$("#inm_"+t);if(!e||!lista.length)return;e.insertAdjacentHTML("beforeend",`<span class="inmop">${lista.map(o=>`<button type="button" class="btn" data-inmreg="${t}|${esc(o.registro)}">${esc(o.modelo)} · ${esc(o.registro)} · ${esc(o.situacao||"")}</button>`).join("")}</span>`)};
     if(!a){st(`Não achei o modelo ${mod}${n(P[t+"P"])&&t==="m"?` de ${P.mP} W`:""} entre ${j.total} registros da marca ${fab}.${j.opcoes.length?" Parecidos (toque para usar):":" Confira o modelo ou consulte registro.inmetro.gov.br."}`);opc(j.opcoes.slice(0,6));const sec=document.querySelector(`details[data-s="${t==="m"?"mod":"inv"}"]`);if(sec)sec.open=true;toast(`Registro INMETRO do ${nome} não encontrado`);return}
-    P[t+"Reg"]=`Registro INMETRO nº ${a.registro}`;delete P._exemplo;syncForm();store("hgo_current",P);render();
+    P[t+"Reg"]=`Registro INMETRO nº ${a.registro}`;P["_inm"+t]=familia?`família ${a.modelo}`:"";delete P._exemplo;syncForm();store("hgo_current",P);render();
     const outros=j.opcoes.filter(o=>o.registro!==a.registro).slice(0,3).map(o=>`${o.modelo} (${o.registro})`);
-    st(`${a.registro} · ${a.situacao||""} · ${a.empresa||""} · modelo ${a.modelo}${a.exato?"":" (nome parecido, confira)"}${outros.length?" · outras opções:":""}`);opc(j.opcoes.filter(o=>o.registro!==a.registro).slice(0,3));
+    st(`${a.registro} · ${a.situacao||""} · ${a.empresa||""} · modelo ${a.modelo}${familia?` (o INMETRO não tem o ${mod}; usei o registro da mesma série, confira)`:a.exato?"":" (nome parecido, confira)"}${outros.length?" · outras opções:":""}`);opc(j.opcoes.filter(o=>o.registro!==a.registro).slice(0,3));
     toast(`Registro INMETRO do ${nome}: ${a.registro}`);
   }catch(e){st("Não consegui consultar: "+e.message)}
-  finally{if(b)b.disabled=false}
+  finally{if(b)b.disabled=false;inmBusca[t]=false;render()}
 }
 document.addEventListener("click",e=>{const b=e.target.closest("[data-inm]");if(b)buscarInmetro(b.dataset.inm)});
 document.addEventListener("click",e=>{const b=e.target.closest("[data-inmreg]");if(!b)return;const [t,reg]=b.dataset.inmreg.split("|");P[t+"Reg"]=`Registro INMETRO nº ${reg}`;syncForm();store("hgo_current",P);render();toast(`Registro ${reg} aplicado`)});
@@ -1778,7 +1785,7 @@ async function initAuth(){
   if(!sessao){$("#login").hidden=false;$("#lOffline").hidden=navigator.onLine}
   else{$("#login").hidden=true;sincronizar();
     // o RT salvo na conta vale em qualquer aparelho e prevalece sobre o guardado no navegador
-    carregarAssin().catch(()=>{});
+    carregarAssin().catch(()=>{});setTimeout(inmetroAuto,1500);
     sb.auth.getUser().then(({data:u})=>{const rt=u&&u.user&&u.user.user_metadata&&u.user.user_metadata.rt;if(rt)store("hgo_rt",{...(load("hgo_rt")||{}),...rt})}).catch(()=>{})}
   mostrarUsuario();
 }
