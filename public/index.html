@@ -1381,7 +1381,7 @@ $("#bAll").addEventListener("click",async()=>{
       try{await gravar(`${NAMES[d.id]}.pdf`,await docPdfBlob(d.id,c))}catch(e){erros.push(`${d.short}: ${e&&e.message||e}`)}
     }
     for(const [t,rot] of [["i","inversor"],["m","modulo"]]){
-      const reg=String(P[t+"Reg"]||"").match(/\d{6}\/\d{4}/)?.[0];if(!reg)continue;
+      const reg=String(P[t+"Reg"]||"").match(/\d{6}\/\d{4}/)?.[0];if(!reg){erros.push(`INMETRO do ${rot}: o projeto está sem número de registro, não deu para baixar o PDF`);continue}
       b.textContent=`Baixando INMETRO do ${rot}…`;
       try{const blob=await pdfInmetro(reg);await gravar(`08_INMETRO_${rot}_${reg.replace("/","-")}.pdf`,blob)}catch(e){erros.push(`INMETRO do ${rot} (${reg}): ${e.message}`)}
     }
