@@ -6,6 +6,9 @@
     },
     "api/inmetro.js": {
       "maxDuration": 60
+    },
+    "api/ler-datasheet.js": {
+      "maxDuration": 60
     }
   },
   "headers": [

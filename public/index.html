@@ -94,6 +94,7 @@ details.sec>summary .chev{margin-left:auto;color:var(--muted);transition:transfo
 details.sec[open]>summary .chev{transform:rotate(90deg)}
 .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px;padding:2px 12px 12px}
 .fields .full{grid-column:1/-1}
+.qloc{margin-top:8px}.qds{display:grid;grid-template-columns:auto 1fr;gap:6px 8px;align-items:center;margin:8px 0;font-size:12px;color:var(--muted)}.qds .btn{font-size:12.5px;padding:5px 10px}
 .inm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;font-size:12px;color:var(--muted)}.inm .btn{padding:4px 10px;font-size:12px}
 .f label{display:block;font-size:12px;color:var(--muted);margin-bottom:2px;letter-spacing:.2px}
 .f input,.f select,.f textarea{width:100%;border:1px solid var(--line);border-radius:5px;background:var(--bg);padding:6px 8px;font-size:14px;min-width:0}
@@ -194,6 +195,11 @@ details.sec[open]>summary .chev{transform:rotate(90deg)}
         <div class="f"><label for="q_iQ">Qtd. de inversores</label><input id="q_iQ" inputmode="numeric" value="1"></div>
         <div class="f"><label for="q_mP">Potência do módulo <span class="u">Wp</span></label><input id="q_mP" inputmode="decimal" placeholder="ex. 550"></div>
         <div class="f"><label for="q_mQ">Qtd. de módulos</label><input id="q_mQ" inputmode="numeric" placeholder="ex. 10"></div>
+      </div>
+      <div class="f qloc"><label for="q_loc">Localização <span class="u">link do Google Maps, coordenadas ou endereço</span></label><input id="q_loc" placeholder="ex. -16.7008, -49.2803"></div>
+      <div class="qds">
+        <label class="btn" for="q_dsI">Datasheet do inversor (PDF)<input type="file" id="q_dsI" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_dsI_n"></span>
+        <label class="btn" for="q_dsM">Datasheet do módulo (PDF)<input type="file" id="q_dsM" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_dsM_n"></span>
       </div>
       <details class="qopt"><summary>Marca e modelo (opcional)</summary>
         <div class="qgrid">
@@ -442,7 +448,7 @@ function fd([k,l,t="text",o,u]){
   else inp=`<input id="${id}" data-k="${k}" type="${t==="date"?"date":"text"}" ${t==="num"?'inputmode="decimal"':""} value="${val(k)}">`;
   const unit=(t==="num"||t==="file")&&u?`<span class="u">${esc(u)}</span>`:"";
   const loc=k==="loc"?`<div class="inm"><button class="btn" type="button" id="bLoc">Buscar localização e imagem</button><span id="locSt">Cole o link do ponto no Google Maps, as coordenadas ou o endereço.</span></div>`:"";
-  const inm=(k==="mReg"||k==="iReg")?`<div class="inm"><button class="btn" type="button" data-inm="${k[0]}">Buscar no INMETRO</button><span id="inm_${k[0]}"></span></div>`:"";
+  const inm=(k==="mReg"||k==="iReg")?`<div class="inm"><label class="btn">Ler datasheet (PDF)<input type="file" data-ds="${k[0]}" accept="application/pdf,.pdf,image/*" hidden></label><button class="btn" type="button" data-inm="${k[0]}">Buscar no INMETRO</button><span id="inm_${k[0]}"></span></div>`:"";
   return `<div class="f${full}"><label for="${id}">${esc(l)} ${unit}</label>${inp}${inm}${loc}</div>`;
 }
 function syncForm(){document.querySelectorAll("[data-k]").forEach(e=>{const k=e.dataset.k;if(e.tagName==="SELECT"){if(P[k])e.value=P[k]}else e.value=P[k]??""})}
@@ -1156,11 +1162,11 @@ function scaleToBlob(src,w,h,max=1800){
   const s=Math.min(1,max/Math.max(w,h));const cv=document.createElement("canvas");cv.width=Math.round(w*s);cv.height=Math.round(h*s);
   cv.getContext("2d").drawImage(src,0,0,cv.width,cv.height);return new Promise(r=>cv.toBlob(r,"image/jpeg",0.85));
 }
-async function fileToImages(f){
+async function fileToImages(f,maxPag=2){
   if(f.type==="application/pdf"||/\.pdf$/i.test(f.name)){
     if(!window.pdfjsLib)throw new Error("leitor de PDF indisponível");
     const pdf=await pdfjsLib.getDocument({data:new Uint8Array(await f.arrayBuffer())}).promise;const out=[];
-    for(let i=1;i<=Math.min(pdf.numPages,2);i++){const pg=await pdf.getPage(i);const vp=pg.getViewport({scale:2});
+    for(let i=1;i<=Math.min(pdf.numPages,maxPag);i++){const pg=await pdf.getPage(i);const vp=pg.getViewport({scale:2});
       const cv=document.createElement("canvas");cv.width=vp.width;cv.height=vp.height;await pg.render({canvasContext:cv.getContext("2d"),viewport:vp}).promise;
       out.push(await scaleToBlob(cv,cv.width,cv.height))}
     return out;
@@ -1214,15 +1220,51 @@ Regras: o titular da UC é o nome que consta na conta de energia; números (lat,
     } else if(qFiles.length&&!sample){aiNote="A leitura automática não está disponível nesta visualização; complete os dados do cliente abaixo. "}
     else {Q.disj=50;Q._disjPadrao=true}
     Object.assign(Q,{iP,iQ,mP,mQ},estModulo(mP),estInversor(iP,Q.ligacao));
-    ["iFab","iMod","mFab","mMod"].forEach(k=>{const v=$("#q_"+k).value.trim();Q[k]=v});
-    Q._equipEst=true;
+    const ds={i:$("#q_dsI").files[0],m:$("#q_dsM").files[0]},dsOk=[];
+    for(const t of ["i","m"])if(ds[t]){
+      const nome=t==="i"?"inversor":"módulo";msg(`Lendo o datasheet do ${nome}…`);
+      try{Object.assign(Q,await lerDatasheet(t,ds[t],t==="i"?iP:mP));dsOk.push(t)}catch(e){aiNote+=`Datasheet do ${nome} não lido (${e.message}). `}
+    }
+    ["iFab","iMod","mFab","mMod"].forEach(k=>{const v=$("#q_"+k).value.trim();if(v||Q[k]==null)Q[k]=v});
+    Q.loc=$("#q_loc").value.trim();
+    Q._equipEst=dsOk.length<2;
     P=Q;autoStrings();plantaImg=null;
     P._id=novoId();store("hgo_current",P);buildFormFresh();currentDoc="form";render();salvarProjeto(true);
     ["i","m"].forEach(t=>{if(P[t+"Fab"]&&P[t+"Mod"])buscarInmetro(t)});
+    if(P.loc)buscarLocal();
+    if(dsOk.length)aiNote+=dsOk.length>1?"Datasheets do inversor e do módulo lidos. ":`Datasheet do ${dsOk[0]==="i"?"inversor":"módulo"} lido. `;
     const miss=["nome","doc","uc","end","cidade"].filter(k=>!P[k]);
     msg(`${aiNote}${found?found+" campos lidos dos documentos. ":""}${miss.length?"Faltam: "+miss.map(k=>SECTIONS.flatMap(s=>s.f).find(f=>f[0]===k)[1]).join(", ")+". ":""}Confira os alertas e os documentos ao lado.`);
   }catch(e){msg(e&&e.code==="not_granted"?"Permissão negada para o Claude ler os documentos.":e&&e.code==="rate_limited"?"Muitas leituras seguidas; tente de novo em instantes.":"Não foi possível ler os documentos ("+(e&&(e.code||e.message)||"erro")+").")}
   finally{btn.disabled=false}
+});
+
+/* ---------------- datasheets de módulo e inversor ---------------- */
+async function lerDatasheet(t,file,pot){
+  if(!navigator.onLine||!sessao)throw new Error("a leitura precisa de internet e login");
+  const imgs=(await fileToImages(file,4)).slice(0,4);
+  const r=await fetch("api/ler-datasheet",{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+sessao.access_token},body:JSON.stringify({tipo:t==="i"?"inversor":"modulo",potencia:pot?String(pot):"",images:await Promise.all(imgs.map(blobToB64))})});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(j.error||"erro "+r.status);
+  const texto=["mFab","mMod","mTipo","iFab","iMod","iFases","iDim","iIP"],out={};
+  for(const [k,v] of Object.entries(j.dados||{})){
+    if(k==="iP"&&pot||k==="mP"&&pot)continue; // mantém a potência escolhida pelo usuário
+    const num=+String(v).replace(",",".");out[k]=texto.includes(k)||!isFinite(num)?String(v):num;
+  }
+  return out;
+}
+["I","M"].forEach(x=>$("#q_ds"+x).addEventListener("change",e=>{const f=e.target.files[0];$(`#q_ds${x}_n`).textContent=f?f.name:""}));
+document.addEventListener("change",async e=>{
+  const el=e.target.closest("[data-ds]");if(!el||!el.files[0])return;
+  const t=el.dataset.ds,nome=t==="i"?"inversor":"módulo",st=x=>{const s2=$("#inm_"+t);if(s2)s2.textContent=x};
+  st(`Lendo o datasheet do ${nome}…`);
+  try{
+    const d=await lerDatasheet(t,el.files[0],t==="i"?n(P.iP):n(P.mP));
+    Object.assign(P,d);P["_ds"+t]=1;if(P._dsi&&P._dsm)delete P._equipEst;delete P._exemplo;
+    syncForm();store("hgo_current",P);render();st(`Datasheet do ${nome} lido: ${Object.keys(d).length} campos preenchidos. Confira.`);
+    if(P[t+"Fab"]&&P[t+"Mod"])buscarInmetro(t);
+  }catch(err){st("Não consegui ler o datasheet: "+err.message)}
+  el.value="";
 });
 
 /* ---------------- registro INMETRO (consulta pública) ---------------- */
