@@ -91,12 +91,12 @@ export async function consultar(fab, modelo) {
     for (const r of regs) for (const m of r.modelos || []) {
       if (/exclu/i.test(m.acao)) continue;
       const n = norm(m.modelo);
-      const pts = n === alvo ? 3 : alvo.length >= 5 && (n.includes(alvo) || alvo.includes(n) && n.length >= 5) ? 2 : 0;
-      if (pts) achados.push({ pts: pts + (r.situacao === "Ativo" || r.sit === "Ativo" ? 1 : 0), registro: r.reg, situacao: r.situacao || r.sit, empresa: r.empresa, familia: r.familia, concessao: r.concessao, marca: m.marca, modelo: m.modelo, descricao: m.desc });
+      const exato = n === alvo, pts = exato ? 10 : alvo.length >= 5 && (n.includes(alvo) || alvo.includes(n) && n.length >= 5) ? 5 : 0;
+      if (pts) achados.push({ exato, pts: pts + ((r.situacao || r.sit) === "Ativo" ? 2 : 0) + (norm(r.empresa).includes(norm(fab.split(/\s+/)[0])) ? 1 : 0), registro: r.reg, situacao: r.situacao || r.sit, empresa: r.empresa, familia: r.familia, concessao: r.concessao, marca: m.marca, modelo: m.modelo, descricao: m.desc });
     }
     achados.sort((a, b) => b.pts - a.pts);
     const vistos = new Set();
-    const lista = achados.filter((a) => !vistos.has(a.registro + a.modelo) && vistos.add(a.registro + a.modelo)).slice(0, 8).map(({ pts, ...a }) => ({ ...a, exato: pts >= 3 }));
+    const lista = achados.filter((a) => !vistos.has(a.registro + a.modelo) && vistos.add(a.registro + a.modelo)).slice(0, 8).map(({ pts, ...a }) => a);
     return {
       ok: true, encontrado: lista[0] || null, opcoes: lista,
       consultados: regs.filter((r) => r.modelos).length, total: regs.length, ms: Date.now() - t0,
