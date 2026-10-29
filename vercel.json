@@ -3,6 +3,12 @@
   "functions": {
     "api/ler-documentos.js": {
       "maxDuration": 60
+    },
+    "api/inmetro.js": {
+      "maxDuration": 60
+    },
+    "api/inmetro-teste.js": {
+      "maxDuration": 60
     }
   },
   "headers": [
