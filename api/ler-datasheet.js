@@ -40,7 +40,17 @@ const CAMPOS = {
     iPeso: "peso em kg (número)",
     iIP: "grau de proteção, ex. IP65",
   },
+  art: {
+    rtNome: "nome completo do profissional responsável técnico (contratado)",
+    rtTit: "título profissional, exatamente uma opção: Engenheiro Eletricista, Técnico em Eletrotécnica, Engenheiro de Controle e Automação ou Engenheiro Eletrônico",
+    rtReg: "registro profissional com o conselho, ex. CREA-GO 1234567890/D ou CFT 12345678901",
+    rtArt: "número da ART ou TRT, como impresso",
+    rtTel: "telefone do profissional",
+    rtEmail: "e-mail do profissional",
+    rtEmp: "empresa contratada ou vinculada ao profissional, se houver",
+  },
 };
+const DOC = { modulo: "do datasheet de um módulo fotovoltaico", inversor: "do datasheet de um inversor fotovoltaico", art: "de uma ART (CREA) ou TRT (CFT) de um sistema fotovoltaico" };
 
 async function usuarioLogado(authorization) {
   const { SUPABASE_URL, SUPABASE_ANON_KEY } = process.env;
@@ -60,7 +70,7 @@ export default async function handler(req, res) {
   if (!(await usuarioLogado(req.headers.authorization))) {
     return res.status(401).json({ error: "seu usuário não tem permissão para a leitura automática" });
   }
-  const tipo = req.body?.tipo === "inversor" ? "inversor" : "modulo";
+  const tipo = ["inversor", "art"].includes(req.body?.tipo) ? req.body.tipo : "modulo";
   const campos = CAMPOS[tipo];
   const images = Array.isArray(req.body?.images) ? req.body.images.slice(0, 4) : [];
   if (!images.length) return res.status(400).json({ error: "nenhuma página enviada" });
@@ -71,9 +81,9 @@ export default async function handler(req, res) {
     required: Object.keys(campos),
     additionalProperties: false,
   };
-  const prompt = `As imagens são as páginas do datasheet de um ${tipo === "inversor" ? "inversor fotovoltaico" : "módulo fotovoltaico"}.
-${pot ? `Se o datasheet cobrir vários modelos, use a coluna do modelo de ${pot}${tipo === "inversor" ? " kW" : " W"}.` : "Se o datasheet cobrir vários modelos, use o primeiro."}
-Preencha cada campo com o valor do datasheet, números com ponto decimal e sem unidade. Use texto vazio "" quando o dado não constar.
+  const prompt = `As imagens são as páginas ${DOC[tipo]}.
+${tipo === "art" ? "Os dados são do profissional responsável técnico, não do contratante." : pot ? `Se o datasheet cobrir vários modelos, use a coluna do modelo de ${pot}${tipo === "inversor" ? " kW" : " W"}.` : "Se o datasheet cobrir vários modelos, use o primeiro."}
+Preencha cada campo com o valor do documento, números com ponto decimal e sem unidade. Use texto vazio "" quando o dado não constar.
 ${Object.entries(campos).map(([k, d]) => `- ${k}: ${d}`).join("\n")}`;
 
   try {
@@ -103,6 +113,6 @@ ${Object.entries(campos).map(([k, d]) => `- ${k}: ${d}`).join("\n")}`;
       if (/credit balance/i.test(motivo)) return res.status(402).json({ error: "a conta da Anthropic está sem créditos; adicione créditos em console.anthropic.com > Billing" });
       return res.status(502).json({ error: `falha na API (${error.status}): ${motivo}` });
     }
-    return res.status(500).json({ error: "falha ao ler o datasheet" });
+    return res.status(500).json({ error: "falha ao ler o documento" });
   }
 }

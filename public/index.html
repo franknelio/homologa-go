@@ -202,6 +202,7 @@ details.sec[open]>summary .chev{transform:rotate(90deg)}
       <div class="qds">
         <label class="btn" for="q_dsI">Datasheet do inversor (PDF)<input type="file" id="q_dsI" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_dsI_n"></span>
         <label class="btn" for="q_dsM">Datasheet do módulo (PDF)<input type="file" id="q_dsM" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_dsM_n"></span>
+        <label class="btn" for="q_dsA">ART / TRT (PDF)<input type="file" id="q_dsA" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_dsA_n"></span>
       </div>
       <details class="qopt"><summary>Marca e modelo (opcional)</summary>
         <div class="qgrid">
@@ -450,7 +451,7 @@ function fd([k,l,t="text",o,u]){
   else inp=`<input id="${id}" data-k="${k}" type="${t==="date"?"date":"text"}" ${t==="num"?'inputmode="decimal"':""} value="${val(k)}">`;
   const unit=(t==="num"||t==="file")&&u?`<span class="u">${esc(u)}</span>`:"";
   const loc=k==="loc"?`<div class="inm"><button class="btn" type="button" id="bLoc">Buscar localização e imagem</button><span id="locSt">Cole o link do ponto no Google Maps, as coordenadas ou o endereço.</span></div>`:"";
-  const inm=(k==="mReg"||k==="iReg")?`<div class="inm"><label class="btn">Ler datasheet (PDF)<input type="file" data-ds="${k[0]}" accept="application/pdf,.pdf,image/*" hidden></label><button class="btn" type="button" data-inm="${k[0]}">Buscar no INMETRO</button><span id="inm_${k[0]}"></span></div>`:"";
+  const inm=k==="rtArt"?`<div class="inm"><label class="btn">Ler ART/TRT (PDF)<input type="file" data-ds="a" accept="application/pdf,.pdf,image/*" hidden></label><span id="inm_a"></span></div>`:(k==="mReg"||k==="iReg")?`<div class="inm"><label class="btn">Ler datasheet (PDF)<input type="file" data-ds="${k[0]}" accept="application/pdf,.pdf,image/*" hidden></label><button class="btn" type="button" data-inm="${k[0]}">Buscar no INMETRO</button><span id="inm_${k[0]}"></span></div>`:"";
   return `<div class="f${full}"><label for="${id}">${esc(l)} ${unit}</label>${inp}${inm}${loc}</div>`;
 }
 function syncForm(){document.querySelectorAll("[data-k]").forEach(e=>{const k=e.dataset.k;if(e.tagName==="SELECT"){if(P[k])e.value=P[k]}else e.value=P[k]??""})}
@@ -1227,6 +1228,7 @@ Regras: o titular da UC é o nome que consta na conta de energia; números (lat,
       const nome=t==="i"?"inversor":"módulo";msg(`Lendo o datasheet do ${nome}…`);
       try{Object.assign(Q,await lerDatasheet(t,ds[t],t==="i"?iP:mP));dsOk.push(t)}catch(e){aiNote+=`Datasheet do ${nome} não lido (${e.message}). `}
     }
+    if($("#q_dsA").files[0]){msg("Lendo a ART/TRT…");try{const rt=await lerDatasheet("a",$("#q_dsA").files[0]);Object.assign(Q,rt);guardarRT(Q);aiNote+="ART/TRT lida. "}catch(e){aiNote+=`ART/TRT não lida (${e.message}). `}}
     ["iFab","iMod","mFab","mMod"].forEach(k=>{const v=$("#q_"+k).value.trim();if(v||Q[k]==null)Q[k]=v});
     Q.loc=$("#q_loc").value.trim();
     {const art=$("#q_art").value.trim();if(art)Q.rtArt=art}
@@ -1246,20 +1248,27 @@ Regras: o titular da UC é o nome que consta na conta de energia; números (lat,
 async function lerDatasheet(t,file,pot){
   if(!navigator.onLine||!sessao)throw new Error("a leitura precisa de internet e login");
   const imgs=(await fileToImages(file,4)).slice(0,4);
-  const r=await fetch("api/ler-datasheet",{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+sessao.access_token},body:JSON.stringify({tipo:t==="i"?"inversor":"modulo",potencia:pot?String(pot):"",images:await Promise.all(imgs.map(blobToB64))})});
+  const r=await fetch("api/ler-datasheet",{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+sessao.access_token},body:JSON.stringify({tipo:t==="i"?"inversor":t==="a"?"art":"modulo",potencia:pot?String(pot):"",images:await Promise.all(imgs.map(blobToB64))})});
   const j=await r.json().catch(()=>({}));
   if(!r.ok)throw new Error(j.error||"erro "+r.status);
   const texto=["mFab","mMod","mTipo","iFab","iMod","iFases","iDim","iIP"],out={};
+  if(t==="a"){for(const [k,v] of Object.entries(j.dados||{}))out[k]=String(v);return out}
   for(const [k,v] of Object.entries(j.dados||{})){
     if(k==="iP"&&pot||k==="mP"&&pot)continue; // mantém a potência escolhida pelo usuário
     const num=+String(v).replace(",",".");out[k]=texto.includes(k)||!isFinite(num)?String(v):num;
   }
   return out;
 }
-["I","M"].forEach(x=>$("#q_ds"+x).addEventListener("change",e=>{const f=e.target.files[0];$(`#q_ds${x}_n`).textContent=f?f.name:""}));
+["I","M","A"].forEach(x=>$("#q_ds"+x).addEventListener("change",e=>{const f=e.target.files[0];$(`#q_ds${x}_n`).textContent=f?f.name:""}));
 document.addEventListener("change",async e=>{
   const el=e.target.closest("[data-ds]");if(!el||!el.files[0])return;
   const t=el.dataset.ds,nome=t==="i"?"inversor":"módulo",st=x=>{const s2=$("#inm_"+t);if(s2)s2.textContent=x};
+  if(t==="a"){
+    st("Lendo a ART/TRT…");
+    try{const d=await lerDatasheet("a",el.files[0]);Object.assign(P,d);guardarRT(P);syncForm();store("hgo_current",P);render();st(`ART/TRT lida: ${Object.keys(d).length} campos do responsável técnico preenchidos. Confira.`)}
+    catch(err){st("Não consegui ler a ART/TRT: "+err.message)}
+    el.value="";return;
+  }
   st(`Lendo o datasheet do ${nome}…`);
   try{
     const d=await lerDatasheet(t,el.files[0],t==="i"?n(P.iP):n(P.mP));
@@ -1338,6 +1347,7 @@ document.addEventListener("change",e=>{if(e.target.dataset&&e.target.dataset.k==
 
 /* ---------------- RT lembrado entre projetos ---------------- */
 const RT_KEYS=["rtNome","rtTit","rtReg","rtTel","rtEmail","rtEmp"];
+function guardarRT(o){const rt={};RT_KEYS.forEach(x=>rt[x]=o[x]??"");store("hgo_rt",rt);if(sb&&sessao&&navigator.onLine)sb.auth.updateUser({data:{rt}})}
 document.addEventListener("input",e=>{const k=e.target.dataset&&e.target.dataset.k;if(k&&RT_KEYS.includes(k)){const rt={};RT_KEYS.forEach(x=>rt[x]=P[x]??"");rt[k]=e.target.value;store("hgo_rt",rt);clearTimeout(window._rtT);window._rtT=setTimeout(()=>{if(sb&&sessao&&navigator.onLine)sb.auth.updateUser({data:{rt}})},1500)}});
 
 function blobToB64(b){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]);r.onerror=rej;r.readAsDataURL(b)})}
