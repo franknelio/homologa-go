@@ -1366,25 +1366,33 @@ $("#bPasta").addEventListener("click",()=>escolherPasta().catch(e=>{if(e.name!==
 
 $("#bAll").addEventListener("click",async()=>{
   const b=$("#bAll");b.disabled=true;const c=calc();
+  const salvos=[],erros=[],pendentes=[];
   try{
     let destino=null;
     if(podePasta){try{const base=await pastaBase();destino=await base.getDirectoryHandle(nomePasta(),{create:true})}
-      catch(e){if(e.name==="AbortError"){toast("Nenhuma pasta escolhida.");return}throw e}}
-    const arquivos=[];
-    for(const d of activeDocs()){b.textContent=`Gerando ${d.short}…`;const nome=`${NAMES[d.id]}.pdf`;const blob=await docPdfBlob(d.id,c);
-      if(destino){const w=await (await destino.getFileHandle(nome,{create:true})).createWritable();await w.write(blob);await w.close()}
-      else arquivos.push([nome,blob])}
-    let nArt=0;
-    if(artArq){b.textContent="Assinando a ART/TRT…";try{const blob=await artAssinadaBlob(),nome="00_ART_TRT_assinada.pdf";nArt=1;
-      if(destino){const w=await (await destino.getFileHandle(nome,{create:true})).createWritable();await w.write(blob);await w.close()}else arquivos.push([nome,blob])}
-      catch(e){toast("ART/TRT não assinada: "+e.message)}}
-    if(destino){toast(`${activeDocs().length+nArt} PDFs salvos na pasta "${nomePasta()}"${nArt?" (com a ART/TRT assinada)":""}`);return}
-    const zip=new JSZip();const folder=zip.folder(nomePasta());arquivos.forEach(([nome,blob])=>folder.file(nome,blob));
-    b.textContent="Compactando…";const blob=await zip.generateAsync({type:"blob"});
-    const ok=await saveFile(`${nomePasta()}.zip`,blob);
-    if(ok)toast(`${arquivos.length} PDFs na pasta "${nomePasta()}" dentro do .zip`);
-  }catch(err){toast("Erro ao gerar: "+err.message)}finally{b.disabled=false;b.textContent="Gerar todos os documentos"}
+      catch(e){if(e.name==="AbortError"){toast("Nenhuma pasta escolhida.");return}erros.push("pasta: "+e.message)}}
+    // grava cada arquivo assim que fica pronto; se a pasta recusar, ele vai para o .zip
+    const gravar=async(nome,blob)=>{
+      if(destino){try{const w=await (await destino.getFileHandle(nome,{create:true})).createWritable();await w.write(blob);await w.close();salvos.push(nome);return}catch(e){erros.push(`${nome}: não gravou na pasta (${e.name}: ${e.message})`)}}
+      pendentes.push([nome,blob]);
+    };
+    for(const d of activeDocs()){
+      b.textContent=`Gerando ${d.short}…`;
+      try{await gravar(`${NAMES[d.id]}.pdf`,await docPdfBlob(d.id,c))}catch(e){erros.push(`${d.short}: ${e&&e.message||e}`)}
+    }
+    if(artArq){b.textContent="Assinando a ART/TRT…";try{await gravar("00_ART_TRT_assinada.pdf",await artAssinadaBlob())}catch(e){erros.push("ART/TRT: "+e.message)}}
+    if(pendentes.length){
+      b.textContent="Compactando…";const zip=new JSZip();const folder=zip.folder(nomePasta());pendentes.forEach(([nome,blob])=>folder.file(nome,blob));
+      if(await saveFile(`${nomePasta()}.zip`,await zip.generateAsync({type:"blob"})))salvos.push(`${pendentes.length} no arquivo ${nomePasta()}.zip`);
+    }
+  }catch(err){erros.push(err.message)}
+  finally{
+    b.disabled=false;b.textContent="Gerar todos os documentos";
+    const res=`${salvos.length?`Salvos${destino_ok(salvos)}: ${salvos.join(", ")}.`:"Nenhum arquivo foi salvo."}${erros.length?`\n\nProblemas:\n- ${erros.join("\n- ")}`:""}`;
+    if(erros.length||!salvos.length)alert(res);else toast(`${salvos.length} arquivos salvos na pasta "${nomePasta()}"`);
+  }
 });
+function destino_ok(l){return l.some(x=>/\.zip$/.test(x))?"":` na pasta "${nomePasta()}"`}
 
 /* ---------------- projetos (nuvem + cópia no aparelho) ---------------- */
 let sb=null,sessao=null,modoLocal=false;
