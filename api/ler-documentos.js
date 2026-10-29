@@ -87,6 +87,7 @@ export default async function handler(req, res) {
     } else if (error instanceof Anthropic.APIError) {
       console.error("Anthropic API", error.status, error.message);
       const motivo = String(error.error?.error?.message || error.message || "").slice(0, 200);
+      if (/credit balance/i.test(motivo)) return res.status(402).json({ error: "a conta da Anthropic está sem créditos; adicione créditos em console.anthropic.com > Billing" });
       return res.status(502).json({ error: `falha na API (${error.status}): ${motivo}` });
     }
     return res.status(500).json({ error: "falha ao ler os documentos" });
