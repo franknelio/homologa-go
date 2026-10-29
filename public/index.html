@@ -676,6 +676,7 @@ function cargasAuto(){
   return out;
 }
 function localCaixa(){return {"Muro / mureta":"MURO DO CLIENTE","Poste auxiliar":"POSTE AUXILIAR","Fachada":"FACHADA DO IMÓVEL","Pontalete":"PONTALETE"}[P.padrao]||UP(P.padrao||"MURO DO CLIENTE")}
+const regInm=t=>String(P[t+"Reg"]||"").replace(/^Registro INMETRO\s*n[ºo°]?\s*/i,"").trim();
 function invTab(){const t=P.iFases.startsWith("Trif");return {polos:t?3:1,v:t?380:220}}
 const AMP_CC={2.5:30,4:38,6:46,10:64,16:85};
 
@@ -751,15 +752,15 @@ function docMemoTec(c){
   // 8. gerador
   const dimM=n(P.mC)&&n(P.mL)?`${fmt(n(P.mC)*1000,0)} x ${fmt(n(P.mL)*1000,0)} mm`:"";
   const p8=pg(`<h4>6.1.&nbsp;&nbsp; Dimensionamento do gerador</h4>
-   <p>O gerador é formado por ${c.qtd} modulos da marca ${esc(UP(P.mFab))}, modelo ${esc(UP(P.mMod))} e potência de ${fmt(n(P.mP),0)} W, totalizando uma potência total de ${fmt(c.pcc,1)} kWp. As informações do gerador são mostrados na tabela a seguir:</p>
+   <p>O gerador é formado por ${c.qtd} modulos da marca ${esc(UP(P.mFab))}, modelo ${esc(UP(P.mMod))} e potência de ${fmt(n(P.mP),0)} W, totalizando uma potência total de ${fmt(c.pcc,1)} kWp${regInm("m")?`, com registro INMETRO nº ${esc(regInm("m"))}`:""}. As informações do gerador são mostrados na tabela a seguir:</p>
    <div class="mds"><div class="mdsh">Características Elétricas · ${esc(UP(P.mFab))} ${esc(UP(P.mMod))}</div>
-   ${tg([["Condição de Teste","STC"],["Potência Máxima (Pmax)",fmt(n(P.mP),0)+" W"],["Voltagem de Potência Máxima (Vmp)",fmt(n(P.mVmp))+" V"],["Corrente de Potência Máxima (Imp)",fmt(n(P.mImp))+" A"],["Voltagem de Circuito Aberto (Voc)",fmt(n(P.mVoc))+" V"],["Corrente de Curto-Circuito (Isc)",fmt(n(P.mIsc))+" A"],["Eficiência do Módulo (%)",fmt(n(P.mEff),1)+" %"],["Coeficiente de temperatura (Voc)",fmt(n(P.mBeta),2)+" %/°C"],["Tipo de células",esc(P.mTipo||"")],["Número de células",fmt(n(P.mCel),0)],["Dimensões",dimM],["Peso",fmt(n(P.mPeso),1)+" kg"],["Quantidade",c.qtd],["Potência total",fmt(c.pcc,2)+" kWp"]])}
+   ${tg([["Condição de Teste","STC"],["Potência Máxima (Pmax)",fmt(n(P.mP),0)+" W"],["Voltagem de Potência Máxima (Vmp)",fmt(n(P.mVmp))+" V"],["Corrente de Potência Máxima (Imp)",fmt(n(P.mImp))+" A"],["Voltagem de Circuito Aberto (Voc)",fmt(n(P.mVoc))+" V"],["Corrente de Curto-Circuito (Isc)",fmt(n(P.mIsc))+" A"],["Eficiência do Módulo (%)",fmt(n(P.mEff),1)+" %"],["Coeficiente de temperatura (Voc)",fmt(n(P.mBeta),2)+" %/°C"],["Tipo de células",esc(P.mTipo||"")],["Número de células",fmt(n(P.mCel),0)],["Dimensões",dimM],["Peso",fmt(n(P.mPeso),1)+" kg"],["Quantidade",c.qtd],["Potência total",fmt(c.pcc,2)+" kWp"],["Registro INMETRO",esc(regInm("m"))]])}
    <div class="mdsn">*STC: Irradiância 1000W/m², Temperatura da Célula 25°C, Massa de Ar 1,5</div></div>`);
   // 9. inversor
   const p9=pg(`${tit("7.","DIMENSIONAMENTO DO INVERSOR")}
-   <p>O sistema contém ${iq} inversor(es) da marca ${esc(UP(P.iFab))}, modelo ${esc(UP(P.iMod))} e potência pico ${kwTxt(n(P.iP))} kW. Na tabela a seguir são mostradas as informações a respeito do inversor:</p>
+   <p>O sistema contém ${iq} inversor(es) da marca ${esc(UP(P.iFab))}, modelo ${esc(UP(P.iMod))} e potência pico ${kwTxt(n(P.iP))} kW${regInm("i")?`, com registro INMETRO nº ${esc(regInm("i"))}`:""}. Na tabela a seguir são mostradas as informações a respeito do inversor:</p>
    <div class="mds"><div class="mdsh">Model · ${esc(UP(P.iMod))}</div>
-   ${tg([["Input Side"],["Max. DC Input Voltage (V)",fmt(n(P.iVmax),0)],["MPPT Operating Range (V)",`${fmt(n(P.iMin),0)}~${fmt(n(P.iMax),0)}`],["Max. DC Input Current (A)",fmt(n(P.iImax),1)],["Max. DC Short-Circuit Current (A)",fmt(n(P.iIsc),1)],["Number of MPPT",fmt(n(P.iNmppt),0)],["Output Side"],["Rated Output Power (kW)",kwTxt(n(P.iP))],["Rated AC Grid Voltage (V)",P.iFases.startsWith("Trif")?"380/220":"220"],["Rated AC Grid Frequency (Hz)","60"],["Operating Phase",P.iFases.startsWith("Trif")?"Three phase":"Single phase"],["Max. AC Output Current (A)",fmt(c.iout,1)],["Output Power Factor",fmt(n(P.iFp)||1,2)],["Grid Current THD (%)","&lt;"+fmt(n(P.iDht)||3,0)],["Efficiency"],["Max. Efficiency (%)",fmt(n(P.iEff),1)],["Protection"],["Anti-islanding Protection","Yes"],["AC Output Overvoltage / Overcurrent Protection","Yes"],["Ingress Protection",esc(P.iIP||"")],["Dimensions",esc(P.iDim||"")],["Weight (kg)",fmt(n(P.iPeso),1)]])}</div>
+   ${tg([["Input Side"],["Max. DC Input Voltage (V)",fmt(n(P.iVmax),0)],["MPPT Operating Range (V)",`${fmt(n(P.iMin),0)}~${fmt(n(P.iMax),0)}`],["Max. DC Input Current (A)",fmt(n(P.iImax),1)],["Max. DC Short-Circuit Current (A)",fmt(n(P.iIsc),1)],["Number of MPPT",fmt(n(P.iNmppt),0)],["Output Side"],["Rated Output Power (kW)",kwTxt(n(P.iP))],["Rated AC Grid Voltage (V)",P.iFases.startsWith("Trif")?"380/220":"220"],["Rated AC Grid Frequency (Hz)","60"],["Operating Phase",P.iFases.startsWith("Trif")?"Three phase":"Single phase"],["Max. AC Output Current (A)",fmt(c.iout,1)],["Output Power Factor",fmt(n(P.iFp)||1,2)],["Grid Current THD (%)","&lt;"+fmt(n(P.iDht)||3,0)],["Efficiency"],["Max. Efficiency (%)",fmt(n(P.iEff),1)],["Protection"],["Anti-islanding Protection","Yes"],["AC Output Overvoltage / Overcurrent Protection","Yes"],["Ingress Protection",esc(P.iIP||"")],["Dimensions",esc(P.iDim||"")],["Weight (kg)",fmt(n(P.iPeso),1)],["Registro INMETRO",esc(regInm("i"))]])}</div>
    ${tit("8.","DIMENSIONAMENTO DA PROTEÇÃO")}<h4>8.1.&nbsp;&nbsp; Fusíveis</h4>
    <p>${c.fusivel?`Serão instalados fusíveis de ${c.fusivel} A nos polos positivo e negativo de cada string.`:"Sistema não necessita de fusíveis."}</p>`);
   // 10. disjuntores, DPS, aterramento e requisitos (início)
@@ -1081,8 +1082,8 @@ function docUnif(c){
   const mm=v=>n(v)?Math.round(n(v)*1000):"";
   g+=tab(790,by+20,290,[`MÓDULOS ${up(P.mFab)} ${up(P.mMod)}`.slice(0,46),`${mP} W · EM CONDIÇÕES STC*`],[
     ["Dimensões",mm(P.mC)?`${mm(P.mC)} x ${mm(P.mL)} mm`:"—"],["Peso",P.mPeso?`${P.mPeso} kg`:"—"],["Tipo de células",P.mTipo||"Monocristalino"],["Número de células",P.mCel||"—"],
-    ["Potência máxima",`${mP} W`],["Tensão de circuito aberto",`${fmt(n(P.mVoc),2)} V`],["Corrente de curto-circuito",`${fmt(n(P.mIsc),2)} A`],["Tensão de operação",`${fmt(n(P.mVmp),2)} V`],["Corrente de operação",`${fmt(n(P.mImp),2)} A`],["Eficiência",`${fmt(n(P.mEff),1)} %`]]);
-  g+=S.lines(935,by+262,["*CONDIÇÕES STC: irradiância 1000 W/m²,","temperatura do módulo 25 °C, massa de ar 1,5"],{fs:9.5,a:"middle",lh:12});
+    ["Potência máxima",`${mP} W`],["Tensão de circuito aberto",`${fmt(n(P.mVoc),2)} V`],["Corrente de curto-circuito",`${fmt(n(P.mIsc),2)} A`],["Tensão de operação",`${fmt(n(P.mVmp),2)} V`],["Corrente de operação",`${fmt(n(P.mImp),2)} A`],["Eficiência",`${fmt(n(P.mEff),1)} %`],["Registro INMETRO",regInm("m")||"—"]]);
+  g+=S.lines(935,by+282,["*CONDIÇÕES STC: irradiância 1000 W/m²,","temperatura do módulo 25 °C, massa de ar 1,5"],{fs:9.5,a:"middle",lh:12});
   // cabo CC
   const kx=1100;
   g+=S.lines(kx+95,by+20,["CONDUTOR CIRCUITO","CORRENTE CONTÍNUA"],{fs:11,a:"middle",lh:14});
@@ -1092,7 +1093,7 @@ function docUnif(c){
   // inversor
   g+=tab(1310,by+20,270,[`INVERSOR DE FREQUÊNCIA ${fmt(n(P.iP),n(P.iP)%1?1:0)} kW`,`${up(P.iFab)} ${up(P.iMod)}`.slice(0,40)],[
     ["Dimensões",P.iDim||"—"],["Peso",P.iPeso?`${P.iPeso} kg`:"—"],["Modelo",P.iMod||"—"],["Fabricante",P.iFab||"—"],["Potência CA",`${fmt(n(P.iP))} kW`],
-    ["Tensão CA",tri?"220 / 380 V":"220 V"],["Frequência","60 Hz"],["Tensão máx. entrada CC",`${esc(P.iVmax||"")} V`],["Nº de MPPT",P.iNmppt||"—"],["Grau de proteção",P.iIP||"IP65"]]);
+    ["Tensão CA",tri?"220 / 380 V":"220 V"],["Frequência","60 Hz"],["Tensão máx. entrada CC",`${esc(P.iVmax||"")} V`],["Nº de MPPT",P.iNmppt||"—"],["Grau de proteção",P.iIP||"IP65"],["Registro INMETRO",regInm("i")||"—"]]);
   // placas
   const px=1610;
   g+=S.t(px+130,by+8,"DETALHE – PLACA DE ADVERTÊNCIA",{fs:13,a:"middle"});
@@ -1624,6 +1625,12 @@ async function artAssinadaBlob(){
 document.addEventListener("click",async e=>{
   if(!e.target.closest("#bArtSig"))return;
   try{toast("Assinando a ART/TRT…");await saveFile(`00_ART_TRT_assinada_${slug()}.pdf`,await artAssinadaBlob())}catch(err){toast("ART/TRT: "+err.message)}
+});
+
+// ao trocar fabricante, modelo ou potência do módulo/inversor, busca de novo o registro INMETRO dos dois
+document.addEventListener("change",e=>{
+  const k=e.target.dataset&&e.target.dataset.k;if(!/^(i|m)(Fab|Mod|P)$/.test(k||""))return;
+  setTimeout(()=>{["i","m"].forEach(t=>{if(t===k[0]||!P[t+"Reg"]){if(t===k[0]){P[t+"Reg"]="";delete P["_inm"+t];syncForm()}if(P[t+"Fab"]&&P[t+"Mod"]&&!inmBusca[t])buscarInmetro(t)}})},300);
 });
 
 /* ---------------- assinatura do RT ---------------- */
