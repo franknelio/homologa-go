@@ -429,6 +429,7 @@ function checks(c){
   if(!P.rtArt) add("warn","Informe o número da ART/TRT do responsável técnico.");
   if(P._equipEst) add("warn","Especificações elétricas do módulo e do inversor estimadas pela potência. Confira com o datasheet em “Módulos” e “Inversor” e informe marca, modelo e registro INMETRO.");
   if(P._coordAprox) add("warn","Coordenadas aproximadas pelo endereço. Confira no Google Maps antes de protocolar.");
+  if(!n(P.carga)) add("warn",`Carga instalada não informada; usei ${fmt(cargaInst())} kW, a potência do disjuntor de entrada. Ajuste em Conexão e padrão de entrada se souber a carga real.`);
   if(P._disjPadrao) add("warn",`Disjuntor de entrada assumido em ${P.disj} A (a conta não informa). Confirme no padrão.`);
   return r;
 }
@@ -489,7 +490,7 @@ function docForm(c){
   <div class="band">1 · Identificação da unidade consumidora</div>
   <table>${tr("Titular",val("nome"),"CPF/CNPJ",val("doc"))}${tr("Nº da UC",val("uc"),"Classe",val("classe"))}${tr("Endereço",`${val("end")} – ${val("bairro")}`)}${tr("Município/UF",`${val("cidade")}/${val("uf")}`,"CEP",val("cep"))}${tr("Telefone",val("tel"),"E-mail",val("email"))}${tr("Coordenadas (SIRGAS 2000)",`${fmt(n(P.lat),6)}, ${fmt(n(P.lon),6)}`)}</table>
   <div class="band">2 · Dados da unidade consumidora</div>
-  <table>${tr("Carga instalada",fmt(n(P.carga))+" kW","Tensão de atendimento",val("tensao"))}
+  <table>${tr("Carga instalada",fmt(cargaInst())+" kW","Tensão de atendimento",val("tensao"))}
   <tr><th>Tipo de conexão</th><td colspan="3">${box(P.ligacao==="Monofásico")} Monofásico &nbsp; ${box(P.ligacao==="Bifásico")} Bifásico &nbsp; ${box(P.ligacao==="Trifásico")} Trifásico</td></tr>
   ${tr("Disjuntor de entrada",val("disj")+" A","Ramal de ligação",val("ramal"))}${tr("Tipo de padrão",val("padrao"),"Mudança de padrão",val("mudaPadrao"))}
   <tr><th>Tipo de solicitação</th><td colspan="3">${box(t.includes("sem aumento"))} GD em UC existente sem aumento de potência &nbsp; ${box(t.includes("com aumento"))} com aumento &nbsp; ${box(t.includes("nova"))} Ligação nova</td></tr>
@@ -529,6 +530,12 @@ function protTable(){return `<table><tr><th>Função (ANSI)</th><th>Descrição<
 <tr><td>25</td><td>Sincronismo</td><td class="v">interno ao inversor</td><td class="v">—</td></tr>
 <tr><td>—</td><td>Reconexão após restabelecimento</td><td class="v">tensão e frequência normais</td><td class="v">20 a 300 s</td></tr></table>`}
 
+// carga instalada informada; se vazia, usa a potência disponibilizada pelo disjuntor de entrada (V × I)
+function cargaInst(){
+  if(n(P.carga))return n(P.carga);
+  const I=n(P.disj)||0,lig=P.ligacao||"Monofásico";
+  return Math.round((lig==="Trifásico"?Math.sqrt(3)*0.38*I:lig==="Bifásico"?2*0.22*I:0.22*I)*100)/100;
+}
 function catAtend(){
   if(P.catAtend&&P.catAtend!=="Automática")return P.catAtend;
   const d=n(P.disj);
@@ -854,7 +861,7 @@ function docBlocos(c){
    ["PROTEÇÃO CC",[`Chave seccionadora ${c.chaveCC} A`,`DPS Cl. II ≥${c.dpsCCv} V`,c.fusivel?`Fusível gPV ${c.fusivel} A`:"Sem fusível (≤2 strings/MPPT)",`Cabo ${c.cabCC} mm² solar`]],
    ["INVERSOR",[`${esc(P.iFab||"")} ${esc(P.iMod||"")}`,`${fmt(c.pca)} kW · ${c.vOut}`,"Prot. 27/59/81/78/25","INMETRO"]],
    ["PROTEÇÃO CA",[`Disjuntor ${c.disjCA} A curva C`,"DPS Cl. II 275 V",`Cabo ${c.cabCA} mm² ${c.condCA}`,""]],
-   ["QUADRO GERAL",[`Disjuntor geral ${esc(P.disj||"")} A`,`Cargas ${fmt(n(P.carga))} kW`,"BEP / aterramento",""]],
+   ["QUADRO GERAL",[`Disjuntor geral ${esc(P.disj||"")} A`,`Cargas ${fmt(cargaInst())} kW`,"BEP / aterramento",""]],
    ["MEDIÇÃO",["Medidor bidirecional","(instalado pela","distribuidora)",""]],
    ["REDE BT",["Equatorial Goiás",esc(P.tensao||""),esc(P.ligacao||""),""]]
   ];
@@ -1023,7 +1030,7 @@ function xlsxBlob(c){
   const rows=[
    ["FORMULÁRIO DE SOLICITAÇÃO DE ORÇAMENTO DE CONEXÃO – MICRO E MINIGERAÇÃO DISTRIBUÍDA"],["Equatorial Goiás · NT.020.EQTL · Anexo "+c.anexo],[],
    ["1. IDENTIFICAÇÃO DA UNIDADE CONSUMIDORA"],["Titular",P.nome],["CPF/CNPJ",P.doc],["Nº da UC",P.uc],["Classe",P.classe],["Endereço",P.end],["Bairro",P.bairro],["Município/UF",`${P.cidade}/${P.uf}`],["CEP",P.cep],["Telefone",P.tel],["E-mail",P.email],["Latitude",n(P.lat)],["Longitude",n(P.lon)],[],
-   ["2. DADOS DA UNIDADE CONSUMIDORA"],["Carga instalada (kW)",n(P.carga)],["Tensão de atendimento",P.tensao],["Tipo de conexão",P.ligacao],["Disjuntor de entrada (A)",n(P.disj)],["Ramal",P.ramal],["Tipo de solicitação",P.tipoSolic],["Modalidade",P.modalidade],[],
+   ["2. DADOS DA UNIDADE CONSUMIDORA"],["Carga instalada (kW)",cargaInst()],["Tensão de atendimento",P.tensao],["Tipo de conexão",P.ligacao],["Disjuntor de entrada (A)",n(P.disj)],["Ramal",P.ramal],["Tipo de solicitação",P.tipoSolic],["Modalidade",P.modalidade],[],
    ["3. DADOS DA GERAÇÃO"],["Potência instalada (kW)",+c.pinst.toFixed(2)],["Fonte","Solar fotovoltaica"],["Categoria",c.categoria],[],
    ["4. UNIDADES GERADORAS – SOLAR FOTOVOLTAICA"],["Item","Potência do módulo (W)","Quantidade","Potência de pico (kWp)","Área do arranjo (m²)","Fabricante","Modelo"],
    [1,n(P.mP),c.qtd,+c.pcc.toFixed(2),+c.area.toFixed(2),P.mFab,P.mMod],["TOTAL","",c.qtd,+c.pcc.toFixed(2),+c.area.toFixed(2)],[],
