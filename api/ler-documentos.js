@@ -58,12 +58,10 @@ export default async function handler(req, res) {
   if (!images.length) return res.status(400).json({ error: "nenhuma imagem enviada" });
 
   try {
-    const response = await client.beta.messages.create({
-      model: "claude-opus-5-5",
+    const response = await client.messages.create({
+      model: "claude-haiku-5-5",
       max_tokens: 16000,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      output_config: { effort: "medium", format: { type: "json_schema", schema } },
+      output_config: { effort: "low", format: { type: "json_schema", schema } },
       messages: [
         {
           role: "user",
