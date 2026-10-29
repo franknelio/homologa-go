@@ -1429,7 +1429,7 @@ $("#drawer").addEventListener("click",async e=>{
     if(x){P={...x,_id:id};delete P._pendente;delete P._soNuvem;plantaImg=P.planta||null;afterLoad()}else toast("Não foi possível abrir este projeto sem internet")}
   if(d){if(d.dataset.armed){const id=d.dataset.del;const all=projects();delete all[id];store("hgo_projects",all);if(sb&&sessao)await sb.from("projetos").delete().eq("id",id);openDrawer()}else{d.dataset.armed="1";d.textContent="Confirmar"}}
 });
-function afterLoad(){store("hgo_current",P);buildFormFresh();render();$("#drawer").hidden=true;carregarArt();inmetroAuto()}
+function afterLoad(){store("hgo_current",P);buildFormFresh();render();$("#drawer").hidden=true;carregarArt();inmetroAuto();plantaAuto()}
 function buildFormFresh(){const f=$("#form");const nf=f.cloneNode(false);f.replaceWith(nf);buildForm()}
 $("#bNew").addEventListener("click",()=>{P={...BLANK,...(load("hgo_rt")||{})};plantaImg=null;afterLoad();toast("Novo projeto em branco")});
 $("#bExample").addEventListener("click",()=>{P={...EXAMPLE};plantaImg=null;afterLoad()});
@@ -1549,7 +1549,7 @@ Regras: o titular da UC é o nome que consta na conta de energia; números (lat,
     P=Q;autoStrings();plantaImg=null;
     P._id=novoId();store("hgo_current",P);if(artArq)kv("put","art:"+P._id,artArq).catch(()=>{});buildFormFresh();currentDoc="form";render();salvarProjeto(true);
     ["i","m"].forEach(t=>{if(P[t+"Fab"]&&P[t+"Mod"])buscarInmetro(t)});
-    if(P.loc)buscarLocal();
+    plantaAuto(true);
     const contas=qModSel!=="Autoconsumo local"?[...$("#q_rat").files]:[];
     qModSel="";desenharQMod();$("#q_rat").value="";$("#q_rat_n").textContent="";
     if(contas.length)lerContasRateio(contas);
@@ -1734,6 +1734,13 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-inm]");if(
 document.addEventListener("click",e=>{const b=e.target.closest("[data-inmreg]");if(!b)return;const [t,reg]=b.dataset.inmreg.split("|");P[t+"Reg"]=`Registro INMETRO nº ${reg}`;syncForm();store("hgo_current",P);render();toast(`Registro ${reg} aplicado`)});
 
 /* ---------------- localização e imagem de satélite ---------------- */
+// sem imagem de satélite na planta: busca sozinha pelo link, coordenadas ou endereço (uma vez por projeto)
+const plantaFeita=new Set();
+function plantaAuto(forcar){
+  if(P.planta||plantaImg||!sessao||!navigator.onLine)return;
+  const tem=(P.loc||"").trim()||(n(P.lat)&&n(P.lon))||(P.end&&P.cidade);if(!tem)return;
+  const k=P._id+"|"+(P.loc||"")+"|"+P.lat+"|"+P.lon;if(!forcar&&plantaFeita.has(k))return;plantaFeita.add(k);buscarLocal();
+}
 async function buscarLocal(){
   const st=x=>{const e=$("#locSt");if(e)e.textContent=x},b=$("#bLoc");
   const q=(P.loc||"").trim()||(n(P.lat)&&n(P.lon)?`${P.lat},${P.lon}`:"")||[P.end,P.bairro,P.cidade,P.uf].filter(Boolean).join(", ");
@@ -1807,7 +1814,7 @@ async function initAuth(){
   if(!sessao){$("#login").hidden=false;$("#lOffline").hidden=navigator.onLine}
   else{$("#login").hidden=true;sincronizar();
     // o RT salvo na conta vale em qualquer aparelho e prevalece sobre o guardado no navegador
-    carregarAssin().catch(()=>{});setTimeout(inmetroAuto,1500);
+    carregarAssin().catch(()=>{});setTimeout(()=>{inmetroAuto();plantaAuto()},1500);
     sb.auth.getUser().then(({data:u})=>{const rt=u&&u.user&&u.user.user_metadata&&u.user.user_metadata.rt;if(rt)store("hgo_rt",{...(load("hgo_rt")||{}),...rt})}).catch(()=>{})}
   mostrarUsuario();
 }
