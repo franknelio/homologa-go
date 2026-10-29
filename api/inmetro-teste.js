@@ -4,6 +4,7 @@ export default async function handler(req, res) {
     const t0 = Date.now();
     const r = await fetch(req.query.det ? "https://registro.inmetro.gov.br/consulta/detalhe.aspx?pag=1&NumeroRegistro=" + encodeURIComponent(req.query.det) : "https://registro.inmetro.gov.br/consulta/Default.aspx?" + (req.query.raw || q), { headers: { "user-agent": "Mozilla/5.0" } });
     const h = await r.text();
+    if (req.query.html) { const k = h.lastIndexOf(req.query.html); return res.status(200).json({ k, trecho: h.slice(Math.max(0, k - 3000), k + 3000) }) }
     const i = Math.max(0, h.indexOf('id="principal"'));
     const txt = h.slice(i).replace(/<script[\s\S]*?<\/script>/g, "").replace(/<(tr|li|h\d|p|div)\b/gi, "\n<$1").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/[ \t\r]+/g, " ").replace(/\n\s+/g, "\n");
     const links = [...h.matchAll(/(?:href|onclick)="([^"]*(?:xport|xcel|xls|pdf|PDF|Excel)[^"]*)"/g)].map(m => m[1]).slice(0, 10);
