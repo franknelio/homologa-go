@@ -27,13 +27,13 @@ const CAMPOS = {
 
 const schema = {
   type: "object",
-  properties: Object.fromEntries(Object.keys(CAMPOS).map((k) => [k, { type: ["string", "null"] }])),
+  properties: Object.fromEntries(Object.keys(CAMPOS).map((k) => [k, { type: "string" }])),
   required: Object.keys(CAMPOS),
   additionalProperties: false,
 };
 
 const PROMPT = `As imagens são documentos de um cliente de energia solar em Goiás: documento de identidade (RG/CNH), CPF ou cartão CNPJ e a conta de energia da Equatorial Goiás.
-Preencha cada campo com o que estiver legível nos documentos e use null quando não encontrar. Não invente dados, exceto latitude e longitude aproximadas pelo endereço.
+Preencha cada campo com o que estiver legível nos documentos e use texto vazio "" quando não encontrar. Não invente dados, exceto latitude e longitude aproximadas pelo endereço.
 ${Object.entries(CAMPOS).map(([k, d]) => `- ${k}: ${d}`).join("\n")}`;
 
 async function usuarioLogado(authorization) {

@@ -67,13 +67,13 @@ export default async function handler(req, res) {
   const pot = String(req.body?.potencia || "").slice(0, 20);
   const schema = {
     type: "object",
-    properties: Object.fromEntries(Object.keys(campos).map((k) => [k, { type: ["string", "null"] }])),
+    properties: Object.fromEntries(Object.keys(campos).map((k) => [k, { type: "string" }])),
     required: Object.keys(campos),
     additionalProperties: false,
   };
   const prompt = `As imagens são as páginas do datasheet de um ${tipo === "inversor" ? "inversor fotovoltaico" : "módulo fotovoltaico"}.
 ${pot ? `Se o datasheet cobrir vários modelos, use a coluna do modelo de ${pot}${tipo === "inversor" ? " kW" : " W"}.` : "Se o datasheet cobrir vários modelos, use o primeiro."}
-Preencha cada campo com o valor do datasheet, números com ponto decimal e sem unidade. Use null quando o dado não constar.
+Preencha cada campo com o valor do datasheet, números com ponto decimal e sem unidade. Use texto vazio "" quando o dado não constar.
 ${Object.entries(campos).map(([k, d]) => `- ${k}: ${d}`).join("\n")}`;
 
   try {
