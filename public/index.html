@@ -1037,9 +1037,9 @@ $("#lNova").addEventListener("click",async()=>{
   const m=$("#lMsg");m.textContent="";const email=$("#lEmail").value.trim(),senha=$("#lSenha").value;
   if(!email||senha.length<8){m.textContent="Informe o e-mail e uma senha com pelo menos 8 caracteres.";return}
   if(!navigator.onLine){m.textContent="Sem internet. Conecte-se para criar a conta.";return}
-  const {data,error}=await sb.auth.signUp({email,password:senha});
+  const {data,error}=await sb.auth.signUp({email,password:senha,options:{emailRedirectTo:location.origin}});
   if(error){m.textContent="Não foi possível criar a conta: "+error.message;return}
-  if(!data.session)m.textContent="Conta criada. Abra o e-mail de confirmação que enviamos e depois entre aqui.";
+  if(!data.session)m.textContent="Conta criada. Abra o e-mail de confirmação que enviamos e depois entre aqui (se o link abrir uma página de erro, a conta já foi confirmada: é só voltar e entrar).";
 });
 $("#lOffline").addEventListener("click",()=>{modoLocal=true;$("#login").hidden=true;mostrarUsuario()});
 $("#bSair").addEventListener("click",async()=>{if(sb)await sb.auth.signOut();sessao=null;$("#drawer").hidden=true;$("#login").hidden=false;mostrarUsuario()});
