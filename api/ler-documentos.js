@@ -85,7 +85,9 @@ export default async function handler(req, res) {
     } else if (error instanceof Anthropic.RateLimitError) {
       return res.status(429).json({ error: "muitas leituras seguidas; tente em instantes" });
     } else if (error instanceof Anthropic.APIError) {
-      return res.status(502).json({ error: `falha na API (${error.status})` });
+      console.error("Anthropic API", error.status, error.message);
+      const motivo = String(error.error?.error?.message || error.message || "").slice(0, 200);
+      return res.status(502).json({ error: `falha na API (${error.status}): ${motivo}` });
     }
     return res.status(500).json({ error: "falha ao ler os documentos" });
   }
