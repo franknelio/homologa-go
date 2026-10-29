@@ -157,6 +157,7 @@ details.sec[open]>summary .chev{transform:rotate(90deg)}
 .memo .mp{margin:10px 0 4px}.memo .mt{margin-top:8px}.memo .mlab{min-width:150px}
 .memo .mrat{display:flex;align-items:center;gap:40px;margin-left:26px}.memo .mrat table{width:350px;border-collapse:collapse;margin:0}
 .memo .mrat th{border:1px solid #111;font-weight:400;text-align:left;padding:1px 3px;background:#fff}.memo .mrat td{border:1px solid #111;background:#c0c0c0;text-align:center;height:16px;padding:0}.memo .mrat td.nb{border:none;background:none}
+.sigbox{border:1px dashed var(--line,#bbb);border-radius:8px;min-height:70px;display:flex;align-items:center;justify-content:center;background:#fff;padding:6px}.sigbox img{max-height:80px;max-width:100%}.sigbox span{color:#888;font-size:13px}
 /* memorial técnico descritivo (modelo ANEXO III REV 06) */
 .sheet.mt{font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.85;padding:60px 64px}
 .mt p{margin:0 0 6px;text-align:justify}.mt p.b{font-weight:700;line-height:1.5;margin:10px 0}.mt p.l2{line-height:2.3}
@@ -357,7 +358,7 @@ const SECTIONS = [
  {id:"rt", t:"Responsável técnico", f:[
   ["rtNome","Nome","text","full"],["rtTit","Título profissional","sel",["Engenheiro Eletricista","Técnico em Eletrotécnica","Engenheiro de Controle e Automação","Engenheiro Eletrônico"]],
   ["rtReg","CREA / CFT nº"],["rtArt","ART / TRT nº"],["rtTel","Telefone"],["rtEmail","E-mail"],["rtEmp","Empresa integradora"],["rtCidade","Cidade do RT (local e data)","text",null,"ex. Edealina - GO"],["dataDoc","Data dos documentos","date"],
-  ["memoModelo","Modelo do memorial","sel",["Técnico descritivo (ANEXO III)","Simplificado"]]]},
+  ["memoModelo","Modelo do memorial","sel",["Técnico descritivo (ANEXO III)","Simplificado"]],["rtAssin","Assinatura do responsável técnico","sig","full"],["assinaCli","Assinar também pelo cliente (procuração)","sel",["Sim","Não"]]]},
  {id:"ben", t:"Beneficiárias e anexos", f:[
   ["benef","UCs do rateio","area","full","Uma por linha: UC ; titular ; endereço ; % ; consumo médio kWh. Use os botões abaixo para ler as contas e calcular os %."],
   ["planta","Imagem de satélite para a planta","file","full","Print do Google Earth/Maps com o telhado e o padrão"]]}
@@ -395,6 +396,11 @@ const n=v=>{const x=parseFloat(String(v??"").replace(",","."));return isFinite(x
 const fmt=(v,d=2)=>isFinite(v)?Number(v).toLocaleString("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d}):"—";
 const val=k=>esc(P[k]??"");
 function toast(t){const e=$("#toast");e.textContent=t;e.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>e.hidden=true,2800)}
+// assinatura do RT (imagem), guardada no aparelho e na tabela perfil da conta
+let assinRT=load("hgo_assin")||"";
+const imgAssin=(st="")=>assinRT?`<img class="assin" src="${assinRT}" alt="" style="${st}">`:"";
+const assinaCli=()=>P.assinaCli!=="Não";
+const svgAssin=(x,y,w,h)=>assinRT?`<image href="${assinRT}" x="${x}" y="${y}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet"/>`:"";
 function dataBR(){const d=P.dataDoc?new Date(P.dataDoc+"T12:00:00"):new Date();return d.toLocaleDateString("pt-BR")}
 function slug(){return (P.nome||"projeto").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-zA-Z0-9]+/g,"_").replace(/^_|_$/g,"").slice(0,40)||"projeto"}
 
@@ -497,6 +503,7 @@ function fd([k,l,t="text",o,u]){
   let inp;
   if(t==="sel") inp=`<select id="${id}" data-k="${k}">${o.map(x=>`<option ${P[k]===x?"selected":""}>${esc(x)}</option>`).join("")}</select>`;
   else if(t==="area") inp=`<textarea id="${id}" data-k="${k}" placeholder="${esc(u||"")}">${val(k)}</textarea>`;
+  else if(t==="sig") inp=`<div class="sigbox">${assinRT?`<img src="${assinRT}" alt="Assinatura">`:"<span>Nenhuma assinatura salva</span>"}</div><div class="inm"><label class="btn">Enviar imagem da assinatura<input type="file" id="sigFile" accept="image/*" hidden></label>${assinRT?`<button class="btn" type="button" id="sigDel">Remover</button>`:""}<span id="sigSt">Entra sozinha em todos os documentos.</span></div>`;
   else if(t==="file") inp=`<input id="${id}" type="file" accept="image/*" data-file="1">`;
   else inp=`<input id="${id}" data-k="${k}" type="${t==="date"?"date":"text"}" ${t==="num"?'inputmode="decimal"':""} value="${val(k)}">`;
   const unit=(t==="num"||t==="file")&&u?`<span class="u">${esc(u)}</span>`:"";
@@ -607,7 +614,7 @@ function docMemoSimpl(c){
   <div class="ml2">Dispositivo de proteção CC:</div><div class="mbar">${nMppt} UNID Dispositivo Protetor Surto 20kA/${vDps}V Bipolar</div>
   <div class="ml2">Observações</div>
   <div class="marea" style="height:150px">${P.rtArt?`N° DA ${/^[A-Za-z]/.test(P.rtArt)?"":/^Técnico/.test(P.rtTit||"")?"TRT ":"ART "}${v("rtArt")}<br>`:""}LATITUDE ${dms(n(P.lat),"N","S")}<br>LONGITUDE ${dms(n(P.lon),"E","W")}</div>
-  <div class="msig"><div class="ln"></div><div class="mrow"><span class="ml">Nome do Responsável Técnico:</span><span class="mv f">${up("rtNome")}</span></div><div class="mrow"><span class="ml">Registro:</span><span class="mv f">${v("rtReg")}</span></div></div>
+  <div class="msig">${imgAssin("height:56px;display:block;margin:0 0 -10px 120px")}<div class="ln"></div><div class="mrow"><span class="ml">Nome do Responsável Técnico:</span><span class="mv f">${up("rtNome")}</span></div><div class="mrow"><span class="ml">Registro:</span><span class="mv f">${v("rtReg")}</span></div></div>
   </div>`;
   return [p1,p2];
 }
@@ -678,12 +685,12 @@ function docMemoTec(c){
   const pot=kwTxt(c.pca),iq=n(P.iQ)||1,u=utm(n(P.lat),n(P.lon)),nova=(P.tipoSolic||"").includes("nova");
   const titulo=`${c.categoria==="Minigeração"?"MINIGERAÇÃO":"MICROGERAÇÃO"} DISTRIBUÍDA UTILIZANDO UM SISTEMA DE ENERGIA SOLAR FOTOVOLTAICA DE ${pot}kW CONECTADO À REDE DE ENERGIA ELÉTRICA DE BAIXA TENSÃO EM ${vn}V, CARACTERIZADO COMO ${esc(mod)}`;
   const docCli=String(P.doc||"").replace(/\D/g,"").length>11?"CNPJ":"CPF";
-  const assin=`<div class="masn"><div class="ln"></div>ASSINATURA DO RESPONSÁVEL TÉCNICO<br>${esc(UP(P.rtNome))}<br>REGISTRO: ${esc(regRT())} - ${esc(ufRT())}<br>${esc(cidRT())}</div>`;
+  const assin=`<div class="masn">${imgAssin("height:62px;display:block;margin:0 auto -6px")}<div class="ln"></div>ASSINATURA DO RESPONSÁVEL TÉCNICO<br>${esc(UP(P.rtNome))}<br>REGISTRO: ${esc(regRT())} - ${esc(ufRT())}<br>${esc(cidRT())}</div>`;
   // 1. capa
   const p1=pg(`<div class="mcap"><b>MEMORIAL TECNICO DESCRITIVO</b><br>REV 06 - 12/2025</div>
    <div class="mcap" style="top:300px"><b>${titulo}</b></div>
    <div class="mcap" style="top:575px"><b>${esc(UP(P.nome))}<br>${docCli}: ${val("doc")}</b></div>
-   <div class="mcap" style="top:735px"><b>${esc(UP(P.rtNome))}<br>${esc(titRT())}<br>REGISTRO: ${esc(regRT())} - ${esc(ufRT())}</b></div>
+   <div class="mcap" style="top:735px"><b>${esc(UP(P.rtNome))}<br>${esc(titRT())}<br>REGISTRO: ${esc(regRT())} - ${esc(ufRT())}</b>${imgAssin("height:56px;display:block;margin:2px auto 0")}</div>
    <div class="mcap" style="top:990px"><b>${esc(cidRT())}<br>${esc(mesAno())}</b></div>`);
   // 2. siglas
   const SIG=[["ABNT","Associação Brasileira de Normas Técnicas"],["ANEEL","Agência Nacional de Energia Elétrica"],["BT","Baixa tensão (220/127 V, 380/220 V)"],["C.A","Corrente Alternada"],["C.C","Corrente Contínua"],["CD","Custo de disponibilidade (30 kWh, 50kWh ou 100 kWh em sistemas de baixa tensão monofásicos, bifásicos ou trifásicos, respectivamente)"],["CI","Carga Instalada"],["DSP","Dispositivo Supressor de Surto"],["DSV","Dispositivo de seccionamento visível"],["FP","Fator de potência"],["FV","Fotovoltaico"],["GD","Geração distribuída"],["HSP","Horas de sol pleno"],["IEC","International Electrotechnical Commission"],["IN","Corrente Nominal"],["IDG","Corrente nominal do disjuntor de entrada da unidade consumidora em ampéres (A)"],["Ist","Corrento de curto-circuito de módulo fotovoltaico em ampéres (A)"],["kW","kilo-watt"],["kWp","kilo-watt pico"],["kWh","kilo-watt-hora"],["MicroGD","Microgeração distribuída"],["MT","Média tensão (13.8 kV, 34.5 kV)"],["NF","Fator referente ao número de fases, igual a 1 para sistemas monofásicos e bifásicos ou √3&nbsp; para sistemas trifásicos"],["PRODIST","Procedimentos de Distribuição"],["PD","Potência disponibilizada para a unidade consumidora onde será instalada a geração distribuída"],["PR","Pára-raio"],["QGD","Quadro Geral de Distribuição"],["QGBT","Quadro Geral de Baixa Tensão"],["REN","Resolução Normativa"],["SPDA","Sistema de Proteção contra Descargas Atmosféricas"],["SFV","Sistema Fotovoltaico"],["SFVCR","Sistema Fotovoltaico Conectado à Rede"],["TC","Transformador de corrente"],["TP","Transformador de potencial"],["UC","Unidade Consumidora"],["UTM","Universal Transversa de Mercator"],["VN","Tensão nominal de atendimento em volts (V)"],["Voc","Tensão de circuito aberto de módulo fotovoltaico em volts (V)"]];
@@ -841,7 +848,7 @@ function docForm(c){
    <div class="as">8. Este formulário deve ser preenchido e encaminhado aos canais de atendimento Corporativo da Concessionária</div>
    <div class="ag" style="grid-template-columns:1fr 1fr;border:1px solid #111"><div class="abx" style="border:0;border-right:1px solid #111"><b>ALAGOAS</b> - Sede de regionais (Maceio,Arapiraca, Matriz de Camaragibe e Santana do Ipanema)<br><b>AMAPÁ</b> - Sede de regionais (Macapá)<br><b>GOIÁS</b> - Sede de regionais (Goiânia, Luziânia, Anápolis, Rio Verde e Iporá)<br><b>MARANHÃO</b> - Sede de regionais (São Luís, Imperatriz, Timon, Balsas e Bacabal)<br><b>PARÁ</b> - Sede de regionais (Belém, Castanhal, Marabá, Santarém e Altamira)<br><b>PIAUÍ</b> - Sede de regionais (Teresina, Parnaíba, Picos, Bom Jesus e Floriano)<br><b>RIO GRANDE DO SUL</b> - Sede de regionais (Porto Alegre, Osório e Pelotas)<br><br>Em caso de dúvidas entrar em contato com os canais de atendimento disponibilizados na norma <b>NT.00020.EQTL.Normas e Qualidade</b>.</div>
    <div class="abx" style="border:0;position:relative;min-height:150px">Eu, acessante identificado neste formulário, venho por meio deste instrumento, solicitar o acesso para microgeração distribuída, fornecendo meus dados cadastrais assim como as documentos necessários, em conformidade com as normas e resoluções aplicáveis.
-   <div class="asg"><div><span>${esc(cidRT())}</span>Local</div><div><span>${dataBR()}</span>Data</div><div><span></span>Assinatura do Responsável</div></div></div></div>
+   <div class="asg"><div><span>${esc(cidRT())}</span>Local</div><div><span>${dataBR()}</span>Data</div><div><span>${imgAssin("height:40px;margin-top:-30px;margin-bottom:-8px")}</span>Assinatura do Responsável</div></div></div></div>
   </div>${rodape}</div>`;
   const pe=x=>`<td class="pe">${x??""}</td>`,cz=x=>`<td class="cz">${x??""}</td>`;
   const solar=Array.from({length:10},(_,i)=>i===0?`<tr><td>1</td>${pe(fmt(n(P.mP),0))}${pe(c.qtd)}${pe(fmt(c.pcc,1))}${pe(fmt(c.area))}${pe(esc(UP(P.mFab)))}${pe(esc(UP(P.mMod)))}</tr>`:`<tr><td>${i+1}</td>${pe()}${pe()}${pe(0)}${pe()}${pe()}${pe()}</tr>`).join("");
@@ -897,7 +904,7 @@ function carimbo(x,y,w,h,title,folha){
   return `<g>${S.rect(x,y,w,h,"#fff",1.6)}${S.line(x+c1,y,x+c1,y+h,1)}${S.line(x,y+h*0.5,x+w,y+h*0.5,1)}${S.line(x+w*0.72,y+h*0.5,x+w*0.72,y+h,1)}
   ${S.t(x+6,y+12,"PROJETO",{fs:7})}${S.t(x+6,y+28,esc(title),{fs:12,b:1})}${S.t(x+6,y+42,`${esc(P.nome||"")} · UC ${esc(P.uc||"")}`,{fs:8.5})}
   ${S.t(x+c1+6,y+12,"LOCAL",{fs:7})}${S.t(x+c1+6,y+26,esc(`${P.end||""}`).slice(0,60),{fs:8.5})}${S.t(x+c1+6,y+38,esc(`${P.bairro||""} · ${P.cidade||""}/${P.uf||""}`),{fs:8.5})}
-  ${S.t(x+6,y+h*0.5+12,"RESPONSÁVEL TÉCNICO",{fs:7})}${S.t(x+6,y+h*0.5+26,esc(P.rtNome||""),{fs:9,b:1})}${S.t(x+6,y+h*0.5+38,esc(`${P.rtTit||""} · ${P.rtReg||""}`),{fs:8})}
+  ${svgAssin(x+c1-110,y+h*0.5+2,100,40)}${S.t(x+6,y+h*0.5+12,"RESPONSÁVEL TÉCNICO",{fs:7})}${S.t(x+6,y+h*0.5+26,esc(P.rtNome||""),{fs:9,b:1})}${S.t(x+6,y+h*0.5+38,esc(`${P.rtTit||""} · ${P.rtReg||""}`),{fs:8})}
   ${S.t(x+c1+6,y+h*0.5+12,"EMPRESA · ART",{fs:7})}${S.t(x+c1+6,y+h*0.5+26,esc(P.rtEmp||""),{fs:9})}${S.t(x+c1+6,y+h*0.5+38,esc("ART "+(P.rtArt||"")),{fs:8})}
   ${S.t(x+w*0.72+6,y+h*0.5+12,"ESCALA · DATA · FOLHA",{fs:7})}${S.t(x+w*0.72+6,y+h*0.5+26,"S/E · "+dataBR(),{fs:9})}${S.t(x+w*0.72+6,y+h*0.5+38,folha,{fs:9,b:1})}</g>`;
 }
@@ -1115,8 +1122,8 @@ function docUnif(c){
   y+=66;g+=S.line(lx,y,lx+lw,y,1.2);
   g+=S.lines(lx+lw/2,y+16,[up(`${P.end||""}, ${P.bairro||""}`).slice(0,70),up(`CEP ${P.cep||""}, ${P.cidade||""} - ${P.uf||""}`)],{fs:10,a:"middle",lh:13});
   y+=36;g+=S.line(lx,y,lx+lw,y,1.2);
-  g+=S.t(lx+8,y+40,"RT:",{fs:11})+S.line(lx+120,y+38,lx+lw-40,y+38,.8)+S.lines(lx+lw/2+40,y+52,[up(P.rtNome),esc(`${P.rtTit||""} · ${P.rtReg||""}`),esc(`ART/TRT nº ${P.rtArt||""}`)],{fs:10,a:"middle",lh:12});
-  y+=96;g+=S.t(lx+8,y+30,"PROP.:",{fs:11})+S.line(lx+120,y+22,lx+lw-40,y+22,.8)+S.lines(lx+lw/2+40,y+36,[up(P.nome),`CPF/CNPJ: ${esc(P.doc||"")}`],{fs:10,a:"middle",lh:12});
+  g+=S.t(lx+8,y+40,"RT:",{fs:11})+svgAssin(lx+lw/2-20,y-4,120,46)+S.line(lx+120,y+38,lx+lw-40,y+38,.8)+S.lines(lx+lw/2+40,y+52,[up(P.rtNome),esc(`${P.rtTit||""} · ${P.rtReg||""}`),esc(`ART/TRT nº ${P.rtArt||""}`)],{fs:10,a:"middle",lh:12});
+  y+=96;g+=S.t(lx+8,y+30,"PROP.:",{fs:11})+(assinaCli()&&assinRT?S.t(lx+lw/2-34,y+18,"p.p.",{fs:9})+svgAssin(lx+lw/2-20,y-20,120,46):"")+S.line(lx+120,y+22,lx+lw-40,y+22,.8)+S.lines(lx+lw/2+40,y+36,[up(P.nome),`CPF/CNPJ: ${esc(P.doc||"")}`],{fs:10,a:"middle",lh:12});
   y+=62;g+=S.line(lx,y,lx+lw,y,1.2)+S.t(lx+6,y+12,"CONTEÚDO:",{fs:8})+S.lines(lx+lw*.25,y+26,["DIAGRAMA UNIFILAR","DETALHES","PLACA DE ADVERTÊNCIA"],{fs:10,a:"middle",lh:12})+S.line(lx+lw*.5,y,lx+lw*.5,y+64,1)+S.t(lx+lw*.5+6,y+12,"RESPONSÁVEL TÉCNICO:",{fs:8})+S.t(lx+lw*.75,y+36,up(P.rtNome).slice(0,34),{fs:10,a:"middle"})+(P.rtEmp?S.t(lx+lw*.75,y+52,up(P.rtEmp).slice(0,34),{fs:9,a:"middle"}):"");
   y+=64;g+=S.line(lx,y,lx+lw,y,1.2);
   const cell=(x1,x2,yy,lab,v)=>S.line(lx+lw*x1,yy,lx+lw*x1,yy+44,1)+S.t(lx+lw*x1+5,yy+11,lab,{fs:7.5})+S.t(lx+lw*(x1+x2)/2,yy+33,v,{fs:10,a:"middle"});
@@ -1222,7 +1229,7 @@ function docBenef(c){
   ${rows.length?rows.map((r,i)=>`<tr><td>${i+1}</td><td class="v">${esc(r[0])}</td><td class="v">${esc(r[1]||"")}</td><td class="v">${esc(r[2]||"")}</td><td class="v">${esc(r[3]||"")}</td><td class="v">${fmt(c.gerMes*n(r[3])/100,0)}</td></tr>`).join(""):`<tr><td colspan="6">Nenhuma beneficiária informada.</td></tr>`}
   <tr><th colspan="4">Total</th><td class="v">${fmt(rows.reduce((a,r)=>a+n(r[3]),0),1)} %</td><td></td></tr></table>
   <p>As unidades listadas pertencem ao mesmo titular ou integram consórcio, cooperativa, condomínio ou associação, conforme a modalidade declarada (Lei 14.300/2022).</p>
-  <div class="sign" style="margin-top:40px"><div>${val("nome")}<br>Titular da UC geradora</div></div>
+  <div class="sign" style="margin-top:40px"><div style="position:relative">${assinaCli()&&assinRT?`<span style="position:absolute;left:50%;transform:translateX(-50%);top:-50px;white-space:nowrap">p.p. ${imgAssin("height:48px;vertical-align:bottom")}</span>`:""}${val("nome")}<br>Titular da UC geradora</div></div>
   ${foot("Lista de beneficiárias",1,1)}</div>`];
 }
 
@@ -1561,6 +1568,28 @@ document.addEventListener("change",async e=>{
   el.value="";
 });
 
+/* ---------------- assinatura do RT ---------------- */
+async function salvarAssin(d){
+  assinRT=d||"";if(assinRT)store("hgo_assin",assinRT);else localStorage.removeItem("hgo_assin");
+  buildFormFresh();render();
+  if(sb&&sessao&&navigator.onLine){const {error}=await sb.from("perfil").upsert({user_id:sessao.user.id,assinatura:assinRT||null,atualizado_em:new Date().toISOString()});toast(error?"Assinatura salva só neste aparelho ("+error.message+")":assinRT?"Assinatura salva na sua conta":"Assinatura removida")}
+}
+document.addEventListener("change",e=>{
+  if(e.target.id!=="sigFile"||!e.target.files[0])return;
+  const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{
+    // reduz para no máx. 400 px de largura e deixa o fundo branco transparente
+    const k=Math.min(1,400/im.width),cv=document.createElement("canvas");cv.width=Math.round(im.width*k);cv.height=Math.round(im.height*k);
+    const g=cv.getContext("2d");g.drawImage(im,0,0,cv.width,cv.height);const d=g.getImageData(0,0,cv.width,cv.height);
+    for(let i=0;i<d.data.length;i+=4){const m=(d.data[i]+d.data[i+1]+d.data[i+2])/3;if(m>200)d.data[i+3]=Math.max(0,Math.round((255-m)*4.6))}
+    g.putImageData(d,0,0);salvarAssin(cv.toDataURL("image/png"))};im.src=r.result};r.readAsDataURL(e.target.files[0]);e.target.value="";
+});
+document.addEventListener("click",e=>{if(e.target.closest("#sigDel"))salvarAssin("")});
+async function carregarAssin(){
+  if(!sb||!sessao)return;
+  const {data}=await sb.from("perfil").select("assinatura").eq("user_id",sessao.user.id).maybeSingle();
+  if(data&&data.assinatura&&data.assinatura!==assinRT){assinRT=data.assinatura;store("hgo_assin",assinRT);buildFormFresh();render()}
+}
+
 /* ---------------- rateio: lê as contas das UCs e calcula o % pelo consumo médio ---------------- */
 const mediaCons=t=>{const v=String(t||"").split(/[,;\s]+/).map(n).filter(x=>x>0);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):0};
 function linhasRateio(){return String(P.benef||"").split(/\n/).map(l=>l.split(";").map(x=>x.trim())).filter(r=>r[0])}
@@ -1662,7 +1691,7 @@ document.addEventListener("click",e=>{if(e.target.closest("#bLoc"))buscarLocal()
 document.addEventListener("change",e=>{if(e.target.dataset&&e.target.dataset.k==="loc"&&e.target.value.trim())buscarLocal()});
 
 /* ---------------- RT lembrado entre projetos ---------------- */
-const RT_KEYS=["rtNome","rtTit","rtReg","rtTel","rtEmail","rtEmp","rtCidade"];
+const RT_KEYS=["rtNome","rtTit","rtReg","rtTel","rtEmail","rtEmp","rtCidade","assinaCli"];
 function guardarRT(o){const rt={};RT_KEYS.forEach(x=>rt[x]=o[x]??"");store("hgo_rt",rt);if(sb&&sessao&&navigator.onLine)sb.auth.updateUser({data:{rt}})}
 document.addEventListener("input",e=>{const k=e.target.dataset&&e.target.dataset.k;if(k&&RT_KEYS.includes(k)){const rt={};RT_KEYS.forEach(x=>rt[x]=P[x]??"");rt[k]=e.target.value;store("hgo_rt",rt);clearTimeout(window._rtT);window._rtT=setTimeout(()=>{if(sb&&sessao&&navigator.onLine)sb.auth.updateUser({data:{rt}})},1500)}});
 
@@ -1690,10 +1719,11 @@ async function initAuth(){
   if(!cfg||!window.supabase){modoLocal=true;mostrarUsuario();return}
   sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true}});
   const {data}=await sb.auth.getSession();sessao=data.session;
-  sb.auth.onAuthStateChange((_ev,s)=>{sessao=s;mostrarUsuario();if(s){$("#login").hidden=true;sincronizar()}});
+  sb.auth.onAuthStateChange((_ev,s)=>{sessao=s;mostrarUsuario();if(s){$("#login").hidden=true;sincronizar();carregarAssin().catch(()=>{})}});
   if(!sessao){$("#login").hidden=false;$("#lOffline").hidden=navigator.onLine}
   else{$("#login").hidden=true;sincronizar();
     // o RT salvo na conta vale em qualquer aparelho e prevalece sobre o guardado no navegador
+    carregarAssin().catch(()=>{});
     sb.auth.getUser().then(({data:u})=>{const rt=u&&u.user&&u.user.user_metadata&&u.user.user_metadata.rt;if(rt)store("hgo_rt",{...(load("hgo_rt")||{}),...rt})}).catch(()=>{})}
   mostrarUsuario();
 }
