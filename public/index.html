@@ -377,7 +377,8 @@ function calc(){
   c.iout=n(P.iIout)||(P.iFases.startsWith("Trif")?n(P.iP)*1000/(Math.sqrt(3)*vff):n(P.iP)*1000/vOut);
   c.iTot=c.iout*Math.max(1,n(P.iQ));
   // disjuntor CA da geração igual ao disjuntor do padrão de entrada, como nos modelos aprovados pela Equatorial GO
-  c.disjCAcalc=BRK.find(b=>b>=1.25*c.iout)||BRK[BRK.length-1];
+  // o inversor limita a injeção à sua potência nominal, então basta a corrente nominal de saída
+  c.disjCAcalc=BRK.find(b=>b>=c.iout)||BRK[BRK.length-1];
   c.disjCA=n(P.disj)||c.disjCAcalc;
   const ca=CAB.find(([s,a])=>a>=c.disjCA&&s>=2.5)||CAB[CAB.length-1]; c.cabCA=ca[0];
   const L=n(P.dCA), rho=0.0178;
@@ -411,7 +412,7 @@ function checks(c){
   if(c.vocMax&&n(P.iVmax)) add(c.vocMax<=n(P.iVmax)?"ok":"bad",`Voc da string a ${P.tmin??8} °C = ${fmt(c.vocMax,0)} V (limite do inversor ${P.iVmax} V).`);
   if(c.vmpHot&&n(P.iMin)) add(c.vmpHot>=n(P.iMin)&&c.vmpStr<=n(P.iMax)?"ok":"warn",`Vmp da string entre ${fmt(c.vmpHot,0)} V (70 °C) e ${fmt(c.vmpStr,0)} V (25 °C); faixa MPPT ${P.iMin}–${P.iMax} V.`);
   if(n(P.iIsc)) add(c.iscMppt<=n(P.iIsc)?"ok":"bad",`Isc por MPPT = ${fmt(c.iscMppt,1)} A (máx. ${P.iIsc} A).`);
-  if(n(P.disj)&&c.disjCAcalc>n(P.disj)) add("warn",`O inversor pede disjuntor CA de ${c.disjCAcalc} A (1,25 × ${fmt(c.iout,1)} A), acima do disjuntor do padrão (${P.disj} A). Avalie aumento de carga.`);
+  if(n(P.disj)&&c.disjCAcalc>n(P.disj)) add("warn",`A corrente de saída do inversor (${fmt(c.iout,1)} A) pede disjuntor de ${c.disjCAcalc} A, acima do disjuntor do padrão (${P.disj} A). Avalie aumento de carga.`);
   if(c.ratio) add(c.ratio<=1.35?"ok":"warn",`Relação CC/CA = ${fmt(c.ratio,2)} (${c.ratio<=1.35?"dentro do usual":"sobrecarregamento alto, confira o datasheet"}).`);
   if(!P.mReg||!P.iReg) add("warn","Informe os registros INMETRO de módulo e inversor (exigidos na solicitação).");
   if(P.modalidade!=="Autoconsumo local"&&!c.benef.length) add("warn","Modalidade com rateio: preencha a lista de UCs beneficiárias.");
