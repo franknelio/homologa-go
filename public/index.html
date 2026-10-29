@@ -94,6 +94,7 @@ details.sec>summary .chev{margin-left:auto;color:var(--muted);transition:transfo
 details.sec[open]>summary .chev{transform:rotate(90deg)}
 .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px;padding:2px 12px 12px}
 .fields .full{grid-column:1/-1}
+.inm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;font-size:12px;color:var(--muted)}.inm .btn{padding:4px 10px;font-size:12px}
 .f label{display:block;font-size:12px;color:var(--muted);margin-bottom:2px;letter-spacing:.2px}
 .f input,.f select,.f textarea{width:100%;border:1px solid var(--line);border-radius:5px;background:var(--bg);padding:6px 8px;font-size:14px;min-width:0}
 .f textarea{min-height:60px;font-family:var(--f-mono);font-size:12.5px}
@@ -410,7 +411,8 @@ function fd([k,l,t="text",o,u]){
   else if(t==="file") inp=`<input id="${id}" type="file" accept="image/*" data-file="1">`;
   else inp=`<input id="${id}" data-k="${k}" type="${t==="date"?"date":"text"}" ${t==="num"?'inputmode="decimal"':""} value="${val(k)}">`;
   const unit=(t==="num"||t==="file")&&u?`<span class="u">${esc(u)}</span>`:"";
-  return `<div class="f${full}"><label for="${id}">${esc(l)} ${unit}</label>${inp}</div>`;
+  const inm=(k==="mReg"||k==="iReg")?`<div class="inm"><button class="btn" type="button" data-inm="${k[0]}">Buscar no INMETRO</button><span id="inm_${k[0]}"></span></div>`:"";
+  return `<div class="f${full}"><label for="${id}">${esc(l)} ${unit}</label>${inp}${inm}</div>`;
 }
 function syncForm(){document.querySelectorAll("[data-k]").forEach(e=>{const k=e.dataset.k;if(e.tagName==="SELECT"){if(P[k])e.value=P[k]}else e.value=P[k]??""})}
 let rT;
@@ -1162,11 +1164,35 @@ Regras: o titular da UC é o nome que consta na conta de energia; números (lat,
     Q._equipEst=true;
     P=Q;autoStrings();plantaImg=null;
     P._id=novoId();store("hgo_current",P);buildFormFresh();currentDoc="form";render();salvarProjeto(true);
+    ["i","m"].forEach(t=>{if(P[t+"Fab"]&&P[t+"Mod"])buscarInmetro(t)});
     const miss=["nome","doc","uc","end","cidade"].filter(k=>!P[k]);
     msg(`${aiNote}${found?found+" campos lidos dos documentos. ":""}${miss.length?"Faltam: "+miss.map(k=>SECTIONS.flatMap(s=>s.f).find(f=>f[0]===k)[1]).join(", ")+". ":""}Confira os alertas e os documentos ao lado.`);
   }catch(e){msg(e&&e.code==="not_granted"?"Permissão negada para o Claude ler os documentos.":e&&e.code==="rate_limited"?"Muitas leituras seguidas; tente de novo em instantes.":"Não foi possível ler os documentos ("+(e&&(e.code||e.message)||"erro")+").")}
   finally{btn.disabled=false}
 });
+
+/* ---------------- registro INMETRO (consulta pública) ---------------- */
+async function buscarInmetro(t){
+  const nome=t==="m"?"módulo":"inversor",fab=(P[t+"Fab"]||"").trim(),mod=(P[t+"Mod"]||"").trim();
+  const st=x=>{const e=$("#inm_"+t);if(e)e.textContent=x};
+  if(!fab||!mod){st(`Informe fabricante e modelo do ${nome}.`);return}
+  if(!navigator.onLine||!sessao){st("A consulta precisa de internet e login.");return}
+  const b=document.querySelector(`[data-inm="${t}"]`);if(b)b.disabled=true;
+  st("Consultando o INMETRO, pode levar até 1 minuto…");
+  try{
+    const r=await fetch(`api/inmetro?fab=${encodeURIComponent(fab)}&modelo=${encodeURIComponent(mod)}`,{headers:{authorization:"Bearer "+sessao.access_token}});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(j.error||"erro "+r.status);
+    const a=j.encontrado;
+    if(!a){st(`Não achei o modelo ${mod} entre ${j.total} registros da marca ${fab}. Confira o modelo ou consulte registro.inmetro.gov.br.`);toast(`Registro INMETRO do ${nome} não encontrado`);return}
+    P[t+"Reg"]=`Registro INMETRO nº ${a.registro}`;delete P._exemplo;syncForm();store("hgo_current",P);render();
+    const outros=j.opcoes.filter(o=>o.registro!==a.registro).slice(0,3).map(o=>`${o.modelo} (${o.registro})`);
+    st(`${a.registro} · ${a.situacao||""} · ${a.empresa||""} · modelo ${a.modelo}${a.exato?"":" (nome parecido, confira)"}${outros.length?" · outros: "+outros.join(", "):""}`);
+    toast(`Registro INMETRO do ${nome}: ${a.registro}`);
+  }catch(e){st("Não consegui consultar: "+e.message)}
+  finally{if(b)b.disabled=false}
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-inm]");if(b)buscarInmetro(b.dataset.inm)});
 
 /* ---------------- RT lembrado entre projetos ---------------- */
 const RT_KEYS=["rtNome","rtTit","rtReg","rtTel","rtEmail","rtEmp"];
