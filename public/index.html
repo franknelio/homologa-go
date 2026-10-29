@@ -1259,7 +1259,10 @@ function docCheck(c){
 const BUILD={form:docForm,memo:docMemo,unif:docUnif,blocos:docBlocos,planta:docPlanta,placa:docPlaca,benef:docBenef,check:docCheck};
 
 /* ---------------- renderização ---------------- */
+// disjuntor fora dos valores comerciais (ex. 60 A) vira o próximo padronizado (63 A)
+function disjPadrao(v){v=n(v);return !v||BRK.includes(v)?v:(BRK.find(b=>b>=v)||v)}
 function render(){
+  if(n(P.disj)&&document.activeElement?.id!=="f_disj"){const d=disjPadrao(P.disj);if(d!==n(P.disj)){P.disj=d;const e=$("#f_disj");if(e)e.value=d}}
   const c=calc();
   $("#kpis").innerHTML=[["Potência instalada",fmt(c.pinst)+" kW"],["Gerador CC",fmt(c.pcc)+" kWp"],["Geração estimada",fmt(c.gerMes,0)+" kWh/mês"],["Formulário","Anexo "+c.anexoForm]].map(([a,b])=>`<div class="kpi"><small>${a}</small><strong>${b}</strong></div>`).join("");
   $("#checks").innerHTML=checks(c).map(([s,t])=>`<div class="chk ${s}"><b>${s==="ok"?"✓":s==="warn"?"!":"✕"}</b><span>${t}</span></div>`).join("")+(P._exemplo?`<div class="chk warn"><b>!</b><span><span class="tag-ex">Exemplo</span> Dados fictícios de demonstração. Abra “Projetos → Novo projeto em branco” para começar o seu.</span></div>`:"");
