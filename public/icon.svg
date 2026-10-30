@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs>
+<linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF2D87"/><stop offset=".55" stop-color="#FF6A00"/><stop offset="1" stop-color="#FFC400"/></linearGradient>
+<linearGradient id="p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#00E5FF"/><stop offset="1" stop-color="#2962FF"/></linearGradient>
+</defs>
+<rect width="512" height="512" rx="112" fill="url(#g)"/>
+<g fill="#FFF36B"><circle cx="372" cy="138" r="54"/>
+<g stroke="#FFF36B" stroke-width="16" stroke-linecap="round"><path d="M372 52v-14M372 238v-14M458 138h14M272 138h14M433 77l10-10M301 209l10-10M433 199l10 10M301 67l10 10"/></g></g>
+<path d="M70 300 L250 230 L330 380 L130 455 Z" fill="url(#p)" stroke="#fff" stroke-width="12" stroke-linejoin="round"/>
+<path d="M160 265 L218 418 M110 320 L298 302 M90 380 L315 343" stroke="#fff" stroke-width="7" opacity=".85"/>
+<path d="M300 395 l38 38 l92 -110" fill="none" stroke="#fff" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="190" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="150" fill="#fff">H</text>
+</svg>
