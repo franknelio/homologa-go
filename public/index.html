@@ -1703,8 +1703,8 @@ CONTRATO (Adicionar Contrato)
 - Contratante: "Contratante Pessoa ${String(P.doc||"").replace(/\D/g,"").length>11?"Jurídica":"Física"}" com o CPF/CNPJ ${v(P.doc)}. Se não estiver cadastrado, cadastre com os dados acima.
 - Proprietário: "Aproveita Dados do Contratante"
 - Número do contrato e Celebrado em: deixe em branco
-- Início da obra/serviço: ${new Date().toLocaleDateString("pt-BR")} · Previsão de término: ${new Date(Date.now()+60*864e5).toLocaleDateString("pt-BR")}
-- Valor da obra/serviço: (pergunte)
+- Início da obra/serviço: ${new Date().toLocaleDateString("pt-BR")} · Previsão de término: ${new Date(Date.now()+2*864e5).toLocaleDateString("pt-BR")}
+- Valor da obra/serviço: 500,00
 - Preencher endereço: "Utilizar Outro Endereço" e preencha o ENDEREÇO DA OBRA (confira com cuidado, só pode ser alterado até 5 dias após o pagamento):
   País BRA - Brasil · CEP ${v(P.cep)} · Tipo ${(String(P.end||"").match(/^(rua|avenida|av\.?|rodovia|estrada|travessa|alameda|praça|fazenda|chácara|sítio|quadra)/i)||["Rua"])[0]} · Logradouro e número: ${v(P.end)} · Bairro ${v(P.bairro)} · Cidade ${v(P.cidade)} - ${P.uf||"GO"}
   (se o endereço for rural sem número, use "S/N" e coloque a referência e as coordenadas no complemento)
