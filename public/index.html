@@ -518,7 +518,7 @@ function fd([k,l,t="text",o,u]){
   const unit=(t==="num"||t==="file")&&u?`<span class="u">${esc(u)}</span>`:"";
   const loc=k==="loc"?`<div class="inm"><button class="btn" type="button" id="bLoc">Buscar localização e imagem</button><span id="locSt">Cole o link do ponto no Google Maps, as coordenadas ou o endereço.</span></div>`:"";
   const rat=k==="benef"?`<div class="inm"><label class="btn">Adicionar contas do rateio (PDF/foto)<input type="file" id="ratFiles" multiple accept="application/pdf,.pdf,image/*" hidden></label><button class="btn" type="button" id="bRat">Calcular % pelo consumo</button><span id="ratSt"></span></div>`:"";
-  const inm=k==="rtArt"?`<div class="inm"><label class="btn">Ler ART/TRT (PDF)<input type="file" data-ds="a" accept="application/pdf,.pdf,image/*" hidden></label><button class="btn" type="button" id="bArtSig">Baixar ART/TRT assinada</button><span id="inm_a"></span></div>`:(k==="mReg"||k==="iReg")?`<div class="inm"><label class="btn">Ler datasheet (PDF)<input type="file" data-ds="${k[0]}" accept="application/pdf,.pdf,image/*" hidden></label><button class="btn" type="button" data-inm="${k[0]}">Buscar no INMETRO</button><span id="inm_${k[0]}"></span></div>`:"";
+  const inm=k==="rtArt"?`<div class="inm"><label class="btn">Ler ART/TRT (PDF)<input type="file" data-ds="a" accept="application/pdf,.pdf,image/*" hidden></label><button class="btn" type="button" id="bArtSig">Baixar ART/TRT assinada</button><button class="btn" type="button" id="bTrt" title="Copia um pedido pronto para colar no Claude do Chrome com o SINCETI aberto">Copiar pedido da TRT (SINCETI)</button><span id="inm_a"></span></div>`:(k==="mReg"||k==="iReg")?`<div class="inm"><label class="btn">Ler datasheet (PDF)<input type="file" data-ds="${k[0]}" accept="application/pdf,.pdf,image/*" hidden></label><button class="btn" type="button" data-inm="${k[0]}">Buscar no INMETRO</button><span id="inm_${k[0]}"></span></div>`:"";
   return `<div class="f${full}"><label for="${id}">${esc(l)} ${unit}</label>${inp}${inm}${loc}${rat}</div>`;
 }
 document.addEventListener("click",e=>{const b=e.target.closest("[data-chip]");if(!b)return;const g=b.closest("[data-chips]"),k=g.dataset.chips;P[k]=b.dataset.chip;delete P._exemplo;g.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",c===b));store("hgo_current",P);render()});
@@ -1665,6 +1665,45 @@ async function artAssinadaBlob(){
 document.addEventListener("click",async e=>{
   if(!e.target.closest("#bArtSig"))return;
   try{toast("Assinando a ART/TRT…");await saveFile(`00_ART_TRT_assinada_${slug()}.pdf`,await artAssinadaBlob())}catch(err){toast("ART/TRT: "+err.message)}
+});
+
+// pedido para o Claude do Chrome preencher a TRT no SINCETI (ele para antes de emitir)
+function pedidoTRT(){
+  const c=calc(),v=x=>String(x??"").trim()||"(não informado, pergunte)";
+  const end=[P.end,P.bairro,P.cidade&&`${P.cidade} - ${P.uf||"GO"}`,P.cep&&"CEP "+P.cep].filter(Boolean).join(", ");
+  return `Estou logado no SINCETI (servicos.sinceti.net.br). Preencha uma nova TRT com os dados abaixo.
+REGRAS: não clique em emitir, gerar boleto, pagar ou finalizar. Quando tudo estiver preenchido, pare e me mostre o resumo para eu conferir. Se um campo pedir algo que não está aqui, ou se uma opção não existir igual, me pergunte em vez de inventar.
+
+PROFISSIONAL: ${v(P.rtNome)} · ${v(P.rtTit)} · ${v(P.rtReg)}
+
+CONTRATANTE (proprietário da obra)
+- Nome: ${v(P.nome)}
+- CPF/CNPJ: ${v(P.doc)}
+- Telefone: ${v(P.tel)} · E-mail: ${v(P.email)}
+- Endereço: ${v(end)}
+
+OBRA / SERVIÇO
+- Endereço: ${v(end)}
+- Coordenadas: ${P.lat&&P.lon?`${n(P.lat).toFixed(6)}, ${n(P.lon).toFixed(6)}`:"(não informado)"}
+- Unidade consumidora Equatorial: ${v(P.uc)}
+- Finalidade: sistema de microgeração distribuída fotovoltaica conectado à rede da Equatorial Goiás (${c.categoria.toLowerCase()})
+
+ATIVIDADES TÉCNICAS (escolha as equivalentes na lista do SINCETI)
+1. Projeto de sistema de geração de energia solar fotovoltaica: ${fmt(c.pcc,2)} kWp
+2. Execução / instalação de sistema de geração de energia solar fotovoltaica: ${fmt(c.pcc,2)} kWp
+- Potência do inversor: ${fmt(c.pca,2)} kW (${v(P.iQ)}x ${v(P.iFab)} ${v(P.iMod)})
+- Módulos: ${v(P.mQ)}x ${v(P.mFab)} ${v(P.mMod)} de ${v(P.mP)} Wp
+
+CONTRATO
+- Valor do contrato: (pergunte)
+- Data de início: ${new Date().toLocaleDateString("pt-BR")} · Previsão de término: (pergunte)
+- Empresa contratada: ${v(P.rtEmp)}`;
+}
+document.addEventListener("click",async e=>{
+  if(!e.target.closest("#bTrt"))return;
+  const t=pedidoTRT();
+  try{await navigator.clipboard.writeText(t);alert("Pedido da TRT copiado.\n\n1. Abra o SINCETI logado no Chrome.\n2. Clique no ícone do Claude (estrela laranja) ao lado da barra de endereço.\n3. Cole (Ctrl+V) no painel e envie.\n\nEle preenche e para antes de emitir. Depois de pagar, baixe o PDF da TRT e use \"Ler ART/TRT\" aqui para assinar.")}
+  catch(err){prompt("Copie o texto abaixo (Ctrl+C):",t)}
 });
 
 // ao trocar fabricante, modelo ou potência do módulo/inversor, busca de novo o registro INMETRO dos dois
