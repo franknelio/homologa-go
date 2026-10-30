@@ -983,22 +983,35 @@ function docUnif(c){
   g+=S.lines(590,yb+200,wrapTxt("NOTA: O PROJETO DE GD APROVADO NÃO CONTEMPLA QUALQUER ALTERAÇÃO NO CONJUNTO DE MEDIÇÃO EXISTENTE. CASO O CONJUNTO DE MEDIÇÃO INSTALADO NO LOCAL NÃO SEJA O MESMO INDICADO NESTE PROJETO OU NÃO ESTEJA DE ACORDO COM AS NORMAS E PADRÕES TÉCNICOS VIGENTES À ÉPOCA DA SUA PRIMEIRA LIGAÇÃO, ESTE DEVERÁ SER ADEQUADO PARA POSSIBILITAR A CONEXÃO DA GD.",62),{fs:10.5,lh:14});
   g+=U.placaA(420,92,130)+S.line(550,150,580,yb-110,1.2)+S.t(590,yb-94,"Quadro existente",{fs:10});
   g+=U.cab(950,yb,nf,false,[`${nf}#${esc(P.cabEnt||"")}mm²`,"PVC 70°C 0,6/1KV","Classe 02"]);
-  // QGD
-  const qx=1010,qy=yb-175,qw=470,qh=385;
-  g+=U.dash(qx,qy,qw,qh)+S.t(qx+qw/2,qy-20,"QUADRO GERAL DE DISTRIBUIÇÃO",{fs:20,a:"middle"});
+  // QGD (quadro existente da casa: só recebe o alimentador do quadro do inversor)
+  const qx=1010,qy=yb-175,qw=310,qh=385;
+  g+=U.dash(qx,qy,qw,qh)+S.t(qx+qw/2,qy-20,"QUADRO GERAL DE DISTRIBUIÇÃO",{fs:18,a:"middle"});
   g+=`<circle cx="1050" cy="${yb}" r="4" fill="#111"/>`+U.brk(1090,yb,esc(P.disj||"")+"A")+S.line(1140,yb,1210,yb,1.4);
   const yPV=yb-95;
   g+=S.line(1210,yPV,1210,yb+90,1.6);
   [yPV,yb-20,yb+35,yb+90].forEach(y=>g+=`<circle cx="1210" cy="${y}" r="4" fill="#111"/>`);
-  g+=U.brk(1230,yPV,c.disjCA+"A")+S.line(1280,yPV,1340,yPV,1.4)+U.cab(1340,yPV,nInv,true,[`${nInv}#${c.cabCA}mm² + T${c.cabCA}mm²`,"PVC 70°C 750V","Classe 02"])+S.line(1340+(nInv+1)*6,yPV,1880,yPV,1.4);
-  g+=S.t(1640,yPV-14,"SISTEMA FOTOVOLTAICO CONECTADO À REDE",{fs:11,a:"middle"});
-  [yb-20,yb+35,yb+90].forEach(y=>g+=U.brk(1230,y,"")+S.line(1280,y,1440,y,1.4)+U.cab(1340,y,nf,false,[]));
-  g+=S.t(1340,yb+125,"CIRCUITOS EXISTENTES – VÃO PARA AS CARGAS",{fs:10.5,a:"middle"});
+  [yb-20,yb+35,yb+90].forEach(y=>g+=U.brk(1225,y,"")+S.line(1275,y,qx+qw-8,y,1.4)+U.cab(1285,y,nf,false,[]));
+  g+=S.lines(1265,yb+122,["CIRCUITOS EXISTENTES","VÃO PARA AS CARGAS"],{fs:10.5,a:"middle",lh:13});
   // DPS CA
   g+=S.line(1050,yb,1050,yb+20,1.4)+U.vbrk(1050,yb+20,`${fases>1?fases+"x":""}20A`)+S.line(1050,yb+70,1050,yb+90,1.4)+U.dps(1050,yb+90)+S.line(1050,yb+126,1050,yb+140,1.4)+U.gnd(1050,yb+140);
   g+=S.lines(1072,yb+102,["DPS CA Classe II 275V","In=20kA","Imax=40kA"],{fs:10.5,lh:13});
   g+=S.rect(1072,yb+142,46,22,"#fff",1.2)+S.t(1095,yb+158,"BEP",{fs:13,a:"middle"});
   g+=S.line(qx+qw,qy+qh,qx+qw+25,qy+qh+25,1.2)+U.gnd(qx+qw+25,qy+qh+25)+S.lines(qx+qw+40,qy+qh+20,["6mm²","EPR 90°C 0,6/1KV","Classe 05"],{fs:10.5,lh:13});
+  g+=U.placaB(1335,40,115)+S.line(1350,40+115*.52,qx+qw+2,qy-2,1.2);
+  // alimentador QGD → quadro CA do inversor
+  const cx0=1420,cw=280;
+  g+=S.line(1210,yPV,cx0+30,yPV,1.4)+U.cab(1352,yPV,nInv,true,[`${nInv}#${c.cabCA}mm²+T`,"PVC 750V"]);
+  // QUADRO CA INVERSOR (separado do quadro da casa)
+  g+=U.dash(cx0,qy,cw,qh)+S.t(cx0+cw/2,qy-20,"QUADRO CA INVERSOR",{fs:20,a:"middle"});
+  const xd=cx0+30,xbus=cx0+80,nBr=Math.min(iQ,3),yS=Array.from({length:nBr},(_,k)=>yPV+k*62);
+  g+=`<circle cx="${xd}" cy="${yPV}" r="4" fill="#111"/>`+S.line(xd,yPV,xbus,yPV,1.4)+S.line(xbus,yPV,xbus,yS[nBr-1],1.6);
+  yS.forEach((y,k)=>{g+=`<circle cx="${xbus}" cy="${y}" r="4" fill="#111"/>`+U.brk(xbus+15,y,c.disjCA+"A")+S.line(xbus+65,y,1880-(k?20:0),y,1.4)+U.cab(cx0+cw-80,y,nInv,true,[`${nInv}#${c.cabCA}mm² + T${c.cabCA}mm²`,"PVC 70°C 750V","Classe 02"])
+    +S.lines(1790,y-20,["SISTEMA FOTOVOLTAICO","CONECTADO À REDE"+(nBr>1?` (INV. ${k+1})`:"")],{fs:9.5,a:"middle",lh:11})});
+  if(iQ>nBr)g+=S.t(1790,yS[nBr-1]+30,`+ ${iQ-nBr} INVERSOR(ES) IDÊNTICO(S)`,{fs:9.5,a:"middle"});
+  const yD=Math.max(yS[nBr-1]+40,yPV+120);
+  g+=S.line(xd,yPV,xd,yD,1.4)+U.vbrk(xd,yD,`${fases>1?fases+"x":""}20A`)+S.line(xd,yD+50,xd,yD+62,1.4)+U.dps(xd,yD+62)+S.line(xd,yD+98,xd,yD+110,1.4)+U.gnd(xd,yD+110);
+  g+=S.lines(xd+22,yD+74,["DPS CA Classe II 275V","In=20kA","Imax=40kA"],{fs:10.5,lh:13});
+  g+=S.rect(xd+22,yD+112,46,22,"#fff",1.2)+S.t(xd+45,yD+128,"BEP",{fs:13,a:"middle"});
 
   /* ---------- strings, string box e inversor ---------- */
   const nsDraw=Math.min(ns,4), y0=720, yMax=960;
@@ -1102,11 +1115,15 @@ function docUnif(c){
     ["Tensão CA",tri?"220 / 380 V":"220 V"],["Frequência","60 Hz"],["Tensão máx. entrada CC",`${esc(P.iVmax||"")} V`],["Nº de MPPT",P.iNmppt||"—"],["Grau de proteção",P.iIP||"IP65"],["Registro INMETRO",regInm("i")||"—"]]);
   // placas
   const px=1610;
-  g+=S.t(px+130,by+8,"DETALHE – PLACA DE ADVERTÊNCIA",{fs:13,a:"middle"});
-  const pa=px+60;
-  g+=U.placaA(pa,by+28,150)+S.line(pa,by+142,pa+150,by+142,1)+S.t(pa+75,by+156,"250 mm",{fs:9.5,a:"middle"})+S.line(pa-8,by+28,pa-8,by+136,1)+S.t(pa-12,by+82,"180 mm",{fs:9.5,a:"middle",r:-90});
-  const n1=wrapTxt("NOTA 1: SERÁ INSTALADA JUNTO AO PADRÃO DE ENTRADA UMA PLACA DE ADVERTÊNCIA: espessura 2 mm; chapa galvalume nº 22 USG (0,79 mm), cantos arredondados; fundo amarelo em epóxi; letras pretas em tinta eletrostática em pó; fundo anticorrosivo de no mínimo 30 µm (frente e verso).",52);
-  g+=S.lines(px-10,by+184,n1,{fs:9.5,lh:13});
+  g+=S.t(px+130,by+8,"DETALHE – PLACAS DE ADVERTÊNCIA",{fs:13,a:"middle"});
+  const pa=px+80;
+  g+=U.placaA(pa,by+20,120)+S.line(pa,by+114,pa+120,by+114,1)+S.t(pa+60,by+126,"250 mm",{fs:9,a:"middle"})+S.line(pa-8,by+20,pa-8,by+106,1)+S.t(pa-12,by+63,"180 mm",{fs:9,a:"middle",r:-90});
+  const n1=wrapTxt("NOTA 1: SERÁ INSTALADA JUNTO AO PADRÃO DE ENTRADA UMA PLACA DE ADVERTÊNCIA: espessura 2 mm; chapa galvalume nº 22 USG (0,79 mm), cantos arredondados; fundo amarelo em epóxi; letras pretas em tinta eletrostática em pó; fundo anticorrosivo de no mínimo 30 µm (frente e verso).",58);
+  g+=S.lines(px-10,by+140,n1,{fs:8.5,lh:10.5});
+  const pb=px+70,pby=by+140+n1.length*10.5+12;
+  g+=U.placaB(pb,pby,140)+S.line(pb,pby+81,pb+140,pby+81,1)+S.t(pb+70,pby+93,"270 mm",{fs:9,a:"middle"})+S.line(pb-8,pby,pb-8,pby+73,1)+S.t(pb-12,pby+36,"140 mm",{fs:9,a:"middle",r:-90});
+  const n2=wrapTxt("NOTA 2: SERÁ INSTALADA PELO INSTALADOR UMA PLACA DE ADVERTÊNCIA NO POSTE ONDE SE ENCONTRA O TRANSFORMADOR DE DISTRIBUIÇÃO E NO QUADRO GERAL DE DISTRIBUIÇÃO: chapa de fibra de vidro resistente às intempéries e à corrosão, cantos arredondados; 140 x 270 mm; fundo amarelo em epóxi; letras pretas em tinta eletrostática em pó.",58);
+  g+=S.lines(px-10,pby+107,n2,{fs:8.5,lh:10.5});
 
   /* ---------- coluna direita: legenda, notas e carimbo ---------- */
   const lx=1910,lw=450;
@@ -1120,7 +1137,7 @@ function docUnif(c){
   leg.forEach(([sym,txt],i)=>{const y=135+i*40;g+=`<g transform="translate(0,${y})">${sym}</g>`+S.lines(lx+105,y+4-(txt.length>44?6:0),wrapTxt(txt,46),{fs:10.5,lh:12})});
   g+=S.lines(lx+12,135+leg.length*40,["SEÇÃO NÃO INFORMADA = 2,5 mm² · ISOLAÇÃO NÃO INFORMADA = 750 V","ELETRODUTO NÃO INFORMADO = PVC FLEXÍVEL CORRUGADO Ø 3/4\""],{fs:9.5,lh:13});
   let ny=645;
-  NOTAS_UNIF.map((t,i)=>t.replace(/^NOTA \d+/,"NOTA "+(i+2))).forEach(t=>{const ls=wrapTxt(t,84);g+=S.lines(lx,ny,ls,{fs:9,lh:11});ny+=ls.length*11+3});
+  NOTAS_UNIF.map((t,i)=>t.replace(/^NOTA \d+/,"NOTA "+(i+3))).forEach(t=>{const ls=wrapTxt(t,84);g+=S.lines(lx,ny,ls,{fs:9,lh:11});ny+=ls.length*11+3});
   // carimbo
   const cy0=1040,ce=H-40;
   g+=S.rect(lx,cy0,lw,ce-cy0,"#fff",1.6);
@@ -1135,7 +1152,7 @@ function docUnif(c){
   y+=36;g+=S.line(lx,y,lx+lw,y,1.2);
   g+=S.t(lx+8,y+40,"RT:",{fs:11})+svgAssin(lx+lw/2-20,y-4,120,46)+S.line(lx+120,y+38,lx+lw-40,y+38,.8)+S.lines(lx+lw/2+40,y+52,[up(P.rtNome),esc(`${P.rtTit||""} · ${P.rtReg||""}`),esc(`ART/TRT nº ${P.rtArt||""}`)],{fs:10,a:"middle",lh:12});
   y+=96;g+=S.t(lx+8,y+30,"PROP.:",{fs:11})+(assinaCli()&&assinRT?S.t(lx+lw/2-34,y+18,"p.p.",{fs:9})+svgAssin(lx+lw/2-20,y-20,120,46):"")+S.line(lx+120,y+22,lx+lw-40,y+22,.8)+S.lines(lx+lw/2+40,y+36,[up(P.nome),`CPF/CNPJ: ${esc(P.doc||"")}`],{fs:10,a:"middle",lh:12});
-  y+=62;g+=S.line(lx,y,lx+lw,y,1.2)+S.t(lx+6,y+12,"CONTEÚDO:",{fs:8})+S.lines(lx+lw*.25,y+26,["DIAGRAMA UNIFILAR","DETALHES","PLACA DE ADVERTÊNCIA"],{fs:10,a:"middle",lh:12})+S.line(lx+lw*.5,y,lx+lw*.5,y+64,1)+S.t(lx+lw*.5+6,y+12,"RESPONSÁVEL TÉCNICO:",{fs:8})+S.t(lx+lw*.75,y+36,up(P.rtNome).slice(0,34),{fs:10,a:"middle"})+(P.rtEmp?S.t(lx+lw*.75,y+52,up(P.rtEmp).slice(0,34),{fs:9,a:"middle"}):"");
+  y+=62;g+=S.line(lx,y,lx+lw,y,1.2)+S.t(lx+6,y+12,"CONTEÚDO:",{fs:8})+S.lines(lx+lw*.25,y+26,["DIAGRAMA UNIFILAR","DETALHES","PLACAS DE ADVERTÊNCIA"],{fs:10,a:"middle",lh:12})+S.line(lx+lw*.5,y,lx+lw*.5,y+64,1)+S.t(lx+lw*.5+6,y+12,"RESPONSÁVEL TÉCNICO:",{fs:8})+S.t(lx+lw*.75,y+36,up(P.rtNome).slice(0,34),{fs:10,a:"middle"})+(P.rtEmp?S.t(lx+lw*.75,y+52,up(P.rtEmp).slice(0,34),{fs:9,a:"middle"}):"");
   y+=64;g+=S.line(lx,y,lx+lw,y,1.2);
   const cell=(x1,x2,yy,lab,v)=>S.line(lx+lw*x1,yy,lx+lw*x1,yy+44,1)+S.t(lx+lw*x1+5,yy+11,lab,{fs:7.5})+S.t(lx+lw*(x1+x2)/2,yy+33,v,{fs:10,a:"middle"});
   g+=S.t(lx+5,y+11,"ASSUNTO:",{fs:7.5})+S.t(lx+lw*.25,y+33,`${c.categoria.toUpperCase()} DISTRIBUÍDA FOTOVOLTAICA`,{fs:9.5,a:"middle"})+cell(.52,.7,y,"ESCALA:","INDICADA")+cell(.7,.82,y,"FOLHA:","1/1")+cell(.82,1,y,"DATA:",dataBR());
