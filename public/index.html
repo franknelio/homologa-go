@@ -1700,8 +1700,8 @@ ATIVIDADE CONTRATADA (Adicionar Atividade)
 - Módulos: ${v(P.mQ)}x ${v(P.mFab)} ${v(P.mMod)} de ${v(P.mP)} Wp
 
 CONTRATO (Adicionar Contrato)
-- Contratante: "Contratante Pessoa ${String(P.doc||"").replace(/\D/g,"").length>11?"Jurídica":"Física"}" com o CPF/CNPJ ${v(P.doc)}. Se não estiver cadastrado, cadastre com os dados acima.
-- Proprietário: "Aproveita Dados do Contratante"
+- Contratante: marque "Contratante Pessoa ${String(P.doc||"").replace(/\D/g,"").length>11?"Jurídica":"Física"}". No campo ${String(P.doc||"").replace(/\D/g,"").length>11?"CNPJ":"CPF"} que aparece, digite só os números ${String(P.doc||"").replace(/\D/g,"")||"(pergunte)"} devagar, ESPERE a lista de sugestões abrir e CLIQUE no nome ${v(P.nome)}. Confirme que apareceu o quadro INTERESSADO com nome, CPF e endereço, e marque o endereço dele. Se não aparecer ninguém, o contratante não está cadastrado: pare e me avise (cadastro em Contratantes).
+- Proprietário: marque "Aproveita Dados do Contratante" e confirme que o quadro INTERESSADO dele foi preenchido.
 - Número do contrato e Celebrado em: deixe em branco
 - Início da obra/serviço: ${new Date().toLocaleDateString("pt-BR")} · Previsão de término: ${new Date(Date.now()+2*864e5).toLocaleDateString("pt-BR")}
 - Valor da obra/serviço: 500,00
