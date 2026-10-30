@@ -39,7 +39,10 @@
     const clica = (el) => { if (!el) return false; el.click(); return true };
 
     // 1. dados gerais
-    sel("FORMADEREGISTRO", "5"); sel("PARTICIPACAOTECNICA", "11"); sel("FINALIDADE", D.finalidade || "29");
+    // o resto do formulário só carrega depois de escolher a forma de registro
+    if (q("#FORMADEREGISTRO").value != "5" || !q("#PARTICIPACAOTECNICA")) { sel("FORMADEREGISTRO", "5"); await espera(() => q("#PARTICIPACAOTECNICA") && q("#NOVO_ATIVIDADE"), 15000); await dorme(800) }
+    if (!q("#PARTICIPACAOTECNICA")) { log("O formulário não carregou depois da forma de registro. Escolha INICIAL e clique no favorito de novo.", "#c00"); return fim() }
+    sel("PARTICIPACAOTECNICA", "11"); sel("FINALIDADE", D.finalidade || "29");
     sel("ACAOINSTITUCIONAL", "17"); if (q("#ENTIDADEDECLASSE")) sel("ENTIDADEDECLASSE", "1");
     txtSet("OBSERVACAO", D.obs);
     log("✓ Forma de registro, participação, finalidade, ação institucional e observação");
