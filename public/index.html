@@ -1699,10 +1699,17 @@ ATIVIDADE CONTRATADA (Adicionar Atividade)
 - Potência do inversor: ${fmt(c.pca,2)} kW (${v(P.iQ)}x ${v(P.iFab)} ${v(P.iMod)})
 - Módulos: ${v(P.mQ)}x ${v(P.mFab)} ${v(P.mMod)} de ${v(P.mP)} Wp
 
-CONTRATO
-- Valor do contrato: (pergunte)
-- Data de início: ${new Date().toLocaleDateString("pt-BR")} · Previsão de término: (pergunte)
-- Empresa contratada: ${v(P.rtEmp)}`;
+CONTRATO (Adicionar Contrato)
+- Contratante: "Contratante Pessoa ${String(P.doc||"").replace(/\D/g,"").length>11?"Jurídica":"Física"}" com o CPF/CNPJ ${v(P.doc)}. Se não estiver cadastrado, cadastre com os dados acima.
+- Proprietário: "Aproveita Dados do Contratante"
+- Número do contrato e Celebrado em: deixe em branco
+- Início da obra/serviço: ${new Date().toLocaleDateString("pt-BR")} · Previsão de término: ${new Date(Date.now()+60*864e5).toLocaleDateString("pt-BR")}
+- Valor da obra/serviço: (pergunte)
+- Preencher endereço: "Utilizar Outro Endereço" e preencha o ENDEREÇO DA OBRA (confira com cuidado, só pode ser alterado até 5 dias após o pagamento):
+  País BRA - Brasil · CEP ${v(P.cep)} · Tipo ${(String(P.end||"").match(/^(rua|avenida|av\.?|rodovia|estrada|travessa|alameda|praça|fazenda|chácara|sítio|quadra)/i)||["Rua"])[0]} · Logradouro e número: ${v(P.end)} · Bairro ${v(P.bairro)} · Cidade ${v(P.cidade)} - ${P.uf||"GO"}
+  (se o endereço for rural sem número, use "S/N" e coloque a referência e as coordenadas no complemento)
+
+NO FIM: não digite o código de validação e não clique em "Cadastrar". Pare e me avise.`;
 }
 document.addEventListener("click",async e=>{
   if(!e.target.closest("#bTrt"))return;
