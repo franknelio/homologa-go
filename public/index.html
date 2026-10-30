@@ -1688,9 +1688,14 @@ OBRA / SERVIÇO
 - Unidade consumidora Equatorial: ${v(P.uc)}
 - Finalidade: sistema de microgeração distribuída fotovoltaica conectado à rede da Equatorial Goiás (${c.categoria.toLowerCase()})
 
-ATIVIDADES TÉCNICAS (escolha as equivalentes na lista do SINCETI)
-1. Projeto de sistema de geração de energia solar fotovoltaica: ${fmt(c.pcc,2)} kWp
-2. Execução / instalação de sistema de geração de energia solar fotovoltaica: ${fmt(c.pcc,2)} kWp
+TRT (formulário "Preencher Termo de Responsabilidade Técnica")
+- Forma de registro: INICIAL · Participação: INDIVIDUAL · Finalidade: ${/rural/i.test(P.classe||"")?"Rural":/comerc/i.test(P.classe||"")?"Comercial":"Residencial"} · Ação institucional: NENHUM
+- Observação: Projeto e execução de sistema de microgeração distribuída fotovoltaica de ${fmt(c.pcc,2)} kWp (inversor ${fmt(c.pca,2)} kW), conectado à rede da Equatorial Goiás, UC nº ${v(P.uc)}.
+
+ATIVIDADE CONTRATADA (Adicionar Atividade)
+- Nível atividade: 13 - PROJETO · Atividade profissional: 50 - PROJETO E EXECUÇÃO
+- Atividades (adicione os 4 códigos): 1761 (Produção de energia > Solar), 1789 (Geração de energia > Solar fotovoltaica), 3096 (Aterramento), 3159 (Sistema de geração distribuída)
+- Unidade de medida: kWp - Quilowatt Pico · Quantidade: ${fmt(c.pcc,3)}
 - Potência do inversor: ${fmt(c.pca,2)} kW (${v(P.iQ)}x ${v(P.iFab)} ${v(P.iMod)})
 - Módulos: ${v(P.mQ)}x ${v(P.mFab)} ${v(P.mMod)} de ${v(P.mP)} Wp
 
