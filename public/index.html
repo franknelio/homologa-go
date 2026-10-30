@@ -1659,14 +1659,18 @@ async function locaisAssinatura(buf){
   const alvos=[{q:"rt",k:chave(P.rtNome)},{q:"cli",k:chave(P.nome)}];
   for(let pg=pdf.numPages;pg>=1&&out.length<2;pg--){
     const page=await pdf.getPage(pg),tc=await page.getTextContent();
-    const itens=tc.items.filter(it=>it.str&&it.str.trim()).map(it=>({s:nm(it.str),x:it.transform[4],y:it.transform[5],w:it.width,h:Math.abs(it.transform[3])||8}));
+    const usados=[],itens=tc.items.filter(it=>it.str&&it.str.trim()).map(it=>({s:nm(it.str),x:it.transform[4],y:it.transform[5],w:it.width,h:Math.abs(it.transform[3])||8}));
     for(const a of alvos){
       if(out.some(o=>o.q===a.q)||!a.k.length)continue;
       // ocorrência mais baixa da página (as linhas de assinatura ficam no fim)
-      const ac=itens.filter(it=>a.k.every(w=>it.s.includes(w))).sort((p1,p2)=>p1.y-p2.y);
+      // quando o cliente é o próprio RT (mesmo nome) cada assinatura precisa de uma ocorrência diferente,
+      // de preferência na mesma linha da outra assinatura (as duas ficam lado a lado no fim da TRT)
+      const livre=it=>!usados.includes(it),outra=out.find(o=>o.pg===pg);
+      const perto=l=>outra?l.filter(i=>Math.abs(i.y-outra.it.y)<30).concat(l.filter(i=>Math.abs(i.y-outra.it.y)>=30)):l;
+      const ac=perto(itens.filter(it=>livre(it)&&a.k.every(w=>it.s.includes(w))).sort((p1,p2)=>p1.y-p2.y));
       let it=ac[0];
-      if(!it){const lab=itens.filter(i=>/ASSINATURA/.test(i.s)&&(a.q==="rt"?/PROFISSIONAL|TECNICO|RESPONSAVEL/.test(i.s):/CONTRATANTE|PROPRIETARIO|CLIENTE/.test(i.s))).sort((p1,p2)=>p1.y-p2.y);it=lab[0]}
-      if(it)out.push({q:a.q,pg,x:it.x+it.w/2,y:it.y+it.h+1});
+      if(!it){const lab=itens.filter(i=>livre(i)&&/ASSINATURA/.test(i.s)&&(a.q==="rt"?/PROFISSIONAL|TECNICO|RESPONSAVEL/.test(i.s):/CONTRATANTE|PROPRIETARIO|CLIENTE/.test(i.s))).sort((p1,p2)=>p1.y-p2.y);it=lab[0]}
+      if(it){usados.push(it);out.push({q:a.q,pg,it,x:it.x+it.w/2,y:it.y+it.h+1})}
     }
     if(out.length&&out.length<2&&pg<pdf.numPages)break;
   }
