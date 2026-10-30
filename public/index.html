@@ -611,7 +611,7 @@ function docMemoSimpl(c){
   <div class="mrow mt"><span class="mlab">Tipo de conexão:</span><div class="mopt mr">${rad(P.ligacao==="Monofásico","Monofásica")}${rad(P.ligacao==="Bifásico","Bifásica")}${rad(P.ligacao==="Trifásico","Trifásica")}</div></div>
   <div class="mrow mt"><span class="mlab">Tensão de Atendimento:</span><div class="mopt mr">${rad(true,"380/220V")}${rad(false,"13,8kV")}${rad(false,"34,5kV")}</div></div>
   <div class="mrow mt"><span class="mlab">Ramal:</span><div class="mopt mr">${rad(P.ramal!=="Subterrâneo","Aéreo")}${rad(P.ramal==="Subterrâneo","Subterrâneo")}<span></span></div></div>
-  <div class="mrow mt"><span>Disjuntor:</span><span class="mv s">${v("disj")}</span><span>A</span><span style="width:30px"></span><span>Condutor:</span><span class="mv m">${v("cabEnt")}</span></div>
+  <div class="mrow mt"><span>Disjuntor:</span><span class="mv s">${v("disj")}</span><span>A</span><span style="width:30px"></span><span>Condutor:</span><span class="mv m">${cabEntUC()} mm²</span></div>
   <div class="mrow mt"><span>Número do poste de derivação para unidade consumidora:</span><span class="mv m">${v("poste")}</span></div>
   <p class="mp">2 - Sistema Fotovoltaico</p><p class="mp">Descrição</p>
   <div class="marea" style="height:64px">${descArranjo(c)}</div>
@@ -655,6 +655,8 @@ const nPal=k=>["","UM","DOIS","TRÊS","QUATRO"][k]||String(k);
 function fasesUC(){return P.ligacao==="Trifásico"?3:P.ligacao==="Bifásico"?2:1}
 function vnUC(){return P.ligacao==="Monofásico"?220:380}
 // potência disponibilizada pelo modelo da Equatorial: PD = Vn × Idg × NF / 1000, PD(kW) = PD(kVA) × 0,92
+// condutor do ramal de entrada: o informado ou o padrão Equatorial pelo disjuntor (mesmo valor em todos os documentos)
+function cabEntUC(){const d=n(P.disj);return n(P.cabEnt)||(d<=50?10:d<=63?16:d<=80?25:d<=100?35:50)}
 function pdEq(){const nf=P.ligacao==="Trifásico"?Math.sqrt(3):1,kva=vnUC()*n(P.disj)*nf/1000;return {nf,kva,kw:kva*0.92}}
 // levantamento de carga: "descrição; potência W; quantidade" por linha
 // levantamento de carga: o digitado em "cargas" ou, se vazio, eletrodomésticos e eletrônicos gerados
@@ -692,7 +694,7 @@ function docMemoTec(c){
   const tit=(nr,t)=>`<h3>${nr}${nr?"&nbsp;&nbsp;&nbsp;&nbsp;":""}${t}</h3>`;
   const tb=rows=>`<table class="tq">${rows.map(([a,b])=>`<tr><td>${a}</td><td>${b}</td></tr>`).join("")}</table>`;
   const tg=rows=>`<table class="tg">${rows.map(([a,b])=>b===undefined?`<tr><td colspan="2" class="c">${a}</td></tr>`:`<tr><td>${a}</td><td>${b}</td></tr>`).join("")}</table>`;
-  const lig=UP(P.ligacao||"Monofásico"),nf=fasesUC(),vn=vnUC(),cab=n(P.cabEnt)||10,pd=pdEq(),mod=UP(P.modalidade||"Autoconsumo local");
+  const lig=UP(P.ligacao||"Monofásico"),nf=fasesUC(),vn=vnUC(),cab=cabEntUC(),pd=pdEq(),mod=UP(P.modalidade||"Autoconsumo local");
   const pot=kwTxt(c.pca),iq=n(P.iQ)||1,u=utm(n(P.lat),n(P.lon)),nova=(P.tipoSolic||"").includes("nova");
   const titulo=`${c.categoria==="Minigeração"?"MINIGERAÇÃO":"MICROGERAÇÃO"} DISTRIBUÍDA UTILIZANDO UM SISTEMA DE ENERGIA SOLAR FOTOVOLTAICA DE ${pot}kW CONECTADO À REDE DE ENERGIA ELÉTRICA DE BAIXA TENSÃO EM ${vn}V, CARACTERIZADO COMO ${esc(mod)}`;
   const docCli=String(P.doc||"").replace(/\D/g,"").length>11?"CNPJ":"CPF";
@@ -776,7 +778,7 @@ function docMemoTec(c){
   const p10=pg(`<h4>8.2.&nbsp;&nbsp; Disjuntores</h4><p>Na tabela abaixo é descrito o disjuntor geral a ser instalado para o sistema de geração de energia solar:</p>
    ${tb([["NUMERO DE POLOS",it.polos],["TENSÃO NOMINAL",it.v],["CORRENTE NOMINAL (A)",c.disjCA],["FREQUÊNCIA NOMINAL (Hz)",60],["ELEMENTO DE PROTEÇÃO","TERMOMAGNÉTICO"],["CAPACIDADE MÁXIMA DE INTERRUPÇÃO","3 kA"],["CURVA DE ATUAÇÃO","C"]])}
    <h4>8.3.&nbsp;&nbsp; DPS</h4><p>Na tabela abaixo é descrito o DPS a ser instalado para o sistema de geração de energia solar:</p>
-   ${tg([["Tipo CC ou CA:","CA"],["Classe:","CLASSE 2"],["Tensão CC ou CA [V]:","275V"],["Corrente nominal [kA]:","20kA"],["Corrente máxima [kA]:","45kA"]])}
+   ${tg([["Tipo CC ou CA:","CA"],["Classe:","CLASSE 2"],["Tensão CC ou CA [V]:","275V"],["Corrente nominal [kA]:","20kA"],["Corrente máxima [kA]:","40kA"]])}
    <h4>8.4.&nbsp;&nbsp; Aterramento</h4><p>Na tabela abaixo é descrito o sistema de aterramento a ser instalado para o sistema de geração de energia solar:</p>
    ${tg([["Geometria da malha:","HASTE ÚNICA"],["Descrição das hastes de aterramento:",`2,4m de comprimento, 5/8" de diametro`],["Quantidade de hastes:","3"],["Cabo de aterramento:","6"],["Valor da resistência de aterramento:","10 Ohms"],["Descrição do barramento de terra:","Barramento de cobre 80A"]])}
    <h4>8.5.&nbsp;&nbsp; Requisitos de Proteção</h4><div class="mcap2">Tabela 5 – Características técnicas do gerador</div>
@@ -809,7 +811,7 @@ function docMemoTec(c){
 
 // Formulário ANEXO I (NT.00020.EQTL, REV 06 de 04/11/2025) – Microgeração distribuída Grupo B
 function docForm(c){
-  const pd=pdEq(),pdKw=Math.floor(pd.kw),carga=cargaInst(),u=utm(n(P.lat),n(P.lon)),mod=UP(P.modalidade||"Autoconsumo local"),t=P.tipoSolic||"";
+  const pd=pdEq(),pdKw=pd.kw,carga=cargaInst(),u=utm(n(P.lat),n(P.lon)),mod=UP(P.modalidade||"Autoconsumo local"),t=P.tipoSolic||"";
   const L=(s)=>`<div class="al">${s}</div>`,V=(s,cls="")=>`<div class="av ${cls}">${s??""}</div>`,SEL=`<span class="ar">(selecionar)</span>`;
   const tel=esc(P.tel||P.rtTel||""),mail=esc(P.email||P.rtEmail||"");
   const tipoTxt=t.includes("nova")?"LIGAÇÃO NOVA DE UNIDADE CONSUMIDORA COM GD":t.includes("com aumento")?"CONEXÃO DE GD EM UNIDADE CONSUMIDORA EXISTENTE COM AUMENTO DE POTÊNCIA DISPONIBILIZADA (ver item abaixo)":"CONEXÃO DE GD EM UNIDADE CONSUMIDORA EXISTENTE SEM AUMENTO DE POTÊNCIA DISPONIBILIZADA (ver item abaixo)";
@@ -969,20 +971,20 @@ function docUnif(c){
   g+=S.t(196,yb,`REDE ${P.ramal==="Subterrâneo"?"SUBTERRÂNEA":"AÉREA"} BAIXA TENSÃO ${tri||nf>2?"220/380V":"220V"} DA EQUATORIAL`,{fs:11.5,a:"middle",r:-90});
   g+=S.t(213,yb,`N° POSTE ${up(P.poste)||"________"}`,{fs:11.5,a:"middle",r:-90});
   g+=S.line(230,yb,580,yb,1.4);
-  g+=U.cab(300,yb,nf,false,[`${nf}#${esc(P.cabEnt||"")}mm²`,"XLPE 90°C 0,6/1KV","Classe 02"],[`Ramal de Ligação ${P.ramal==="Subterrâneo"?"Subterrâneo":"Aéreo"}`,"Condutores de Alumínio"]);
+  g+=U.cab(300,yb,nf,false,[`${nf}#${cabEntUC()}mm²`,"XLPE 90°C 0,6/1KV","Classe 02"],[`Ramal de Ligação ${P.ramal==="Subterrâneo"?"Subterrâneo":"Aéreo"}`,"Condutores de Alumínio"]);
   g+=`<circle cx="400" cy="${yb}" r="12" fill="#fff" stroke="#111" stroke-width="1.4"/>`;
-  g+=U.cab(480,yb,nf,false,[`${nf}#${esc(P.cabEnt||"")}mm²`,"PVC 70°C 0,6/1KV","Classe 02"],["Ramal de Entrada","Condutores de Cobre","Eletroduto Aço Zincado"]);
+  g+=U.cab(480,yb,nf,false,[`${nf}#${cabEntUC()}mm²`,"PVC 70°C 0,6/1KV","Classe 02"],["Ramal de Entrada","Condutores de Cobre","Eletroduto Aço Zincado"]);
   // padrão
   g+=U.dash(580,yb-110,330,220)+S.t(745,yb-130,"PADRÃO DE ENTRADA",{fs:20,a:"middle"});
   g+=U.brk(605,yb,esc(P.disj||"")+"A")+S.line(655,yb,690,yb,1.4);
-  g+=U.cab(690,yb,nf,false,[`${nf}#${esc(P.cabEnt||"")}mm²`,"PVC 70°C 0,6/1KV","Classe 02"])+S.line(690+nf*6,yb,816,yb,1.4);
+  g+=U.cab(690,yb,nf,false,[`${nf}#${cabEntUC()}mm²`,"PVC 70°C 0,6/1KV","Classe 02"])+S.line(690+nf*6,yb,816,yb,1.4);
   g+=U.meter(840,yb)+S.line(864,yb,1010,yb,1.4)+S.t(840,yb+62,"Medidor Bidirecional a Instalar",{fs:11,a:"middle"});
   g+=S.line(910,yb+110,935,yb+135,1.2)+U.gnd(935,yb+135);
   g+=S.t(745,yb+150,`UC N° ${esc(P.uc||"")}`,{fs:24,a:"middle"});
   g+=S.t(745,yb+176,"Topo da Caixa do Padrão a 1,65 m do piso acabado",{fs:11,a:"middle"});
   g+=S.lines(590,yb+200,wrapTxt("NOTA: O PROJETO DE GD APROVADO NÃO CONTEMPLA QUALQUER ALTERAÇÃO NO CONJUNTO DE MEDIÇÃO EXISTENTE. CASO O CONJUNTO DE MEDIÇÃO INSTALADO NO LOCAL NÃO SEJA O MESMO INDICADO NESTE PROJETO OU NÃO ESTEJA DE ACORDO COM AS NORMAS E PADRÕES TÉCNICOS VIGENTES À ÉPOCA DA SUA PRIMEIRA LIGAÇÃO, ESTE DEVERÁ SER ADEQUADO PARA POSSIBILITAR A CONEXÃO DA GD.",62),{fs:10.5,lh:14});
   g+=U.placaA(420,92,130)+S.line(550,150,580,yb-110,1.2)+S.t(590,yb-94,"Quadro existente",{fs:10});
-  g+=U.cab(950,yb,nf,false,[`${nf}#${esc(P.cabEnt||"")}mm²`,"PVC 70°C 0,6/1KV","Classe 02"]);
+  g+=U.cab(950,yb,nf,false,[`${nf}#${cabEntUC()}mm²`,"PVC 70°C 0,6/1KV","Classe 02"]);
   // QGD (quadro existente da casa: só recebe o alimentador do quadro do inversor)
   const qx=1010,qy=yb-175,qw=310,qh=385;
   g+=U.dash(qx,qy,qw,qh)+S.t(qx+qw/2,qy-20,"QUADRO GERAL DE DISTRIBUIÇÃO",{fs:18,a:"middle"});
