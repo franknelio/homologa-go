@@ -411,6 +411,8 @@ function slug(){return (P.nome||"projeto").normalize("NFD").replace(/[̀-ͯ]/g,"
 
 /* ---------------- cálculos ---------------- */
 const BRK=[6,10,16,20,25,32,40,50,63,70,80,100,125,160,200];
+// disjuntores de entrada existentes no padrão (regra do usuário: não existe 50 A nem 60 A)
+const BRK_UC=[32,40,63,80,100,125,160,200];
 const CAB=[[1.5,17.5],[2.5,24],[4,32],[6,41],[10,57],[16,76],[25,101],[35,125],[50,151],[70,192],[95,232]]; // NBR 5410 B1, Cu/PVC, 2 carregados
 // lista de strings [{m: módulos em série, mppt: nº do MPPT}], do campo strDet ou de nStr × mPorStr
 function listaStrings(){
@@ -447,8 +449,8 @@ function calc(){
   c.iTot=c.iout*Math.max(1,n(P.iQ));
   // disjuntor CA da geração igual ao disjuntor do padrão de entrada, como nos modelos aprovados pela Equatorial GO
   // o inversor limita a injeção à sua potência nominal, então basta a corrente nominal de saída
-  c.disjCAcalc=BRK.find(b=>b>=c.iout)||BRK[BRK.length-1];
-  c.disjCA=n(P.disj)||c.disjCAcalc;
+  c.disjCAcalc=BRK_UC.find(b=>b>=c.iTot)||BRK_UC[BRK_UC.length-1];
+  c.disjCA=Math.max(disjPadrao(P.disj)||0,c.disjCAcalc);
   const ca=CAB.find(([s,a])=>a>=c.disjCA&&s>=2.5)||CAB[CAB.length-1]; c.cabCA=ca[0];
   const L=n(P.dCA), rho=0.0178;
   const vRef=P.iFases.startsWith("Trif")?vff:220;
@@ -493,7 +495,7 @@ function checks(c){
   if(P._equipEst) add("warn","Especificações elétricas do módulo e do inversor estimadas pela potência. Confira com o datasheet em “Módulos” e “Inversor” e informe marca, modelo e registro INMETRO.");
   if(P._coordAprox) add("warn","Coordenadas aproximadas pelo endereço. Confira no Google Maps antes de protocolar.");
   if(!n(P.carga)&&!String(P.cargas||"").trim()&&cargaInst()) add("ok",`Levantamento de carga gerado automaticamente com eletrodomésticos e eletrônicos: ${fmt(cargaInst())} kW (35% abaixo da potência do inversor).`);
-  if(P._disjPadrao) add("warn",`Disjuntor de entrada assumido em ${P.disj} A (a conta não informa). Confirme no padrão.`);
+  if(P._disjPadrao) add("warn",`Disjuntor de entrada calculado pela corrente do inversor: ${P.disj} A (a conta não informa). Confirme no padrão.`);
   return r;
 }
 
@@ -1289,10 +1291,11 @@ function docCheck(c){
 const BUILD={form:docForm,memo:docMemo,unif:docUnif,blocos:docBlocos,planta:docPlanta,placa:docPlaca,benef:docBenef,check:docCheck};
 
 /* ---------------- renderização ---------------- */
-// disjuntor fora dos valores comerciais (ex. 60 A) vira o próximo padronizado (63 A)
-function disjPadrao(v){v=n(v);return !v||BRK.includes(v)?v:(BRK.find(b=>b>=v)||v)}
+// disjuntor de entrada: calculado pela corrente dos inversores e arredondado para cima nos valores do padrão (32/40/63 A…);
+// um valor informado menor ou fora da lista (ex. 50 ou 60 A) sobe para o próximo
+function disjPadrao(v){v=n(v);return v?(BRK_UC.find(b=>b>=v)||v):v}
 function render(){
-  if(n(P.disj)&&document.activeElement?.id!=="f_disj"){const d=disjPadrao(P.disj);if(d!==n(P.disj)){P.disj=d;const e=$("#f_disj");if(e)e.value=d}}
+  if(document.activeElement?.id!=="f_disj"&&(n(P.iP)||n(P.disj))){const d=Math.max(disjPadrao(P.disj)||0,calc().disjCAcalc);if(d!==n(P.disj)){P.disj=d;const e=$("#f_disj");if(e)e.value=d}}
   const c=calc();
   $("#kpis").innerHTML=[["Potência instalada",fmt(c.pinst)+" kW"],["Gerador CC",fmt(c.pcc)+" kWp"],["Geração estimada",fmt(c.gerMes,0)+" kWh/mês"],["Formulário","Anexo "+c.anexoForm]].map(([a,b])=>`<div class="kpi"><small>${a}</small><strong>${b}</strong></div>`).join("");
   $("#checks").innerHTML=checks(c).map(([s,t])=>`<div class="chk ${s}"><b>${s==="ok"?"✓":s==="warn"?"!":"✕"}</b><span>${t}</span></div>`).join("")+(P._exemplo?`<div class="chk warn"><b>!</b><span><span class="tag-ex">Exemplo</span> Dados fictícios de demonstração. Abra “Projetos → Novo projeto em branco” para começar o seu.</span></div>`:"");
@@ -1575,10 +1578,10 @@ Regras: o titular da UC é o nome que consta na conta de energia; números (lat,
       }
       for(const [k,v] of Object.entries(out)){Q[k]=String(v);found++}
       if(out.lat!=null)Q._coordAprox=true;
-      if(Q.ligacao==="Trifásico"){Q.tensao="380/220 V";Q.disj=Q.disj||63}else if(Q.ligacao==="Bifásico"){Q.tensao="380/220 V";Q.disj=Q.disj||50}else{Q.tensao="220 V (F-N)";Q.disj=Q.disj||50}
-      Q._disjPadrao=true;
+      if(Q.ligacao==="Trifásico"){Q.tensao="380/220 V";Q.disj=Q.disj||""}else if(Q.ligacao==="Bifásico"){Q.tensao="380/220 V";Q.disj=Q.disj||""}else{Q.tensao="220 V (F-N)";Q.disj=Q.disj||""}
+      if(!n(Q.disj))Q._disjPadrao=true;else delete Q._disjPadrao;
     } else if(qFiles.length&&!sample){aiNote="A leitura automática não está disponível nesta visualização; complete os dados do cliente abaixo. "}
-    else {Q.disj=50;Q._disjPadrao=true}
+    else {Q.disj="";Q._disjPadrao=true}
     Object.assign(Q,{iP,iQ,mP,mQ},estModulo(mP),estInversor(iP,Q.ligacao));
     const ds={i:$("#q_dsI").files[0],m:$("#q_dsM").files[0]},dsOk=[];
     for(const t of ["i","m"])if(ds[t]){
