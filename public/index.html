@@ -1708,6 +1708,8 @@ CONTRATO (Adicionar Contrato)
 - Preencher endereço: "Utilizar Outro Endereço" e preencha o ENDEREÇO DA OBRA (confira com cuidado, só pode ser alterado até 5 dias após o pagamento):
   País BRA - Brasil · CEP ${v(P.cep)} · Tipo ${(String(P.end||"").match(/^(rua|avenida|av\.?|rodovia|estrada|travessa|alameda|praça|fazenda|chácara|sítio|quadra)/i)||["Rua"])[0]} · Logradouro e número: ${v(P.end)} · Bairro ${v(P.bairro)} · Cidade ${v(P.cidade)} - ${P.uf||"GO"}
   (se o endereço for rural sem número, use "S/N" e coloque a referência e as coordenadas no complemento)
+  Cidade: digite no campo "Pesquise pela cidade" e escolha ${v(P.cidade)} · UF ${P.uf||"GO"} · Telefone ${v(P.tel)}
+  Coordenadas: Tipo "Grau Decimal", clique em "Selecionar Coordenadas" e informe latitude ${P.lat?n(P.lat).toFixed(6):"(pergunte)"} e longitude ${P.lon?n(P.lon).toFixed(6):"(pergunte)"}
 
 NO FIM: não digite o código de validação e não clique em "Cadastrar". Pare e me avise.`;
 }
