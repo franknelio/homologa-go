@@ -1731,7 +1731,8 @@ function dadosTRT(){
 }
 document.addEventListener("click",async e=>{
   if(!e.target.closest("#bTrt"))return;
-  const t=pedidoTRT()+"\n\nHGO-TRT:"+JSON.stringify(dadosTRT());
+  const dd=JSON.stringify(dadosTRT());
+  const t=`PRIMEIRO: execute este JavaScript na aba do SINCETI (página "Preencher Termo de Responsabilidade Técnica", já com "Li e Compreendi" clicado). Ele preenche o formulário inteiro sozinho e mostra um quadro laranja no canto com o resultado:\n\nwindow.__HGO_DADOS=${dd};var s=document.createElement('script');s.src='https://homologa-go.vercel.app/sinceti.js?'+Date.now();document.body.appendChild(s);\n\nEspere uns 30 segundos, leia o quadro laranja e resolva só os itens marcados com ⚠ (por exemplo, cadastrar o contratante se ele não existir: sem e-mail, sexo pelo nome). Se não conseguir executar JavaScript, preencha seguindo o pedido abaixo.\n\n`+pedidoTRT()+"\n\nHGO-TRT:"+dd;
   try{await navigator.clipboard.writeText(t);alert("Dados da TRT copiados.\n\nNo SINCETI: TRT → Preencher Termo de Responsabilidade Técnica → \"Li e Compreendi\" → clique no favorito \"Preencher TRT\" (barra de favoritos). Ele preenche tudo em segundos; você confere, digita o código e cadastra.\n\nSem o favorito: cole (Ctrl+V) no Claude do Chrome.")}
   catch(err){prompt("Copie o texto abaixo (Ctrl+C):",t)}
 });

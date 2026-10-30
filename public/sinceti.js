@@ -24,8 +24,8 @@
       return fim();
     }
     // dados copiados no app
-    let txt = "";
-    try { txt = await navigator.clipboard.readText() } catch (e) {}
+    let txt = window.__HGO_DADOS ? "HGO-TRT:" + JSON.stringify(window.__HGO_DADOS) : "";
+    if (!txt) try { txt = await navigator.clipboard.readText() } catch (e) {}
     if (!/HGO-TRT:/.test(txt)) txt = prompt("Cole aqui (Ctrl+V) os dados copiados no HomologaGO e clique em OK:") || "";
     const m = txt.match(/HGO-TRT:(\{[\s\S]*\})/);
     if (!m) { log("Não achei os dados. No app, clique em \"Copiar dados da TRT\" e tente de novo.", "#c00"); return fim() }
