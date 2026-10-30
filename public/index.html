@@ -411,8 +411,8 @@ function slug(){return (P.nome||"projeto").normalize("NFD").replace(/[̀-ͯ]/g,"
 
 /* ---------------- cálculos ---------------- */
 const BRK=[6,10,16,20,25,32,40,50,63,70,80,100,125,160,200];
-// disjuntores de entrada existentes no padrão (regra do usuário: não existe 50 A nem 60 A)
-const BRK_UC=[32,40,63,80,100,125,160,200];
+// disjuntores de entrada existentes no padrão (regra do usuário: 60 A não existe)
+const BRK_UC=[32,40,50,63,80,100,125,160,200];
 const CAB=[[1.5,17.5],[2.5,24],[4,32],[6,41],[10,57],[16,76],[25,101],[35,125],[50,151],[70,192],[95,232]]; // NBR 5410 B1, Cu/PVC, 2 carregados
 // lista de strings [{m: módulos em série, mppt: nº do MPPT}], do campo strDet ou de nStr × mPorStr
 function listaStrings(){
@@ -1292,7 +1292,7 @@ const BUILD={form:docForm,memo:docMemo,unif:docUnif,blocos:docBlocos,planta:docP
 
 /* ---------------- renderização ---------------- */
 // disjuntor de entrada: calculado pela corrente dos inversores e arredondado para cima nos valores do padrão (32/40/63 A…);
-// um valor informado menor ou fora da lista (ex. 50 ou 60 A) sobe para o próximo
+// um valor informado menor ou fora da lista (ex. 60 A) sobe para o próximo
 function disjPadrao(v){v=n(v);return v?(BRK_UC.find(b=>b>=v)||v):v}
 function render(){
   if(document.activeElement?.id!=="f_disj"&&(n(P.iP)||n(P.disj))){const d=Math.max(disjPadrao(P.disj)||0,calc().disjCAcalc);if(d!==n(P.disj)){P.disj=d;const e=$("#f_disj");if(e)e.value=d}}
