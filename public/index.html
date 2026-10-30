@@ -518,7 +518,7 @@ function fd([k,l,t="text",o,u]){
   const unit=(t==="num"||t==="file")&&u?`<span class="u">${esc(u)}</span>`:"";
   const loc=k==="loc"?`<div class="inm"><button class="btn" type="button" id="bLoc">Buscar localização e imagem</button><span id="locSt">Cole o link do ponto no Google Maps, as coordenadas ou o endereço.</span></div>`:"";
   const rat=k==="benef"?`<div class="inm"><label class="btn">Adicionar contas do rateio (PDF/foto)<input type="file" id="ratFiles" multiple accept="application/pdf,.pdf,image/*" hidden></label><button class="btn" type="button" id="bRat">Calcular % pelo consumo</button><span id="ratSt"></span></div>`:"";
-  const inm=k==="rtArt"?`<div class="inm"><label class="btn">Ler ART/TRT (PDF)<input type="file" data-ds="a" accept="application/pdf,.pdf,image/*" hidden></label><button class="btn" type="button" id="bArtSig">Baixar ART/TRT assinada</button><button class="btn" type="button" id="bTrt" title="Copia um pedido pronto para colar no Claude do Chrome com o SINCETI aberto">Copiar pedido da TRT (SINCETI)</button><span id="inm_a"></span></div>`:(k==="mReg"||k==="iReg")?`<div class="inm"><label class="btn">Ler datasheet (PDF)<input type="file" data-ds="${k[0]}" accept="application/pdf,.pdf,image/*" hidden></label><button class="btn" type="button" data-inm="${k[0]}">Buscar no INMETRO</button><span id="inm_${k[0]}"></span></div>`:"";
+  const inm=k==="rtArt"?`<div class="inm"><label class="btn">Ler ART/TRT (PDF)<input type="file" data-ds="a" accept="application/pdf,.pdf,image/*" hidden></label><button class="btn" type="button" id="bArtSig">Baixar ART/TRT assinada</button><button class="btn" type="button" id="bTrt" title="Copia os dados da TRT para o favorito Preencher TRT (ou para o Claude do Chrome)">Copiar dados da TRT (SINCETI)</button><a class="btn" id="bmTrt" draggable="true" href="javascript:(()=>{const s=document.createElement('script');s.src='https://homologa-go.vercel.app/sinceti.js?'+Date.now();document.body.appendChild(s)})()" onclick="alert('Arraste este botão para a barra de favoritos do Chrome (Ctrl+Shift+B mostra a barra). Depois use ele na página da TRT do SINCETI.');return false" title="Arraste para a barra de favoritos">⭐ Preencher TRT (arraste p/ favoritos)</a><span id="inm_a"></span></div>`:(k==="mReg"||k==="iReg")?`<div class="inm"><label class="btn">Ler datasheet (PDF)<input type="file" data-ds="${k[0]}" accept="application/pdf,.pdf,image/*" hidden></label><button class="btn" type="button" data-inm="${k[0]}">Buscar no INMETRO</button><span id="inm_${k[0]}"></span></div>`:"";
   return `<div class="f${full}"><label for="${id}">${esc(l)} ${unit}</label>${inp}${inm}${loc}${rat}</div>`;
 }
 document.addEventListener("click",e=>{const b=e.target.closest("[data-chip]");if(!b)return;const g=b.closest("[data-chips]"),k=g.dataset.chips;P[k]=b.dataset.chip;delete P._exemplo;g.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",c===b));store("hgo_current",P);render()});
@@ -1713,10 +1713,26 @@ CONTRATO (Adicionar Contrato)
 
 NO FIM: não digite o código de validação e não clique em "Cadastrar". Pare e me avise.`;
 }
+// dados para o favorito "Preencher TRT" (public/sinceti.js), que preenche o SINCETI direto na página
+function dadosTRT(){
+  const c=calc(),end=String(P.end||"").trim(),hoje=new Date(),d2=new Date(Date.now()+2*864e5),br=x=>x.toLocaleDateString("pt-BR");
+  const tipos=/^(rua|avenida|av\.?|rodovia|estrada|travessa|alameda|praça|fazenda|chácara|sítio|quadra|setor|residencial|loteamento|vila|condominio|condomínio|povoado|distrito)\s+/i;
+  const tm=end.match(tipos),tipo=tm?tm[1].toUpperCase().replace(/^AV\.?$/,"AVENIDA").replace("PRAÇA","PRAçA").replace("CHÁCARA","CHáCARA").replace("SÍTIO","SíTIO").replace("CONDOMÍNIO","CONDOMINIO"):"RUA";
+  const semTipo=end.replace(tipos,""),num=(semTipo.match(/(?:,\s*|\s+n[ºo°]\.?\s*)(?:n[ºo°]\.?\s*)?(\d+[A-Za-z]?)/i)||[])[1];
+  const logr=semTipo.replace(/(,\s*|\s+n[ºo°]\.?\s*)(n[ºo°]\.?\s*)?(\d+[A-Za-z]?|s\/?n)\b.*$/i,"").replace(/,\s*$/,"").trim();
+  const cl=String(P.classe||"");
+  return {nome:P.nome||"",doc:String(P.doc||"").replace(/\D/g,""),tel:P.tel||"",kwp:fmt(c.pcc,3),
+    finalidade:/rural/i.test(cl)?"30":/comerc/i.test(cl)?"17":/indust/i.test(cl)?"23":"29",
+    obs:`PROJETO DE MICROGERAÇÃO FOTOVOLTAICO CONECTADO A REDE ${fmt(c.pcc,2)}kWp. - EXECUÇÃO DE MICROGERAÇÃO FOTOVOLTAICO CONECTADO A REDE ${fmt(c.pcc,2)}kWp. - EXECUÇÃO DE CONEXÃO (EQUIPOTENCIALIZAÇÃO) DE MODULOS FOTOVOLTAICOS AO SISTEMA DE ATERRAMENTO. - VISTORIA COM LAUDO TECNICO DE MICROGERAÇÃO FOTOVOLTAICO CONECTADO A REDE ${fmt(c.pcc,2)}kWp.`,
+    atividades:["1761","1789","3096","3159"],inicio:br(hoje),fim:br(d2),valor:"500,00",
+    cep:String(P.cep||"").replace(/\D/g,"").replace(/^(\d{5})(\d{3})$/,"$1-$2"),tipoLog:tipo,logradouro:logr.toUpperCase(),numero:num||"S/N",
+    bairro:String(P.bairro||"").toUpperCase(),cidade:P.cidade||"",uf:(P.uf||"GO").toUpperCase(),
+    lat:P.lat?n(P.lat).toFixed(6):"",lon:P.lon?n(P.lon).toFixed(6):""};
+}
 document.addEventListener("click",async e=>{
   if(!e.target.closest("#bTrt"))return;
-  const t=pedidoTRT();
-  try{await navigator.clipboard.writeText(t);alert("Pedido da TRT copiado.\n\n1. Abra o SINCETI logado no Chrome.\n2. Clique no ícone do Claude (estrela laranja) ao lado da barra de endereço.\n3. Cole (Ctrl+V) no painel e envie.\n\nEle preenche e para antes de emitir. Depois de pagar, baixe o PDF da TRT e use \"Ler ART/TRT\" aqui para assinar.")}
+  const t=pedidoTRT()+"\n\nHGO-TRT:"+JSON.stringify(dadosTRT());
+  try{await navigator.clipboard.writeText(t);alert("Dados da TRT copiados.\n\nNo SINCETI: TRT → Preencher Termo de Responsabilidade Técnica → \"Li e Compreendi\" → clique no favorito \"Preencher TRT\" (barra de favoritos). Ele preenche tudo em segundos; você confere, digita o código e cadastra.\n\nSem o favorito: cole (Ctrl+V) no Claude do Chrome.")}
   catch(err){prompt("Copie o texto abaixo (Ctrl+C):",t)}
 });
 
