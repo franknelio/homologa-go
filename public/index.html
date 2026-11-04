@@ -1694,6 +1694,7 @@ document.addEventListener("click",async e=>{
 });
 
 // pedido para o Claude do Chrome preencher a TRT no SINCETI (ele para antes de emitir)
+// potência da TRT = potência dos inversores (kW CA), a mesma do formulário: a Equatorial reprova se a TRT diz o kWp dos módulos
 function pedidoTRT(){
   const c=calc(),v=x=>String(x??"").trim()||"(não informado, pergunte)";
   const end=[P.end,P.bairro,P.cidade&&`${P.cidade} - ${P.uf||"GO"}`,P.cep&&"CEP "+P.cep].filter(Boolean).join(", ");
@@ -1716,12 +1717,12 @@ OBRA / SERVIÇO
 
 TRT (formulário "Preencher Termo de Responsabilidade Técnica")
 - Forma de registro: INICIAL · Participação: INDIVIDUAL · Finalidade: ${/rural/i.test(P.classe||"")?"Rural":/comerc/i.test(P.classe||"")?"Comercial":"Residencial"} · Ação institucional: NENHUM
-- Observação (copie exatamente): PROJETO DE MICROGERAÇÃO FOTOVOLTAICO CONECTADO A REDE ${fmt(c.pcc,2)}kWp. - EXECUÇÃO DE MICROGERAÇÃO FOTOVOLTAICO CONECTADO A REDE ${fmt(c.pcc,2)}kWp. - EXECUÇÃO DE CONEXÃO (EQUIPOTENCIALIZAÇÃO) DE MODULOS FOTOVOLTAICOS AO SISTEMA DE ATERRAMENTO. - VISTORIA COM LAUDO TECNICO DE MICROGERAÇÃO FOTOVOLTAICO CONECTADO A REDE ${fmt(c.pcc,2)}kWp.
+- Observação (copie exatamente): PROJETO DE MICROGERAÇÃO FOTOVOLTAICO CONECTADO A REDE ${fmt(c.pca,c.pca%1?2:0)}kWp. - EXECUÇÃO DE MICROGERAÇÃO FOTOVOLTAICO CONECTADO A REDE ${fmt(c.pca,c.pca%1?2:0)}kWp. - EXECUÇÃO DE CONEXÃO (EQUIPOTENCIALIZAÇÃO) DE MODULOS FOTOVOLTAICOS AO SISTEMA DE ATERRAMENTO. - VISTORIA COM LAUDO TECNICO DE MICROGERAÇÃO FOTOVOLTAICO CONECTADO A REDE ${fmt(c.pca,c.pca%1?2:0)}kWp.
 
 ATIVIDADE CONTRATADA (Adicionar Atividade)
 - Nível atividade: 13 - PROJETO · Atividade profissional: 50 - PROJETO E EXECUÇÃO
 - Atividades (adicione os 4 códigos): 1761 (Produção de energia > Solar), 1789 (Geração de energia > Solar fotovoltaica), 3096 (Aterramento), 3159 (Sistema de geração distribuída)
-- Unidade de medida: kWp - Quilowatt Pico · Quantidade: ${fmt(c.pcc,3)}
+- Unidade de medida: kWp - Quilowatt Pico · Quantidade: ${fmt(c.pca,3)}
 - Potência do inversor: ${fmt(c.pca,2)} kW (${v(P.iQ)}x ${v(P.iFab)} ${v(P.iMod)})
 - Módulos: ${v(P.mQ)}x ${v(P.mFab)} ${v(P.mMod)} de ${v(P.mP)} Wp
 
@@ -1747,9 +1748,9 @@ function dadosTRT(){
   const semTipo=end.replace(tipos,""),num=(semTipo.match(/(?:,\s*|\s+n[ºo°]\.?\s*)(?:n[ºo°]\.?\s*)?(\d+[A-Za-z]?)/i)||[])[1];
   const logr=semTipo.replace(/(,\s*|\s+n[ºo°]\.?\s*)(n[ºo°]\.?\s*)?(\d+[A-Za-z]?|s\/?n)\b.*$/i,"").replace(/,\s*$/,"").trim();
   const cl=String(P.classe||"");
-  return {nome:P.nome||"",doc:String(P.doc||"").replace(/\D/g,""),tel:P.tel||"",kwp:fmt(c.pcc,3),
+  return {nome:P.nome||"",doc:String(P.doc||"").replace(/\D/g,""),tel:P.tel||"",kwp:fmt(c.pca,3),
     finalidade:/rural/i.test(cl)?"30":/comerc/i.test(cl)?"17":/indust/i.test(cl)?"23":"29",
-    obs:`PROJETO DE MICROGERAÇÃO FOTOVOLTAICO CONECTADO A REDE ${fmt(c.pcc,2)}kWp. - EXECUÇÃO DE MICROGERAÇÃO FOTOVOLTAICO CONECTADO A REDE ${fmt(c.pcc,2)}kWp. - EXECUÇÃO DE CONEXÃO (EQUIPOTENCIALIZAÇÃO) DE MODULOS FOTOVOLTAICOS AO SISTEMA DE ATERRAMENTO. - VISTORIA COM LAUDO TECNICO DE MICROGERAÇÃO FOTOVOLTAICO CONECTADO A REDE ${fmt(c.pcc,2)}kWp.`,
+    obs:`PROJETO DE MICROGERAÇÃO FOTOVOLTAICO CONECTADO A REDE ${fmt(c.pca,c.pca%1?2:0)}kWp. - EXECUÇÃO DE MICROGERAÇÃO FOTOVOLTAICO CONECTADO A REDE ${fmt(c.pca,c.pca%1?2:0)}kWp. - EXECUÇÃO DE CONEXÃO (EQUIPOTENCIALIZAÇÃO) DE MODULOS FOTOVOLTAICOS AO SISTEMA DE ATERRAMENTO. - VISTORIA COM LAUDO TECNICO DE MICROGERAÇÃO FOTOVOLTAICO CONECTADO A REDE ${fmt(c.pca,c.pca%1?2:0)}kWp.`,
     atividades:["1761","1789","3096","3159"],inicio:br(hoje),fim:br(d2),valor:"500,00",
     cep:String(P.cep||"").replace(/\D/g,"").replace(/^(\d{5})(\d{3})$/,"$1-$2"),tipoLog:tipo,logradouro:logr.toUpperCase(),numero:num||"S/N",
     bairro:String(P.bairro||"").toUpperCase(),cidade:P.cidade||"",uf:(P.uf||"GO").toUpperCase(),
