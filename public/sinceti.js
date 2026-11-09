@@ -18,6 +18,72 @@
   document.body.appendChild(painel);
   const log = (t, cor) => { const d = document.createElement("div"); d.textContent = t; if (cor) d.style.color = cor; q("#hgoLog").appendChild(d); painel.scrollTop = 1e6 };
 
+
+  // cadastra o contratante novo: a janela do SINCETI abre como popup; aqui ela abre num quadro dentro
+  // da própria página (mesmo site), o que deixa o script preencher e clicar em Cadastrar.
+  async function cadastraContratante(D, tipo) {
+    window.__hgoErroCad = "";
+    const link = [...document.querySelectorAll("a,button,input[type=button],span")].find((x) => /n[ãa]o encontrado.*cadastr|clique aqui para cadastrar/i.test(x.textContent || x.value || "") && x.offsetParent);
+    let alvo = null; const wo = window.open;
+    let ifr = null;
+    const abreQuadro = (url) => {
+      ifr = document.createElement("iframe"); ifr.src = url;
+      ifr.style.cssText = "position:fixed;left:2vw;top:4vh;width:60vw;height:88vh;z-index:999998;background:#fff;border:3px solid #FF6A00;border-radius:10px";
+      document.body.appendChild(ifr); return ifr.contentWindow;
+    };
+    window.open = function (url) { alvo = url; return abreQuadro(url) };
+    try { if (link) link.click(); else { window.__hgoErroCad = "não achei o link de cadastrar"; return false } } finally { setTimeout(() => { window.open = wo }, 3000) }
+    await dorme(1500);
+    // o formulário pode abrir num quadro (popup interceptado) ou na própria página
+    const docDe = () => { try { if (ifr && ifr.contentDocument && ifr.contentDocument.body && /Nome/i.test(ifr.contentDocument.body.textContent)) return ifr.contentDocument } catch (e) {} return /Cadastrar Contratante/i.test(document.body.textContent) && [...document.querySelectorAll("input")].some((i) => i.offsetParent && /nome/i.test(i.name || i.id)) ? document : null };
+    const dc = await espera(docDe, 15000);
+    if (!dc) { window.__hgoErroCad = "a janela de cadastro não carregou"; return false }
+    if (ifr) try { ifr.contentWindow.opener = window } catch (e) {}
+    const W = dc.defaultView, J = W.jQuery;
+    const vis = (el) => el && (el.offsetParent || el.getClientRects().length);
+    const disp = (el, ...t) => { for (const x of t) { el.dispatchEvent(new W.Event(x, { bubbles: true })); if (J) try { J(el).trigger(x) } catch (e) {} } };
+    // acha o campo pelo id/name ou pelo texto do rótulo ao lado
+    const campo = (re, tag = "input,select,textarea") => {
+      const els = [...dc.querySelectorAll(tag)].filter(vis);
+      const porNome = els.find((e) => re.test(e.id || "") || re.test(e.name || ""));
+      if (porNome) return porNome;
+      const rot = [...dc.querySelectorAll("label,td,th,span,div,b")].filter((e) => vis(e) && e.children.length < 3 && re.test((e.textContent || "").trim().replace(/[:*\s]+$/, "")) && (e.textContent || "").trim().length < 40);
+      for (const r of rot) {
+        const f = r.htmlFor && dc.getElementById(r.htmlFor); if (f) return f;
+        let n = r; for (let i = 0; i < 6 && n; i++) { n = n.nextElementSibling || (n.parentElement && n.parentElement.nextElementSibling); const e = n && (n.matches && n.matches(tag) ? n : n.querySelector && n.querySelector(tag)); if (e && vis(e)) return e }
+      }
+      return null;
+    };
+    const poe = (el, v) => { if (!el || v == null || v === "") return; el.removeAttribute("readonly"); el.focus(); el.value = v; disp(el, "input", "change", "keyup", "blur") };
+    const escolhe = (el, re) => { if (!el) return; const o = [...el.options].find((o) => re.test(o.text)); if (o) { el.value = o.value; disp(el, "change") } };
+    const nac = [...dc.querySelectorAll("input[type=radio]")].find((r) => /nacional/i.test((r.parentElement || {}).textContent || "") && !/estrang/i.test(r.value || "")); if (nac && !nac.checked) nac.click();
+    const doc = campo(tipo === "PJ" ? /cnpj/i : /cpf/i); if (doc && !doc.value.replace(/\D/g, "")) poe(doc, D.doc);
+    poe(campo(tipo === "PJ" ? /raz[ãa]o|^nome/i : /^nome$|nome\s*$|^NOME/i), String(D.nome).toUpperCase());
+    escolhe(campo(/sexo/i, "select"), D.sexo === "F" ? /fem/i : /masc/i);
+    const em = campo(/e-?mail/i); if (em) em.value = "";
+    if (D.cep) {
+      poe(campo(/cep/i), D.cep);
+      const bt = [...dc.querySelectorAll("button,input[type=button],a")].find((b) => /endere[çc]o a partir do cep/i.test(b.textContent || b.value || ""));
+      if (bt) { bt.click(); await dorme(3000) }
+    }
+    const preenche = (re, v) => { const e = campo(re); if (e && !String(e.value || "").trim()) poe(e, v) };
+    preenche(/logradouro$/i, D.logradouro); preenche(/n[úu]mero/i, D.numero || "S/N"); preenche(/bairro/i, D.bairro); preenche(/telefone|celular|fone/i, D.tel);
+    const tl = campo(/tipo\s*(de\s*)?logradouro/i, "select"); if (tl && !tl.value && D.tipoLog) escolhe(tl, new RegExp("^\\s*" + D.tipoLog, "i"));
+    const uf = campo(/^uf|estado/i, "select"); if (uf && !uf.value) escolhe(uf, new RegExp("^\\s*" + D.uf + "\\b|goi", "i"));
+    // cidade costuma vir do CEP; se ficou vazia, tenta escolher pelo nome
+    const ci = campo(/cidade|munic/i, "select"); if (ci && !ci.value) escolhe(ci, new RegExp(D.cidade.normalize("NFD").replace(/[\u0300-\u036f]/g, ""), "i"));
+    await dorme(500);
+    const cad = [...dc.querySelectorAll("button,input[type=button],input[type=submit],a")].filter(vis).find((b) => /^\s*cadastrar\s*$/i.test(b.textContent || b.value || ""));
+    if (!cad) { window.__hgoErroCad = "não achei o botão Cadastrar da janela"; return false }
+    let alerta = ""; const wa = W.alert; W.alert = (m) => { alerta = String(m) }; W.confirm = () => true;
+    cad.click();
+    await dorme(4000); W.alert = wa;
+    const txtFim = (() => { try { return (ifr ? ifr.contentDocument.body.textContent : document.body.textContent) || "" } catch (e) { return "" } })();
+    if (/obrigat|inv[áa]lid|erro/i.test(alerta) && !/sucesso/i.test(alerta)) { window.__hgoErroCad = "SINCETI respondeu: " + alerta; return false }
+    if (ifr) setTimeout(() => ifr.remove(), 1500);
+    log("✓ Contratante cadastrado" + (alerta ? " (" + alerta.slice(0, 80) + ")" : "") + " · sexo " + (D.sexo === "F" ? "feminino" : "masculino") + " · sem e-mail");
+    return !/obrigat/i.test(txtFim) || /sucesso/i.test(alerta + txtFim);
+  }
   try {
     if (!q("#FORMADEREGISTRO")) {
       log("Abra antes: TRT → Preencher Termo de Responsabilidade Técnica e clique em \"Li e Compreendi\". Depois clique no favorito de novo.", "#c00");
@@ -88,7 +154,22 @@
         clica(q("#proprietario0_AproveitaDados")); await dorme(800);
         log("✓ Proprietário: aproveita dados do contratante");
       } else {
-        avisos.push("Contratante " + D.doc + " não está cadastrado no SINCETI: clique em \"Contratante não encontrado. Clique aqui para cadastrar\", cadastre (sem e-mail), depois marque \"Aproveita Dados do Contratante\" no Proprietário");
+        log("Contratante não cadastrado: cadastrando " + D.nome + "…");
+        const ok = await cadastraContratante(D, tipo);
+        if (ok) {
+          // pesquisa de novo o CPF/CNPJ já cadastrado
+          const c = q("#contratante0_CampoContratante" + tipo);
+          if (c) {
+            digita(c, ""); await dorme(300); digita(c, D.doc);
+            const op = await espera(() => [...document.querySelectorAll("#as_" + c.id + " li a")].find((x) => x.offsetParent), 8000);
+            if (op) { op.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); op.onmouseover && op.onmouseover(); clica(op); await dorme(1500) }
+          }
+          if (await espera(() => /Nome:/i.test(res()), 6000)) {
+            log("✓ Contratante cadastrado e selecionado");
+            clica(q("#proprietario0_AproveitaDados")); await dorme(800);
+            log("✓ Proprietário: aproveita dados do contratante");
+          } else avisos.push("Contratante cadastrado, mas não ficou selecionado: digite o CPF " + D.doc + " no campo do contratante e clique no nome; depois marque \"Aproveita Dados do Contratante\"");
+        } else avisos.push("Não consegui cadastrar o contratante " + D.doc + " sozinho (" + (window.__hgoErroCad || "janela não abriu") + ")");
       }
       txtSet("CONTRATO_DATAINICIO0", D.inicio); txtSet("CONTRATO_DATAFIM0", D.fim); txtSet("CONTRATO_VALOR0", D.valor);
       log("✓ Início " + D.inicio + " · término " + D.fim + " · valor R$ " + D.valor);
@@ -106,7 +187,7 @@
       // cidade (select2)
       const cid = q("#CONTRATO_ENDERECO_CIDADE0");
       const nomeCid = () => (document.querySelector("#s2id_CONTRATO_ENDERECO_CIDADE0 .select2-chosen") || {}).textContent || "";
-      const norm = (s) => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().trim();
+      const norm = (s) => String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
       if (cid && $ && $.fn.select2 && !norm(nomeCid()).includes(norm(D.cidade))) {
         try {
           $(cid).select2("open");
