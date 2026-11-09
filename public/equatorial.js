@@ -64,17 +64,37 @@
     const pedidoVisivel = () => botao(/^microgeracao distribuida$/) || temTexto(/^selecione seu pedido/);
     const campoCpf = ehPasso1();
     if (campoCpf && !pedidoVisivel()) {
-      const tenta = async (cpf) => {
-        poe(campoCpf, cpf); await dorme(300);
-        const env = botao(/^enviar$/); if (env) env.click();
-        return espera(pedidoVisivel, 12000);
+      // avisos da p\u00e1gina (alert) s\u00e3o capturados para o script decidir sozinho
+      let ultimoAlerta = ""; const alertaOrig = window.alert; window.alert = (m) => { ultimoAlerta = String(m || ""); log("Equatorial: " + ultimoAlerta, "#b45309") };
+      // termos LGPD ("Li e entendi o Aviso de Privacidade") precisam estar aceitos
+      const aceitaTermos = async () => {
+        const cb = [...document.querySelectorAll("input[type=checkbox]")].find((c) => /aviso de privacidade|li e entendi|termos/.test(norm((c.parentElement || {}).textContent)) || /aviso de privacidade|li e entendi|termos/.test(norm(rotulo(c))));
+        if (!cb) return false;
+        if (!cb.checked) cb.click();
+        let box = cb.parentElement; for (let i = 0; i < 5 && box && !box.querySelector("button,input[type=button],input[type=submit],a.btn"); i++) box = box.parentElement;
+        const b = box && [...box.querySelectorAll("button,input[type=button],input[type=submit],a")].find((x) => /enviar|aceitar|ok|concordo/.test(norm(x.textContent || x.value)));
+        if (b && vis(b)) b.click();
+        await dorme(800); log("\u2713 Termos de privacidade aceitos"); return true;
       };
-      if (await tenta(D.doc)) log("\u2713 CPF/CNPJ do cliente aceito");
+      await aceitaTermos();
+      // bot\u00e3o Enviar logo depois do campo de CPF (n\u00e3o o do aviso de privacidade)
+      const enviarCpf = () => [...document.querySelectorAll("button,a,input[type=button],input[type=submit]")].filter((b) => vis(b) && /^enviar$/.test(norm(b.textContent || b.value)) && (campoCpf.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING))[0];
+      const tenta = async (cpf) => {
+        ultimoAlerta = "";
+        poe(campoCpf, cpf); await dorme(300);
+        const env = enviarCpf() || botao(/^enviar$/); if (env) env.click();
+        let ok = await espera(() => pedidoVisivel() || ultimoAlerta, 12000);
+        if (ok && /termos/i.test(ultimoAlerta) && !pedidoVisivel()) { await aceitaTermos(); ultimoAlerta = ""; const e2 = enviarCpf() || botao(/^enviar$/); if (e2) e2.click(); ok = await espera(pedidoVisivel, 12000) }
+        return pedidoVisivel() ? true : null;
+      };
+      const ok1 = await tenta(D.doc);
+      if (ok1) log("\u2713 CPF/CNPJ do cliente aceito");
       else {
         log("CPF/CNPJ do cliente recusado (prov\u00e1vel d\u00e9bito em aberto). Usando o CPF alternativo\u2026", "#b45309");
         if (await tenta(SOLICITANTE_ALT)) log("\u2713 CPF alternativo aceito");
-        else { log("A Equatorial n\u00e3o aceitou nenhum dos dois CPFs. Veja a mensagem na p\u00e1gina.", "#c00"); return fim() }
+        else { log("A Equatorial n\u00e3o aceitou nenhum dos dois CPFs. Veja a mensagem na p\u00e1gina.", "#c00"); window.alert = alertaOrig; return fim() }
       }
+      window.alert = alertaOrig;
     }
     // 3. Micro ou mini, e pessoa f\u00edsica ou jur\u00eddica
     if (pedidoVisivel()) { const b = botao(D.mini ? /^minigeracao distribuida$/ : /^microgeracao distribuida$/); if (b) { b.click(); log("\u2713 " + (D.mini ? "Minigera\u00e7\u00e3o" : "Microgera\u00e7\u00e3o") + " distribu\u00edda") } await dorme(1200) }
