@@ -1623,6 +1623,15 @@ async function lerDatasheet(t,file,pot){
   return out;
 }
 ["I","M","A"].forEach(x=>$("#q_ds"+x).addEventListener("change",e=>{const f=e.target.files[0];$(`#q_ds${x}_n`).textContent=f?f.name:""}));
+// ART/TRT anexada na entrada rápida com um projeto já aberto: vai direto para esse projeto (não precisa gerar de novo)
+$("#q_dsA").addEventListener("change",async e=>{
+  const f=e.target.files[0];if(!f||!P.nome||$("#q_iP").value.trim()||$("#q_mP").value.trim())return;
+  const st=x=>{$("#q_dsA_n").textContent=x};st("Lendo a ART/TRT de "+P.nome+"…");
+  await guardarArt(f);
+  try{const d=await lerDatasheet("a",f);Object.assign(P,d);guardarRT(P);syncForm();store("hgo_current",P);render();st(`✓ ART/TRT anexada ao projeto ${P.nome}${P.rtArt?" (nº "+P.rtArt+")":""}. Não precisa gerar de novo.`);toast("ART/TRT anexada ao projeto aberto")}
+  catch(err){st("Não consegui ler a ART/TRT: "+err.message)}
+  e.target.value="";
+});
 document.addEventListener("change",async e=>{
   const el=e.target.closest("[data-ds]");if(!el||!el.files[0])return;
   const t=el.dataset.ds,nome=t==="i"?"inversor":"módulo",st=x=>{const s2=$("#inm_"+t);if(s2)s2.textContent=x};
