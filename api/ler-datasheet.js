@@ -45,6 +45,7 @@ const CAMPOS = {
     rtTit: "título profissional, exatamente uma opção: Engenheiro Eletricista, Técnico em Eletrotécnica, Engenheiro de Controle e Automação ou Engenheiro Eletrônico",
     rtReg: "registro profissional com o conselho, ex. CREA-GO 1234567890/D ou CFT 12345678901",
     rtArt: "número da ART ou TRT, como impresso",
+    rtCpf: "CPF do profissional responsável técnico, se aparecer",
     rtTel: "telefone do profissional",
     rtEmail: "e-mail do profissional",
     rtEmp: "empresa contratada ou vinculada ao profissional, se houver",
