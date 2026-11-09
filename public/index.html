@@ -530,7 +530,7 @@ function fd([k,l,t="text",o,u]){
   if(t==="sel") inp=`<select id="${id}" data-k="${k}">${o.map(x=>`<option ${P[k]===x?"selected":""}>${esc(x)}</option>`).join("")}</select>`;
   else if(t==="area") inp=`<textarea id="${id}" data-k="${k}" placeholder="${esc(u||"")}">${val(k)}</textarea>`;
   else if(t==="chips") inp=`<div class="chips" data-chips="${k}">${o.map(x=>`<button type="button" class="chip" data-chip="${esc(x)}" aria-pressed="${P[k]===x}">${esc(x.replace(" (EMUC)",""))}</button>`).join("")}</div>`;
-  else if(t==="sig") inp=`<div class="sigbox">${assinRT?`<img src="${assinRT}" alt="Assinatura">`:"<span>Nenhuma assinatura salva</span>"}</div><div class="inm"><label class="btn">Enviar imagem da assinatura<input type="file" id="sigFile" accept="image/*" hidden></label>${assinRT?`<button class="btn" type="button" id="sigDel">Remover</button>`:""}<span id="sigSt">Entra sozinha em todos os documentos.</span></div>`;
+  else if(t==="sig") inp=`<div class="sigbox">${assinRT?`<img src="${assinRT}" alt="Assinatura">`:"<span>Nenhuma assinatura salva</span>"}</div><div class="inm"><label class="btn">Enviar imagem da assinatura<input type="file" id="sigFile" accept="image/*" hidden></label>${assinRT?`<button class="btn" type="button" id="sigDel">Remover</button>`:""}<span id="sigSt">Entra sozinha em todos os documentos.</span></div><div class="inm" style="margin-top:8px"><label class="btn">${docRTnome?"Trocar":"Enviar"} CNH/RG do responsável técnico (PDF)<input type="file" id="docRTFile" accept="application/pdf,.pdf,image/*" hidden></label><span id="docRTSt">${docRTnome?"✓ "+esc(docRTnome)+" salvo na sua conta. Vai em todo projeto como documento do procurador.":"Nenhum documento do RT salvo."}</span></div>`;
   else if(t==="file") inp=`<input id="${id}" type="file" accept="image/*" data-file="1">`;
   else inp=`<input id="${id}" data-k="${k}" type="${t==="date"?"date":"text"}" ${t==="num"?'inputmode="decimal"':""} value="${val(k)}">`;
   const unit=(t==="num"||t==="file")&&u?`<span class="u">${esc(u)}</span>`:"";
@@ -1449,7 +1449,7 @@ if(/[?&]ponte=1/.test(location.search))setTimeout(()=>{
   async function enviar(pedir){
     const L=await arquivos(pedir);if(!L){$("#pbt").hidden=false;st("Clique no botão para liberar a pasta "+cli+":");return}
     const doc=String(P.doc||"").replace(/\D/g,"");
-    const dados={tipo:"hgo-dados",nome:P.nome||"",doc,pj:doc.length>11,tel:P.tel||"",cel:P.tel||"",rtNome:P.rtNome||"",rtReg:P.rtReg||"",rtCpf:String(P.rtCpf||"").replace(/\D/g,""),rtEmail:P.rtEmail||"",rtTel:P.rtTel||"",
+    const dados={tipo:"hgo-dados",nome:P.nome||"",doc,pj:doc.length>11,tel:P.tel||"",cel:P.tel||"",rtNome:P.rtNome||"",rtReg:P.rtReg||"",rtCpf:String(P.rtCpf||(load("hgo_rt")||{}).rtCpf||"").replace(/\D/g,""),rtEmail:P.rtEmail||"",rtTel:P.rtTel||"",
       disj:String(n(P.disj)||c.disjCA||""),email:P.rtEmail||P.email||"",mini:c.pinst>75,modalidade:P.modalidade||"",arquivos:L};
     pedido.source.postMessage(dados,pedido.origin);
     $("#pbt").hidden=true;st(`✓ Enviados os dados e ${L.length} arquivos. Pode fechar esta janela.`);setTimeout(()=>window.close(),4000);
@@ -1485,6 +1485,7 @@ $("#bAll").addEventListener("click",async()=>{
       try{const blob=await pdfInmetro(reg);await gravar(`08_INMETRO_${rot}_${reg.replace("/","-")}.pdf`,blob)}catch(e){erros.push(`INMETRO do ${rot} (${reg}): ${e.message}`)}
     }
     {const dc=P._id?await kv("get","docs:"+P._id).catch(()=>null):null;
+     if(!(P._id&&await kv("get",`anexo:${P._id}:procDoc`).catch(()=>null))){const d=await kv("get","docRT").catch(()=>null);if(d)await gravar("11_Documento_procurador_RT"+((String(d.nome).match(/\.[a-z0-9]{2,4}$/i)||[".pdf"])[0]).toLowerCase(),b64blob(d.url))}
      for(const k of ["proc","procDoc"]){const a=P._id?await kv("get",`anexo:${P._id}:${k}`).catch(()=>null):null;if(a)await gravar(ANEXO_ARQ[k]+((String(a.nome).match(/\.[a-z0-9]{2,4}$/i)||[".pdf"])[0]).toLowerCase(),new Blob([a.buf],{type:a.tipo||""}))}
      if(dc&&dc.length)for(const [i,d] of dc.entries())await gravar(`09_Documento_cliente_${i+1}_${String(d.nome).replace(/[\\/:*?"<>|]+/g,"_")}`,new Blob([d.buf],{type:d.tipo||""}))}
     if(artArq){b.textContent="Assinando a ART/TRT…";try{await gravar("00_ART_TRT_assinada.pdf",await artAssinadaBlob())}catch(e){erros.push("ART/TRT: "+e.message)}}
@@ -1881,10 +1882,28 @@ document.addEventListener("change",e=>{
     g.putImageData(d,0,0);salvarAssin(cv.toDataURL("image/png"))};im.src=r.result};r.readAsDataURL(e.target.files[0]);e.target.value="";
 });
 document.addEventListener("click",e=>{if(e.target.closest("#sigDel"))salvarAssin("")});
+/* CNH/RG do responsável técnico: guardado na conta (perfil.doc_rt) e no aparelho; vai como 11_Documento_procurador */
+let docRTnome=(()=>{try{return localStorage.getItem("hgo_docrt_nome")||""}catch(e){return ""}})();
+const b64blob=d=>{const [h,b]=d.split(",");const bin=atob(b),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new Blob([u],{type:(h.match(/data:([^;]+)/)||[])[1]||""})};
+async function docRTBlob(){const d=await kv("get","docRT").catch(()=>null);return d?b64blob(d.url):null}
+document.addEventListener("change",async e=>{
+  if(e.target.id!=="docRTFile"||!e.target.files[0])return;const f=e.target.files[0];
+  if(f.size>4e6){toast("Arquivo grande demais (máx. 4 MB)");return}
+  const url=await new Promise(ok=>{const r=new FileReader();r.onload=()=>ok(r.result);r.readAsDataURL(f)});
+  await kv("put","docRT",{nome:f.name,url});docRTnome=f.name;try{localStorage.setItem("hgo_docrt_nome",f.name)}catch(e){}
+  let msgS="salvo neste aparelho";
+  if(sb&&sessao&&navigator.onLine){const {error}=await sb.from("perfil").upsert({user_id:sessao.user.id,doc_rt:url,doc_rt_nome:f.name,atualizado_em:new Date().toISOString()});msgS=error?"salvo só neste aparelho ("+error.message+")":"salvo na sua conta"}
+  buildFormFresh();render();toast("CNH/RG do responsável técnico "+msgS);
+});
 async function carregarAssin(){
   if(!sb||!sessao)return;
   const {data}=await sb.from("perfil").select("assinatura").eq("user_id",sessao.user.id).maybeSingle();
   if(data&&data.assinatura&&data.assinatura!==assinRT){assinRT=data.assinatura;store("hgo_assin",assinRT);buildFormFresh();render()}
+}
+async function carregarDocRT(){
+  if(!sb||!sessao)return;
+  const {data}=await sb.from("perfil").select("doc_rt,doc_rt_nome").eq("user_id",sessao.user.id).maybeSingle();
+  if(data&&data.doc_rt){const atual=await kv("get","docRT").catch(()=>null);if(!atual||atual.url.length!==data.doc_rt.length){await kv("put","docRT",{nome:data.doc_rt_nome||"Documento_RT.pdf",url:data.doc_rt});docRTnome=data.doc_rt_nome||"Documento_RT.pdf";try{localStorage.setItem("hgo_docrt_nome",docRTnome)}catch(e){}buildFormFresh();render()}}
 }
 
 /* ---------------- rateio: lê as contas das UCs e calcula o % pelo consumo médio ---------------- */
@@ -2027,11 +2046,11 @@ async function initAuth(){
   if(!cfg||!window.supabase){modoLocal=true;mostrarUsuario();return}
   sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true}});
   const {data}=await sb.auth.getSession();sessao=data.session;
-  sb.auth.onAuthStateChange((_ev,s)=>{sessao=s;mostrarUsuario();if(s){$("#login").hidden=true;sincronizar();carregarAssin().catch(()=>{})}});
+  sb.auth.onAuthStateChange((_ev,s)=>{sessao=s;mostrarUsuario();if(s){$("#login").hidden=true;sincronizar();carregarAssin().catch(()=>{});carregarDocRT().catch(()=>{})}});
   if(!sessao){$("#login").hidden=false;$("#lOffline").hidden=navigator.onLine}
   else{$("#login").hidden=true;sincronizar();
     // o RT salvo na conta vale em qualquer aparelho e prevalece sobre o guardado no navegador
-    carregarAssin().catch(()=>{});setTimeout(()=>{inmetroAuto();plantaAuto()},1500);
+    carregarAssin().catch(()=>{});carregarDocRT().catch(()=>{});setTimeout(()=>{inmetroAuto();plantaAuto()},1500);
     sb.auth.getUser().then(({data:u})=>{const rt=u&&u.user&&u.user.user_metadata&&u.user.user_metadata.rt;if(rt)store("hgo_rt",{...(load("hgo_rt")||{}),...rt})}).catch(()=>{})}
   mostrarUsuario();
 }
