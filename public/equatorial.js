@@ -45,6 +45,7 @@
   const temTexto = (re) => [...document.querySelectorAll("h1,h2,h3,h4,h5,p,strong,b,span,div,label")].some((e) => vis(e) && e.children.length < 4 && re.test(norm(e.textContent)));
 
   try {
+    if (!/equatorialenergia\.com\.br$/.test(location.hostname)) { log("Este favorito funciona no site da Equatorial. Abra go.equatorialenergia.com.br > Or\u00e7amento de Conex\u00e3o GD (tela do CPF/CNPJ) e clique nele l\u00e1.".replace(/[^\x00-\x7f]/g, (c) => c), "#c00"); return fim() }
     // 1. pega dados e arquivos na janelinha do app
     log("Abrindo o HomologaGO para pegar os dados e os PDFs do cliente\u2026");
     const w = window.open(APP + "/?ponte=1", "hgoPonte", "width=560,height=380");
