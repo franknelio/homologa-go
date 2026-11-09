@@ -225,8 +225,21 @@ details.sec[open]>summary .chev{transform:rotate(90deg)}
   <button class="btn" id="bProjects" type="button">Projetos</button>
   <button class="btn" id="bSave" type="button">Salvar</button>
   <button class="btn" id="bPasta" type="button" title="Escolher a pasta onde ficam as pastas dos clientes">Pasta</button>
+  <button class="btn" id="bAbrirPasta" type="button" title="Ver os arquivos salvos na pasta dos clientes">📂 Abrir pasta</button>
   <button class="btn amber" id="bAll" type="button">Gerar todos os documentos</button>
 </header>
+<div id="pastaBox" hidden style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px">
+  <div style="background:#fff;color:#222;border-radius:12px;width:min(720px,100%);max-height:85vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.35)">
+    <div style="display:flex;gap:8px;align-items:center;padding:12px 16px;border-bottom:1px solid #e5e5e5;flex-wrap:wrap">
+      <b style="font-size:16px">📂 <span id="pastaCam"></span></b><span style="flex:1"></span>
+      <button class="btn" type="button" id="pastaVoltar">⬅ Voltar</button>
+      <button class="btn" type="button" id="pastaTrocar">Trocar pasta</button>
+      <button class="btn" type="button" id="pastaFechar">Fechar</button>
+    </div>
+    <input id="pastaBusca" placeholder="Buscar cliente ou arquivo…" style="margin:10px 16px;padding:8px 10px;border:1px solid #ccc;border-radius:8px;font:inherit">
+    <div id="pastaLista" style="overflow:auto;padding:0 8px 12px"></div>
+  </div>
+</div>
 
 <div class="wrap">
   <aside class="side">
@@ -1388,6 +1401,34 @@ async function pastaBase(){
   return escolherPasta()}
 function nomePasta(){return ((P.nome||"").replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ").trim().slice(0,80))||"Cliente sem nome"}
 if(podePasta){idb("get").then(h=>{if(h)$("#bPasta").textContent="Pasta: "+h.name}).catch(()=>{})}else $("#bPasta").hidden=true;
+/* botão "Abrir pasta": o navegador não abre o Explorador do Windows, então a pasta é mostrada aqui e cada arquivo abre numa aba */
+let pastaPilha=[];
+async function mostrarPasta(){
+  const h=pastaPilha[pastaPilha.length-1],busca=($("#pastaBusca").value||"").trim().toLowerCase();
+  $("#pastaCam").textContent=pastaPilha.map(x=>x.name).join(" › ");$("#pastaVoltar").hidden=pastaPilha.length<2;
+  const it=[];for await(const e of h.values())it.push(e);
+  const L=it.filter(e=>!busca||e.name.toLowerCase().includes(busca)).sort((a,b)=>(a.kind===b.kind?0:a.kind==="directory"?-1:1)||a.name.localeCompare(b.name,"pt-BR",{numeric:true}));
+  const atual=nomePasta();
+  $("#pastaLista").innerHTML=L.length?L.map((e,i)=>`<button type="button" data-pi="${i}" style="display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:9px 10px;border:0;border-bottom:1px solid #f0f0f0;background:${e.kind==="directory"&&e.name===atual?"#fff3e0":"none"};cursor:pointer;font:inherit;color:inherit"><span>${e.kind==="directory"?"📁":/\.pdf$/i.test(e.name)?"📄":/\.(xlsx?|csv)$/i.test(e.name)?"📊":/\.(png|jpe?g|webp)$/i.test(e.name)?"🖼️":"📎"}</span><span style="flex:1">${esc(e.name)}</span>${e.kind==="directory"&&e.name===atual?'<small style="color:#b45309">projeto aberto</small>':""}</button>`).join(""):'<p style="padding:12px;color:#777">Pasta vazia.</p>';
+  $("#pastaLista").onclick=async ev=>{const b=ev.target.closest("[data-pi]");if(!b)return;const e=L[+b.dataset.pi];
+    if(e.kind==="directory"){pastaPilha.push(e);$("#pastaBusca").value="";mostrarPasta();return}
+    const f=await e.getFile(),u=URL.createObjectURL(f);
+    if(/\.(pdf|png|jpe?g|webp|txt)$/i.test(f.name))window.open(u,"_blank");else{const a=document.createElement("a");a.href=u;a.download=f.name;a.click()}
+    setTimeout(()=>URL.revokeObjectURL(u),60000)};
+}
+async function abrirPasta(){
+  const base=await pastaBase();pastaPilha=[base];
+  // se o projeto aberto já tem pasta, entra direto nela
+  if(P.nome)try{pastaPilha.push(await base.getDirectoryHandle(nomePasta()))}catch(e){}
+  $("#pastaBusca").value="";$("#pastaBox").hidden=false;await mostrarPasta();
+}
+$("#bAbrirPasta").addEventListener("click",()=>abrirPasta().catch(e=>{if(e.name!=="AbortError")toast("Não foi possível abrir a pasta: "+e.message)}));
+$("#pastaVoltar").addEventListener("click",()=>{if(pastaPilha.length>1){pastaPilha.pop();$("#pastaBusca").value="";mostrarPasta()}});
+$("#pastaFechar").addEventListener("click",()=>{$("#pastaBox").hidden=true});
+$("#pastaBox").addEventListener("click",e=>{if(e.target.id==="pastaBox")$("#pastaBox").hidden=true});
+$("#pastaTrocar").addEventListener("click",async()=>{try{const h=await escolherPasta();pastaPilha=[h];mostrarPasta()}catch(e){}});
+$("#pastaBusca").addEventListener("input",()=>mostrarPasta());
+if(!podePasta)$("#bAbrirPasta").hidden=true;
 $("#bPasta").addEventListener("click",()=>escolherPasta().catch(e=>{if(e.name!=="AbortError")toast("Não foi possível usar a pasta: "+e.message)}));
 
 $("#bAll").addEventListener("click",async()=>{
