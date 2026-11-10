@@ -2019,8 +2019,8 @@ document.addEventListener("change",e=>{if(e.target.dataset&&e.target.dataset.k==
 
 /* ---------------- RT lembrado entre projetos ---------------- */
 const RT_KEYS=["rtCpf","rtEmailEq","rtNome","rtTit","rtReg","rtTel","rtEmail","rtEmp","rtCidade","assinaCli"];
-function guardarRT(o){const rt={};RT_KEYS.forEach(x=>rt[x]=o[x]??"");store("hgo_rt",rt);if(sb&&sessao&&navigator.onLine)sb.auth.updateUser({data:{rt}})}
-document.addEventListener("input",e=>{const k=e.target.dataset&&e.target.dataset.k;if(k&&RT_KEYS.includes(k)){const rt={};RT_KEYS.forEach(x=>rt[x]=P[x]??"");rt[k]=e.target.value;store("hgo_rt",rt);clearTimeout(window._rtT);window._rtT=setTimeout(()=>{if(sb&&sessao&&navigator.onLine)sb.auth.updateUser({data:{rt}})},1500)}});
+function guardarRT(o){const rt={},ant=load("hgo_rt")||{};RT_KEYS.forEach(x=>rt[x]=o[x]||ant[x]||"");store("hgo_rt",rt);if(sb&&sessao&&navigator.onLine)sb.auth.updateUser({data:{rt}})}
+document.addEventListener("input",e=>{const k=e.target.dataset&&e.target.dataset.k;if(k&&RT_KEYS.includes(k)){const rt={},ant=load("hgo_rt")||{};RT_KEYS.forEach(x=>rt[x]=P[x]||ant[x]||"");rt[k]=e.target.value;store("hgo_rt",rt);clearTimeout(window._rtT);window._rtT=setTimeout(()=>{if(sb&&sessao&&navigator.onLine)sb.auth.updateUser({data:{rt}})},1500)}});
 
 function blobToB64(b){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]);r.onerror=rej;r.readAsDataURL(b)})}
 async function initAI(){
