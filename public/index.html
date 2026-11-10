@@ -247,11 +247,19 @@ details.sec[open]>summary .chev{transform:rotate(90deg)}
     <section class="quick" aria-labelledby="qT">
       <h3 id="qT">Novo projeto</h3>
       <p>Anexe os documentos do cliente e a conta de energia. Informe só os equipamentos. O resto é preenchido a partir dos documentos.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <label class="drop" id="dropDoc" for="q_docTit">
+        <input type="file" id="q_docTit" data-anexo="docTit" accept="image/*,application/pdf,.pdf">
+        <b>1. RG ou CNH do titular</b>
+        <span>nome, CPF e RG saem daqui · foto ou PDF</span>
+        <span id="q_docTit_n" style="color:var(--accent);font-weight:600"></span>
+      </label>
       <label class="drop" id="drop" for="qFiles">
         <input type="file" id="qFiles" multiple accept="image/*,application/pdf,.pdf">
-        <b>Documentos do cliente e conta de energia</b>
-        <span>RG ou CNH, CPF/CNPJ e conta da Equatorial · fotos ou PDF · toque ou arraste aqui</span>
+        <b>2. Fatura de energia</b>
+        <span>conta da Equatorial: endereço, UC e consumo saem daqui</span>
       </label>
+      </div>
       <div class="chips" id="qChips"></div>
       <div class="qgrid">
         <div class="f"><label for="q_iP">Potência do inversor <span class="u">kW</span></label><input id="q_iP" inputmode="decimal" placeholder="ex. 5"></div>
@@ -267,7 +275,6 @@ details.sec[open]>summary .chev{transform:rotate(90deg)}
         <label class="btn" for="q_dsI">Datasheet do inversor (PDF)<input type="file" id="q_dsI" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_dsI_n"></span>
         <label class="btn" for="q_dsM">Datasheet do módulo (PDF)<input type="file" id="q_dsM" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_dsM_n"></span>
         <label class="btn" for="q_dsA">ART / TRT (PDF)<input type="file" id="q_dsA" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_dsA_n"></span>
-        <label class="btn" for="q_docTit">RG/CNH do titular (PDF ou foto)<input type="file" id="q_docTit" data-anexo="docTit" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_docTit_n"></span>
         <label class="btn" for="q_proc">Procuração do cliente (PDF)<input type="file" id="q_proc" data-anexo="proc" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_proc_n"></span>
         <label class="btn" for="q_procDoc">Documento do procurador (PDF)<input type="file" id="q_procDoc" data-anexo="procDoc" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_procDoc_n"></span>
       </div>
@@ -1636,6 +1643,9 @@ const drop=$("#drop");
 ["dragenter","dragover"].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add("over")}));
 ["dragleave","drop"].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove("over")}));
 drop.addEventListener("drop",e=>addFiles(e.dataTransfer.files));
+{const dd=$("#dropDoc");["dragenter","dragover"].forEach(t=>dd.addEventListener(t,e=>{e.preventDefault();dd.classList.add("over")}));
+ ["dragleave","drop"].forEach(t=>dd.addEventListener(t,e=>{e.preventDefault();dd.classList.remove("over")}));
+ dd.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(!f)return;const dt=new DataTransfer();dt.items.add(f);$("#q_docTit").files=dt.files;$("#q_docTit").dispatchEvent(new Event("change",{bubbles:true}))})}
 
 const DOC_KEYS={nome:"nome completo da pessoa do RG/CNH (nunca o nome da conta de energia)",doc:"CPF do RG/CNH ou CNPJ do cartão CNPJ (nunca o da conta)",rg:"RG com órgão emissor/UF",uc:"número da unidade consumidora / conta contrato",
   classe:"classe [Residencial | Comercial | Industrial | Rural | Poder público]",tel:"telefone",email:"e-mail",end:"logradouro e número da instalação (endereço da UC, não o de correspondência)",
@@ -1659,21 +1669,28 @@ $("#qGo").addEventListener("click",async()=>{
     const rt=load("hgo_rt")||{};
     const Q={...BLANK,...rt,projeto:"Novo projeto",dataDoc:new Date().toISOString().slice(0,10)};
     let found=0,aiNote="";
-    const docsLer=[...($("#q_docTit").files[0]?[$("#q_docTit").files[0]]:[]),...qFiles];
+    const fDoc=$("#q_docTit").files[0],docsLer=[...(fDoc?[fDoc]:[]),...qFiles];
     if(docsLer.length&&sample){
       msg("Preparando documentos…");
-      const imgs=[];for(const f of docsLer){try{imgs.push(...await fileToImages(f))}catch(e){aiNote=`Não consegui abrir ${f.name}. `}}
+      const imgsDoc=[],imgs=[];
+      if(fDoc)try{imgsDoc.push(...await fileToImages(fDoc))}catch(e){aiNote=`Não consegui abrir ${fDoc.name}. `}
+      for(const f of qFiles){try{imgs.push(...await fileToImages(f))}catch(e){aiNote=`Não consegui abrir ${f.name}. `}}
       const max=imgLimits?.maxCount||5;
-      const prompt=`As imagens são documentos de um cliente de energia solar em Goiás: documento de identidade (RG/CNH), CPF ou cartão CNPJ e a conta de energia da Equatorial Goiás.
+      const prompt=`As imagens são a conta de energia da Equatorial Goiás de um cliente de energia solar.
 Devolva SOMENTE um objeto JSON com estas chaves, preenchendo apenas o que estiver legível (omita o que não encontrar):
-${Object.entries(DOC_KEYS).map(([k,d])=>`- ${k}: ${d}`).join("\n")}
-Regras: a conta de energia muitas vezes NÃO está no nome do cliente, então nome, CPF/CNPJ e RG vêm SOMENTE do RG/CNH ou cartão CNPJ (nunca da conta; se não houver documento de identidade, omita esses campos), e endereço, UC, classe, ligação e consumo vêm SOMENTE da conta de energia; números (lat, lon) como número com ponto decimal; nos campos com opções use exatamente uma das opções; não invente dados que não estejam nos documentos, exceto lat/lon aproximados pelo endereço.`;
+${Object.entries(DOC_KEYS).filter(([k])=>!["nome","doc","rg"].includes(k)).map(([k,d])=>`- ${k}: ${d}`).join("\n")}
+Regras: a conta muitas vezes NÃO está no nome do cliente, por isso não devolva nome, CPF nem RG; números (lat, lon) como número com ponto decimal; nos campos com opções use exatamente uma das opções; não invente dados, exceto lat/lon aproximados pelo endereço.`;
       const out={};
+      // 1) RG/CNH: só nome, CPF/CNPJ e RG
+      if(imgsDoc.length){msg("Lendo o RG/CNH…");
+        try{const r=await sample.json("",{images:imgsDoc.slice(0,max),tipo:"identidade"});for(const k of ["nome","doc","rg"])if(r&&r[k])out[k]=r[k]}catch(e){aiNote+=`RG/CNH não lido (${e.message}). `}}
+      // 2) fatura: endereço, UC, classe, ligação, consumo (nunca nome/CPF)
       for(let i=0;i<imgs.length;i+=max){
-        msg(`Lendo documentos${imgs.length>max?` (${i/max+1}/${Math.ceil(imgs.length/max)})`:""}…`);
-        const r=await sample.json(prompt,{images:imgs.slice(i,i+max),modelTier:"default"});
-        for(const [k,v] of Object.entries(r||{})){if(k in DOC_KEYS&&v!==null&&v!==""&&out[k]==null)out[k]=v}
+        msg(`Lendo a fatura${imgs.length>max?` (${i/max+1}/${Math.ceil(imgs.length/max)})`:""}…`);
+        const r=await sample.json(prompt,{images:imgs.slice(i,i+max),tipo:"fatura"});
+        for(const [k,v] of Object.entries(r||{})){if(k in DOC_KEYS&&!["nome","doc","rg"].includes(k)&&v!==null&&v!==""&&out[k]==null)out[k]=v}
       }
+      if(!fDoc)aiNote+="Sem RG/CNH: nome e CPF do titular ficaram em branco (a fatura pode não estar no nome do cliente). ";
       for(const [k,v] of Object.entries(out)){Q[k]=String(v);found++}
       if(out.lat!=null)Q._coordAprox=true;
       if(Q.ligacao==="Trifásico"){Q.tensao="380/220 V";Q.disj=Q.disj||""}else if(Q.ligacao==="Bifásico"){Q.tensao="380/220 V";Q.disj=Q.disj||""}else{Q.tensao="220 V (F-N)";Q.disj=Q.disj||""}
@@ -1746,7 +1763,7 @@ async function anexosDoProjeto(){
 }
 document.addEventListener("change",async e=>{
   const el=e.target.closest("[data-anexo]");if(!el||!el.files[0])return;const k=el.dataset.anexo,f=el.files[0],st=x=>{$("#"+el.id+"_n").textContent=x};
-  if(!P.nome||!P._id||$("#q_iP").value.trim()||$("#q_mP").value.trim()){st(f.name);return}
+  if(!P.nome||!P._id||$("#q_iP").value.trim()||$("#q_mP").value.trim()||qFiles.length||!confirm(`Anexar "${f.name}" ao projeto aberto (${P.nome})?\n\nOK = anexar a ${P.nome}\nCancelar = é para um projeto novo`)){st("✓ "+f.name);return}
   try{
     const a={nome:f.name,tipo:f.type,buf:await f.arrayBuffer()};st("Guardando…");
     let aviso="";try{await anexoPut(P._id,k,a)}catch(er){aviso=" ("+er.message+")"}
@@ -2076,10 +2093,10 @@ function blobToB64(b){return new Promise((res,rej)=>{const r=new FileReader();r.
 async function initAI(){
   if(window.pdfjsLib&&window.pdfjsWorker)pdfjsLib.GlobalWorkerOptions.workerSrc="";
   imgLimits={maxCount:5};
-  sample={json:async(_prompt,{images})=>{
+  sample={json:async(_prompt,{images,tipo})=>{
     if(!navigator.onLine)throw new Error("sem internet; a leitura automática precisa de conexão");
     if(!sessao)throw new Error("entre na sua conta para usar a leitura automática");
-    const body={images:await Promise.all(images.map(blobToB64))};
+    const body={images:await Promise.all(images.map(blobToB64)),tipo:tipo||""};
     const r=await fetch("api/ler-documentos",{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+sessao.access_token},body:JSON.stringify(body)});
     const j=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(j.error||("erro "+r.status));

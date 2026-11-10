@@ -25,11 +25,20 @@ const CAMPOS = {
   lon: "longitude aproximada do endereço em graus decimais, como texto",
 };
 
-const schema = {
+// "identidade" = RG/CNH/cartão CNPJ (só dados pessoais); "fatura" = conta de energia (nunca dados pessoais)
+const PESSOAIS = ["nome", "doc", "rg"];
+const camposDo = (tipo) => Object.fromEntries(Object.entries(CAMPOS).filter(([k]) => (tipo === "identidade" ? PESSOAIS.includes(k) : tipo === "fatura" ? !PESSOAIS.includes(k) : true)));
+const schemaDe = (campos) => ({
   type: "object",
-  properties: Object.fromEntries(Object.keys(CAMPOS).map((k) => [k, { type: "string" }])),
-  required: Object.keys(CAMPOS),
+  properties: Object.fromEntries(Object.keys(campos).map((k) => [k, { type: "string" }])),
+  required: Object.keys(campos),
   additionalProperties: false,
+});
+const promptDe = (tipo, campos) => {
+  const lista = Object.entries(campos).map(([k, d]) => `- ${k}: ${d}`).join("\n");
+  if (tipo === "identidade") return `As imagens são o documento de identidade (RG ou CNH) ou o cartão CNPJ do cliente. Preencha só com o que estiver legível no documento e use "" quando não encontrar. Não invente.\n${lista}`;
+  if (tipo === "fatura") return `As imagens são a conta de energia da Equatorial Goiás. A conta muitas vezes NÃO está no nome do cliente, por isso aqui só interessam os dados da instalação. Preencha com o que estiver legível e use "" quando não encontrar. Não invente, exceto latitude e longitude aproximadas pelo endereço.\n${lista}`;
+  return PROMPT;
 };
 
 const PROMPT = `As imagens são documentos de um cliente de energia solar em Goiás: documento de identidade (RG/CNH), CPF ou cartão CNPJ e a conta de energia da Equatorial Goiás.
@@ -56,6 +65,8 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: "seu usuário não tem permissão para a leitura automática" });
   }
   const images = Array.isArray(req.body?.images) ? req.body.images.slice(0, 5) : [];
+  const tipo = ["identidade", "fatura"].includes(req.body?.tipo) ? req.body.tipo : "";
+  const campos = camposDo(tipo), schema = schemaDe(campos);
   if (!images.length) return res.status(400).json({ error: "nenhuma imagem enviada" });
 
   try {
@@ -68,7 +79,7 @@ export default async function handler(req, res) {
           role: "user",
           content: [
             ...images.map((data) => ({ type: "image", source: { type: "base64", media_type: "image/jpeg", data } })),
-            { type: "text", text: PROMPT },
+            { type: "text", text: promptDe(tipo, campos) },
           ],
         },
       ],
