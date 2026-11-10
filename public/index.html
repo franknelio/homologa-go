@@ -267,6 +267,7 @@ details.sec[open]>summary .chev{transform:rotate(90deg)}
         <label class="btn" for="q_dsI">Datasheet do inversor (PDF)<input type="file" id="q_dsI" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_dsI_n"></span>
         <label class="btn" for="q_dsM">Datasheet do módulo (PDF)<input type="file" id="q_dsM" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_dsM_n"></span>
         <label class="btn" for="q_dsA">ART / TRT (PDF)<input type="file" id="q_dsA" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_dsA_n"></span>
+        <label class="btn" for="q_docTit">RG/CNH do titular (PDF ou foto)<input type="file" id="q_docTit" data-anexo="docTit" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_docTit_n"></span>
         <label class="btn" for="q_proc">Procuração do cliente (PDF)<input type="file" id="q_proc" data-anexo="proc" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_proc_n"></span>
         <label class="btn" for="q_procDoc">Documento do procurador (PDF)<input type="file" id="q_procDoc" data-anexo="procDoc" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_procDoc_n"></span>
       </div>
@@ -1485,10 +1486,14 @@ $("#bAll").addEventListener("click",async()=>{
       b.textContent=`Baixando INMETRO do ${rot}…`;
       try{const blob=await pdfInmetro(reg);await gravar(`08_INMETRO_${rot}_${reg.replace("/","-")}.pdf`,blob)}catch(e){erros.push(`INMETRO do ${rot} (${reg}): ${e.message}`)}
     }
-    {const dc=P._id?await kv("get","docs:"+P._id).catch(()=>null):null;
-     if(!(P._id&&await kv("get",`anexo:${P._id}:procDoc`).catch(()=>null))){const d=await kv("get","docRT").catch(()=>null);if(d)await gravar("11_Documento_procurador_RT"+((String(d.nome).match(/\.[a-z0-9]{2,4}$/i)||[".pdf"])[0]).toLowerCase(),b64blob(d.url))}
-     for(const k of ["proc","procDoc"]){const a=P._id?await kv("get",`anexo:${P._id}:${k}`).catch(()=>null):null;if(a)await gravar(ANEXO_ARQ[k]+((String(a.nome).match(/\.[a-z0-9]{2,4}$/i)||[".pdf"])[0]).toLowerCase(),new Blob([a.buf],{type:a.tipo||""}))}
-     if(dc&&dc.length)for(const [i,d] of dc.entries())await gravar(`09_Documento_cliente_${i+1}_${String(d.nome).replace(/[\\/:*?"<>|]+/g,"_")}`,new Blob([d.buf],{type:d.tipo||""}))}
+    {const ext=n=>((String(n).match(/\.[a-z0-9]{2,4}$/i)||[".pdf"])[0]).toLowerCase(),limpa=n=>String(n).replace(/[\\/:*?"<>|]+/g,"_");
+     const lista=await anexosDoProjeto();
+     for(const [k,a] of lista){const blob=new Blob([a.buf],{type:a.tipo||""});
+       if(k==="docTit")await gravar("09_Documento_titular_RG_CNH"+ext(a.nome),blob);
+       else if(/^doc\d+$/.test(k))await gravar(`09_Documento_cliente_${k.slice(3)}_${limpa(a.nome)}`,blob);
+       else if(ANEXO_ARQ[k])await gravar(ANEXO_ARQ[k]+ext(a.nome),blob)}
+     if(!lista.some(([k])=>k==="procDoc")){const d=await kv("get","docRT").catch(()=>null);if(d)await gravar("11_Documento_procurador_RT"+ext(d.nome),b64blob(d.url))}
+     if(!lista.some(([k])=>k==="docTit"||/^doc\d+$/.test(k)))erros.push("RG/CNH do titular: não está no projeto. Anexe em \"RG/CNH do titular\" (entrada rápida) e gere de novo")}
     if(artArq){b.textContent="Assinando a ART/TRT…";try{await gravar("00_ART_TRT_assinada.pdf",await artAssinadaBlob())}catch(e){erros.push("ART/TRT: "+e.message)}}
     if(pendentes.length){
       b.textContent="Compactando…";const zip=new JSZip();const folder=zip.folder(nomePasta());pendentes.forEach(([nome,blob])=>folder.file(nome,blob));
@@ -1672,7 +1677,7 @@ Regras: o titular da UC é o nome que consta na conta de energia; números (lat,
     {const art=$("#q_art").value.trim();if(art)Q.rtArt=art}
     Q._equipEst=dsOk.length<2;Q.modalidade=qModSel;
     P=Q;autoStrings();plantaImg=null;
-    P._id=novoId();store("hgo_current",P);if(artArq)kv("put","art:"+P._id,artArq).catch(()=>{});for(const [k,el] of [["proc",$("#q_proc")],["procDoc",$("#q_procDoc")]])if(el.files[0]){const f=el.files[0],id=P._id;f.arrayBuffer().then(buf=>kv("put",`anexo:${id}:${k}`,{nome:f.name,tipo:f.type,buf})).catch(()=>{});el.value=""}if(qFiles.length){const id=P._id;Promise.all(qFiles.map(async f=>({nome:f.name,tipo:f.type,buf:await f.arrayBuffer()}))).then(l=>kv("put","docs:"+id,l)).catch(()=>{})}buildFormFresh();currentDoc="form";render();salvarProjeto(true);
+    P._id=novoId();store("hgo_current",P);if(artArq)kv("put","art:"+P._id,artArq).catch(()=>{});{const id=P._id,novos=[];for(const [k,el] of [["docTit",$("#q_docTit")],["proc",$("#q_proc")],["procDoc",$("#q_procDoc")]])if(el.files[0]){novos.push([k,el.files[0]]);el.value=""}qFiles.forEach((f,i)=>novos.push(["doc"+(i+1),f]));P._anexos={};novos.forEach(([k,f])=>P._anexos[k]=f.name);Promise.all(novos.map(async([k,f])=>anexoPut(id,k,{nome:f.name,tipo:f.type,buf:await f.arrayBuffer()}))).catch(()=>{})}buildFormFresh();currentDoc="form";render();salvarProjeto(true);
     ["i","m"].forEach(t=>{if(P[t+"Fab"]&&P[t+"Mod"])buscarInmetro(t)});
     plantaAuto(true);
     const contas=qModSel!=="Autoconsumo local"?[...$("#q_rat").files]:[];
@@ -1701,13 +1706,41 @@ async function lerDatasheet(t,file,pot){
   return out;
 }
 ["I","M","A"].forEach(x=>$("#q_ds"+x).addEventListener("change",e=>{const f=e.target.files[0];$(`#q_ds${x}_n`).textContent=f?f.name:""}));
-// procuração e documento do procurador: com projeto aberto, gravam direto nele; senão entram ao clicar em Gerar projeto
+// anexos do projeto (RG/CNH do titular, documentos do cliente, procuração, documento do procurador):
+// guardados no aparelho e na conta (Supabase Storage "anexos"), então funcionam em qualquer navegador
 const ANEXO_ARQ={proc:"10_Procuracao",procDoc:"11_Documento_procurador"};
+const ANEXO_NOME={docTit:"RG/CNH do titular",proc:"Procuração",procDoc:"Documento do procurador"};
+async function anexoPut(id,k,a){
+  await kv("put",`anexo:${id}:${k}`,a).catch(()=>{});
+  if(sb&&sessao&&navigator.onLine){const {error}=await sb.storage.from("anexos").upload(`${sessao.user.id}/${id}/${k}`,new Blob([a.buf],{type:a.tipo||"application/octet-stream"}),{upsert:true,contentType:a.tipo||"application/octet-stream"});if(error)throw new Error("não subiu para a conta: "+error.message)}
+}
+async function anexoGet(id,k,nome){
+  const a=await kv("get",`anexo:${id}:${k}`).catch(()=>null);if(a&&a.buf)return a;
+  if(!sb||!sessao)return null;
+  const {data,error}=await sb.storage.from("anexos").download(`${sessao.user.id}/${id}/${k}`);if(error||!data)return null;
+  const b={nome:nome||k,tipo:data.type,buf:await data.arrayBuffer()};kv("put",`anexo:${id}:${k}`,b).catch(()=>{});return b;
+}
+async function anexosDoProjeto(){
+  if(!P._id)return [];const out=[],vistos=new Set();
+  for(const [k,nome] of Object.entries(P._anexos||{})){const a=await anexoGet(P._id,k,nome);if(a){out.push([k,a]);vistos.add(k)}}
+  // projetos antigos (guardados só no aparelho)
+  const dc=await kv("get","docs:"+P._id).catch(()=>null);if(dc)dc.forEach((d,i)=>{if(!vistos.has("doc"+(i+1)))out.push(["doc"+(i+1),d])});
+  for(const k of ["proc","procDoc","docTit"])if(!vistos.has(k)){const a=await kv("get",`anexo:${P._id}:${k}`).catch(()=>null);if(a)out.push([k,a])}
+  return out;
+}
 document.addEventListener("change",async e=>{
   const el=e.target.closest("[data-anexo]");if(!el||!el.files[0])return;const k=el.dataset.anexo,f=el.files[0],st=x=>{$("#"+el.id+"_n").textContent=x};
   if(!P.nome||!P._id||$("#q_iP").value.trim()||$("#q_mP").value.trim()){st(f.name);return}
-  try{await kv("put",`anexo:${P._id}:${k}`,{nome:f.name,tipo:f.type,buf:await f.arrayBuffer()});st(`✓ ${k==="proc"?"Procuração anexada":"Documento do procurador anexado"} ao projeto ${P.nome}. Clique em Gerar todos os documentos para salvar na pasta.`);el.value=""}
-  catch(err){st("Não consegui guardar: "+err.message)}
+  try{
+    const a={nome:f.name,tipo:f.type,buf:await f.arrayBuffer()};st("Guardando…");
+    let aviso="";try{await anexoPut(P._id,k,a)}catch(er){aviso=" ("+er.message+")"}
+    P._anexos={...(P._anexos||{}),[k]:f.name};store("hgo_current",P);salvarProjeto(true);
+    // grava já na pasta do cliente, se o navegador já deu permissão
+    let naPasta=false;
+    try{const h=await idb("get");if(h&&await h.queryPermission({mode:"readwrite"})==="granted"){const d=await h.getDirectoryHandle(nomePasta(),{create:true});const ext=((f.name.match(/\.[a-z0-9]{2,4}$/i)||[".pdf"])[0]).toLowerCase();
+      const nome=k==="docTit"?"09_Documento_titular_RG_CNH"+ext:ANEXO_ARQ[k]+ext;const w=await (await d.getFileHandle(nome,{create:true})).createWritable();await w.write(new Blob([a.buf],{type:a.tipo}));await w.close();naPasta=true}}catch(er){}
+    st(`✓ ${ANEXO_NOME[k]} anexado ao projeto ${P.nome}${naPasta?" e salvo na pasta do cliente":". Clique em Gerar todos os documentos para salvar na pasta"}.${aviso}`);el.value="";
+  }catch(err){st("Não consegui guardar: "+err.message)}
 });
 // ART/TRT anexada na entrada rápida com um projeto já aberto: vai direto para esse projeto (não precisa gerar de novo)
 $("#q_dsA").addEventListener("change",async e=>{

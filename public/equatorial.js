@@ -129,7 +129,7 @@
     const arq = D.arquivos.map((a) => ({ ...a, n: norm(a.nome) }));
     const ultimo = (re) => arq.filter((a) => re.test(a.n)).sort((a, b) => b.data - a.data)[0];
     // documento do titular: entre os documentos do cliente guardados pelo app, prefere RG/CNH e evita a conta de energia
-    const nota = (a) => (/(rg|cnh|habilita|ident|carteira|cpf)/.test(a.n) ? 2 : 0) - (/(conta|fatura|equatorial|energia|boleto|comprovante)/.test(a.n) ? 3 : 0);
+    const nota = (a) => (/^09_documento_titular/.test(a.n) ? 10 : 0) + (/(rg|cnh|habilita|ident|carteira|cpf)/.test(a.n) ? 2 : 0) - (/(conta|fatura|equatorial|energia|boleto|comprovante)/.test(a.n) ? 3 : 0);
     const docCli = () => arq.filter((a) => /^09_documento_cliente/.test(a.n)).sort((a, b) => nota(b) - nota(a))[0];
     const mapa = [
       [/identificacao do titular/, () => [docCli()]],
@@ -159,7 +159,7 @@
       } catch (e) { avisos.push("N\u00e3o consegui anexar em \"" + r.slice(0, 50) + "\": " + e.message) }
     }
     for (const a of anexados) log("\ud83d\udcce " + a);
-    if (!docCli()) avisos.push("Documento do titular (RG/CNH) n\u00e3o est\u00e1 na pasta do cliente: anexe \u00e0 m\u00e3o ou gere de novo os documentos de um projeto criado com os documentos do cliente.");
+    if (!docCli()) avisos.push("Documento do titular (RG/CNH) n\u00e3o est\u00e1 na pasta do cliente: no HomologaGO, anexe em \"RG/CNH do titular\" com o projeto aberto e clique no favorito de novo.");
 
     for (const a of avisos) log("\u26a0 " + a, "#b45309");
     log("Confira a p\u00e1gina, marque \"N\u00e3o sou um rob\u00f4\" e clique em Enviar.", "#FF2D87");
