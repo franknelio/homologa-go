@@ -46,6 +46,7 @@
 
   try {
     if (!/equatorialenergia\.com\.br$/.test(location.hostname)) { window.open("https://go.equatorialenergia.com.br/sua-conta/geracao-distribuida/parecer-de-acesso/", "_blank"); log("Abri o site da Equatorial numa aba nova. V\u00e1 para essa aba e clique no favorito l\u00e1 (n\u00e3o aqui no HomologaGO).", "#c00"); return fim() }
+    if (!/parecer-de-acesso/.test(location.pathname)) { log("Abrindo a p\u00e1gina do Or\u00e7amento de Conex\u00e3o GD\u2026 Quando ela carregar, clique no favorito de novo.", "#b45309"); setTimeout(() => { location.href = "https://go.equatorialenergia.com.br/sua-conta/geracao-distribuida/parecer-de-acesso/" }, 1200); return fim() }
     // 1. pega dados e arquivos na janelinha do app
     log("Abrindo o HomologaGO para pegar os dados e os PDFs do cliente\u2026");
     const w = window.open(APP + "/?ponte=1", "hgoPonte", "width=560,height=380");
