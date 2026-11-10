@@ -1443,7 +1443,7 @@ if(!podePasta)$("#bAbrirPasta").hidden=true;
 /* ponte para o favorito "Preencher Equatorial": esta janelinha lê a pasta do cliente aberto e manda dados + PDFs para a página da Equatorial */
 if(/[?&]ponte=1/.test(location.search))setTimeout(()=>{
   const c=calc(),cli=nomePasta();
-  document.body.innerHTML=`<div style="font:16px Arial,sans-serif;padding:24px;text-align:center;color:#222"><h2 style="color:#FF6A00;margin:0 0 8px">HomologaGO → Equatorial</h2><p>Cliente: <b>${esc(P.nome||"(nenhum projeto aberto)")}</b></p><p id="pst">Esperando a página da Equatorial…</p><button id="pbt" hidden style="font-size:17px;padding:12px 22px;background:#FF6A00;color:#fff;border:0;border-radius:10px;cursor:pointer">Liberar a pasta e enviar os arquivos</button></div>`;
+  document.body.innerHTML=`<div style="font:16px Arial,sans-serif;padding:24px;text-align:center;color:#222"><h2 style="color:#FF6A00;margin:0 0 8px">HomologaGO → Equatorial</h2><p>Cliente: <b>${esc(P.nome||"(nenhum projeto aberto)")}</b></p><p id="pst">Esperando a página da Equatorial ou do SINCETI…</p><button id="pbt" hidden style="font-size:17px;padding:12px 22px;background:#FF6A00;color:#fff;border:0;border-radius:10px;cursor:pointer">Liberar a pasta e enviar os arquivos</button></div>`;
   const st=t=>{$("#pst").textContent=t};
   let pedido=null;
   async function arquivos(pedir){
@@ -1483,6 +1483,10 @@ if(/[?&]ponte=1/.test(location.search))setTimeout(()=>{
   }
   $("#pbt").onclick=()=>enviar(true).catch(e=>st("Erro: "+e.message));
   addEventListener("message",e=>{
+    // favorito "Preencher TRT" no SINCETI: só os dados da TRT, sem arquivos
+    if(/^https:\/\/([a-z0-9-]+\.)*sinceti\.net\.br$/.test(e.origin)&&e.data&&e.data.tipo==="hgo-pronto-trt"){
+      if(!P.nome){st("Nenhum projeto aberto no HomologaGO. Abra o projeto do cliente e tente de novo.");return}
+      e.source.postMessage({tipo:"hgo-trt",dados:dadosTRT()},e.origin);st("✓ Dados da TRT de "+P.nome+" enviados ao SINCETI. Pode fechar esta janela.");setTimeout(()=>window.close(),3000);return}
     if(!/^https:\/\/([a-z0-9-]+\.)*equatorialenergia\.com\.br$/.test(e.origin)||!e.data||e.data.tipo!=="hgo-pronto"||pedido)return;
     pedido=e;if(!P.nome){st("Nenhum projeto aberto no HomologaGO. Abra o projeto do cliente e tente de novo.");return}
     st("Lendo a pasta "+cli+"…");enviar(false).catch(er=>st("Erro: "+er.message));

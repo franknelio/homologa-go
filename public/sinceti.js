@@ -91,6 +91,21 @@
     }
     // dados copiados no app
     let txt = window.__HGO_DADOS ? "HGO-TRT:" + JSON.stringify(window.__HGO_DADOS) : "";
+    // busca os dados direto no HomologaGO (projeto aberto), sem copiar e colar
+    if (!txt) {
+      const APP = "https://homologa-go.vercel.app";
+      log("Pegando os dados do projeto aberto no HomologaGO\u2026");
+      const w = window.open(APP + "/?ponte=1", "hgoPonte", "width=520,height=320");
+      if (w) {
+        const dd = await new Promise((ok) => {
+          const iv = setInterval(() => { try { w.postMessage({ tipo: "hgo-pronto-trt" }, APP) } catch (e) {} }, 700);
+          const fn = (e) => { if (e.origin === APP && e.data && e.data.tipo === "hgo-trt") { clearInterval(iv); removeEventListener("message", fn); ok(e.data.dados) } };
+          addEventListener("message", fn); setTimeout(() => { clearInterval(iv); ok(null) }, 60000);
+        });
+        if (dd) txt = "HGO-TRT:" + JSON.stringify(dd);
+        else log("N\u00e3o recebi os dados do HomologaGO (o projeto do cliente est\u00e1 aberto no app?).", "#b45309");
+      } else log("O Chrome bloqueou a janelinha do HomologaGO: permita pop-ups deste site e clique no favorito de novo.", "#b45309");
+    }
     if (!txt) try { txt = await navigator.clipboard.readText() } catch (e) {}
     if (!/HGO-TRT:/.test(txt)) txt = prompt("Cole aqui (Ctrl+V) os dados copiados no HomologaGO e clique em OK:") || "";
     const m = txt.match(/HGO-TRT:(\{[\s\S]*\})/);
