@@ -377,7 +377,7 @@ const SECTIONS = [
   ["locInv","Local do inversor","text","full","ex. Parede externa da garagem, a 1,30 m do piso"]]},
  {id:"rt", t:"Responsável técnico", f:[
   ["rtNome","Nome","text","full"],["rtTit","Título profissional","sel",["Engenheiro Eletricista","Técnico em Eletrotécnica","Engenheiro de Controle e Automação","Engenheiro Eletrônico"]],
-  ["rtReg","CREA / CFT nº"],["rtCpf","CPF do responsável técnico"],["rtArt","ART / TRT nº"],["rtTel","Telefone"],["rtEmail","E-mail"],["rtEmp","Empresa integradora"],["rtCidade","Cidade do RT (local e data)","text",null,"ex. Edealina - GO"],["dataDoc","Data dos documentos","date"],
+  ["rtReg","CREA / CFT nº"],["rtCpf","CPF do responsável técnico"],["rtEmailEq","E-mail de acompanhamento (portal Equatorial)"],["rtArt","ART / TRT nº"],["rtTel","Telefone"],["rtEmail","E-mail"],["rtEmp","Empresa integradora"],["rtCidade","Cidade do RT (local e data)","text",null,"ex. Edealina - GO"],["dataDoc","Data dos documentos","date"],
   ["memoModelo","Modelo do memorial","sel",["Técnico descritivo (ANEXO III)","Simplificado"]],["rtAssin","Assinatura do responsável técnico","sig","full"],["assinaCli","Assinar também pelo cliente (procuração)","sel",["Sim","Não"]]]},
  {id:"ben", t:"Beneficiárias e anexos", f:[
   ["benef","UCs do rateio","area","full","Uma por linha: UC ; titular ; endereço ; % ; consumo médio kWh. Use os botões abaixo para ler as contas e calcular os %."],
@@ -1450,7 +1450,7 @@ if(/[?&]ponte=1/.test(location.search))setTimeout(()=>{
     const L=await arquivos(pedir);if(!L){$("#pbt").hidden=false;st("Clique no botão para liberar a pasta "+cli+":");return}
     const doc=String(P.doc||"").replace(/\D/g,"");
     const dados={tipo:"hgo-dados",nome:P.nome||"",doc,pj:doc.length>11,tel:P.tel||P.rtTel||"",cel:P.tel||P.rtTel||"",rtNome:P.rtNome||"",rtReg:P.rtReg||"",rtCpf:String(P.rtCpf||(load("hgo_rt")||{}).rtCpf||"").replace(/\D/g,""),rtEmail:P.rtEmail||"",rtTel:P.rtTel||"",
-      disj:String(n(P.disj)||c.disjCA||""),email:P.rtEmail||P.email||"",mini:c.pinst>75,modalidade:P.modalidade||"",arquivos:L};
+      disj:String(n(P.disj)||c.disjCA||""),email:P.rtEmailEq||(load("hgo_rt")||{}).rtEmailEq||P.rtEmail||P.email||"",mini:c.pinst>75,modalidade:P.modalidade||"",arquivos:L};
     pedido.source.postMessage(dados,pedido.origin);
     $("#pbt").hidden=true;st(`✓ Enviados os dados e ${L.length} arquivos. Pode fechar esta janela.`);setTimeout(()=>window.close(),4000);
   }
@@ -2018,7 +2018,7 @@ document.addEventListener("click",e=>{if(e.target.closest("#bLoc"))buscarLocal()
 document.addEventListener("change",e=>{if(e.target.dataset&&e.target.dataset.k==="loc"&&e.target.value.trim())buscarLocal()});
 
 /* ---------------- RT lembrado entre projetos ---------------- */
-const RT_KEYS=["rtCpf","rtNome","rtTit","rtReg","rtTel","rtEmail","rtEmp","rtCidade","assinaCli"];
+const RT_KEYS=["rtCpf","rtEmailEq","rtNome","rtTit","rtReg","rtTel","rtEmail","rtEmp","rtCidade","assinaCli"];
 function guardarRT(o){const rt={};RT_KEYS.forEach(x=>rt[x]=o[x]??"");store("hgo_rt",rt);if(sb&&sessao&&navigator.onLine)sb.auth.updateUser({data:{rt}})}
 document.addEventListener("input",e=>{const k=e.target.dataset&&e.target.dataset.k;if(k&&RT_KEYS.includes(k)){const rt={};RT_KEYS.forEach(x=>rt[x]=P[x]??"");rt[k]=e.target.value;store("hgo_rt",rt);clearTimeout(window._rtT);window._rtT=setTimeout(()=>{if(sb&&sessao&&navigator.onLine)sb.auth.updateUser({data:{rt}})},1500)}});
 
