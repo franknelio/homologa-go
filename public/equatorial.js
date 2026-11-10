@@ -128,7 +128,9 @@
     // 5. anexos
     const arq = D.arquivos.map((a) => ({ ...a, n: norm(a.nome) }));
     const ultimo = (re) => arq.filter((a) => re.test(a.n)).sort((a, b) => b.data - a.data)[0];
-    const docCli = () => arq.filter((a) => /^09_documento_cliente/.test(a.n)).sort((a, b) => (/(rg|cnh|ident|document|cpf)/.test(b.n) ? 1 : 0) - (/(rg|cnh|ident|document|cpf)/.test(a.n) ? 1 : 0))[0];
+    // documento do titular: entre os documentos do cliente guardados pelo app, prefere RG/CNH e evita a conta de energia
+    const nota = (a) => (/(rg|cnh|habilita|ident|carteira|cpf)/.test(a.n) ? 2 : 0) - (/(conta|fatura|equatorial|energia|boleto|comprovante)/.test(a.n) ? 3 : 0);
+    const docCli = () => arq.filter((a) => /^09_documento_cliente/.test(a.n)).sort((a, b) => nota(b) - nota(a))[0];
     const mapa = [
       [/identificacao do titular/, () => [docCli()]],
       [/^procuracao/, () => [ultimo(/^10_procuracao/) || ultimo(/procura/)]],
