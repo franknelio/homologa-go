@@ -276,7 +276,7 @@ details.sec[open]>summary .chev{transform:rotate(90deg)}
         <label class="btn" for="q_dsM">Datasheet do módulo (PDF)<input type="file" id="q_dsM" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_dsM_n"></span>
         <label class="btn" for="q_dsA">ART / TRT (PDF)<input type="file" id="q_dsA" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_dsA_n"></span>
         <label class="btn" for="q_proc">Procuração do cliente (PDF)<input type="file" id="q_proc" data-anexo="proc" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_proc_n"></span>
-        <label class="btn" for="q_procDoc">Documento do procurador (PDF)<input type="file" id="q_procDoc" data-anexo="procDoc" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_procDoc_n"></span>
+        <span class="u" style="align-self:center">Documento do procurador: vai sozinho (CNH do responsável técnico salva na conta)</span><input type="file" id="q_procDoc" data-anexo="procDoc" hidden>
       </div>
       <details class="qopt"><summary>Marca e modelo (opcional)</summary>
         <div class="qgrid">
@@ -1465,6 +1465,10 @@ if(/[?&]ponte=1/.test(location.search))setTimeout(()=>{
         L.push({nome,tipo:a.tipo,data:Date.now(),buf:a.buf.slice(0)});
         try{const w=await (await d.getFileHandle(nome,{create:true})).createWritable();await w.write(new Blob([a.buf],{type:a.tipo||""}));await w.close()}catch(e){}
       }
+      // documento do procurador = CNH/RG do responsável técnico salvo na conta
+      if(!tem(/^11_Documento_procurador/i)){let drt=await kv("get","docRT").catch(()=>null);
+        if(!drt&&sb){try{const {data}=await sb.from("perfil").select("doc_rt,doc_rt_nome").maybeSingle();if(data&&data.doc_rt)drt={nome:data.doc_rt_nome||"Documento_RT.pdf",url:data.doc_rt}}catch(e){}}
+        if(drt){const bl=b64blob(drt.url),nome="11_Documento_procurador_RT"+ext(drt.nome);L.push({nome,tipo:bl.type,data:Date.now(),buf:await bl.arrayBuffer()});try{const w=await (await d.getFileHandle(nome,{create:true})).createWritable();await w.write(bl);await w.close()}catch(e){}}}
     }catch(e){}
     return L;
   }
