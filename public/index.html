@@ -1447,6 +1447,7 @@ if(/[?&]ponte=1/.test(location.search))setTimeout(()=>{
     return L;
   }
   async function enviar(pedir){
+    if(sb){try{const {data:u}=await sb.auth.getUser();const rt=u&&u.user&&u.user.user_metadata&&u.user.user_metadata.rt;if(rt)store("hgo_rt",{...(load("hgo_rt")||{}),...Object.fromEntries(Object.entries(rt).filter(([k,v])=>v))})}catch(e){}}
     const L=await arquivos(pedir);if(!L){$("#pbt").hidden=false;st("Clique no botão para liberar a pasta "+cli+":");return}
     const doc=String(P.doc||"").replace(/\D/g,"");
     const dados={tipo:"hgo-dados",nome:P.nome||"",doc,pj:doc.length>11,tel:P.tel||P.rtTel||"",cel:P.tel||P.rtTel||"",rtNome:P.rtNome||"",rtReg:P.rtReg||"",rtCpf:String(P.rtCpf||(load("hgo_rt")||{}).rtCpf||"").replace(/\D/g,""),rtEmail:(load("hgo_rt")||{}).rtEmail||P.rtEmail||"",rtTel:P.rtTel||"",
