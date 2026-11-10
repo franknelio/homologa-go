@@ -7,9 +7,9 @@ import Anthropic from "@anthropic-ai/sdk";
 const client = new Anthropic();
 
 const CAMPOS = {
-  nome: "nome completo do titular da UC (o nome que consta na conta de energia)",
-  doc: "CPF ou CNPJ do titular",
-  rg: "RG com órgão emissor/UF",
+  nome: "nome completo da pessoa do RG/CNH (ou razão social do cartão CNPJ). NUNCA use o nome que aparece na conta de energia",
+  doc: "CPF do RG/CNH (ou CNPJ do cartão CNPJ). NUNCA use o CPF/CNPJ da conta de energia",
+  rg: "RG com órgão emissor/UF, do documento de identidade",
   uc: "número da unidade consumidora / conta contrato",
   classe: "classe: Residencial, Comercial, Industrial, Rural ou Poder público",
   tel: "telefone",
@@ -33,6 +33,7 @@ const schema = {
 };
 
 const PROMPT = `As imagens são documentos de um cliente de energia solar em Goiás: documento de identidade (RG/CNH), CPF ou cartão CNPJ e a conta de energia da Equatorial Goiás.
+REGRA PRINCIPAL: a conta de energia muitas vezes NÃO está no nome do cliente. Por isso: nome, CPF/CNPJ e RG vêm SOMENTE do documento de identidade (RG/CNH) ou do cartão CNPJ; endereço, bairro, cidade, CEP, UF, UC, classe, ligação e consumo vêm SOMENTE da conta de energia. Se não houver RG/CNH/CNPJ nas imagens, deixe nome, doc e rg vazios (nunca copie da conta).
 Preencha cada campo com o que estiver legível nos documentos e use texto vazio "" quando não encontrar. Não invente dados, exceto latitude e longitude aproximadas pelo endereço.
 ${Object.entries(CAMPOS).map(([k, d]) => `- ${k}: ${d}`).join("\n")}`;
 

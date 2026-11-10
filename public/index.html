@@ -1637,7 +1637,7 @@ const drop=$("#drop");
 ["dragleave","drop"].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove("over")}));
 drop.addEventListener("drop",e=>addFiles(e.dataTransfer.files));
 
-const DOC_KEYS={nome:"nome completo do titular da UC",doc:"CPF ou CNPJ do titular",rg:"RG com órgão emissor/UF",uc:"número da unidade consumidora / conta contrato",
+const DOC_KEYS={nome:"nome completo da pessoa do RG/CNH (nunca o nome da conta de energia)",doc:"CPF do RG/CNH ou CNPJ do cartão CNPJ (nunca o da conta)",rg:"RG com órgão emissor/UF",uc:"número da unidade consumidora / conta contrato",
   classe:"classe [Residencial | Comercial | Industrial | Rural | Poder público]",tel:"telefone",email:"e-mail",end:"logradouro e número da instalação (endereço da UC, não o de correspondência)",
   bairro:"bairro/setor da instalação",cidade:"município da instalação",cep:"CEP da instalação",uf:"UF",
   ligacao:"tipo de fornecimento [Monofásico | Bifásico | Trifásico]",consumo:"histórico de consumo em kWh dos últimos 12 meses, do mais antigo ao mais recente, separado por vírgulas",
@@ -1659,14 +1659,15 @@ $("#qGo").addEventListener("click",async()=>{
     const rt=load("hgo_rt")||{};
     const Q={...BLANK,...rt,projeto:"Novo projeto",dataDoc:new Date().toISOString().slice(0,10)};
     let found=0,aiNote="";
-    if(qFiles.length&&sample){
+    const docsLer=[...($("#q_docTit").files[0]?[$("#q_docTit").files[0]]:[]),...qFiles];
+    if(docsLer.length&&sample){
       msg("Preparando documentos…");
-      const imgs=[];for(const f of qFiles){try{imgs.push(...await fileToImages(f))}catch(e){aiNote=`Não consegui abrir ${f.name}. `}}
+      const imgs=[];for(const f of docsLer){try{imgs.push(...await fileToImages(f))}catch(e){aiNote=`Não consegui abrir ${f.name}. `}}
       const max=imgLimits?.maxCount||5;
       const prompt=`As imagens são documentos de um cliente de energia solar em Goiás: documento de identidade (RG/CNH), CPF ou cartão CNPJ e a conta de energia da Equatorial Goiás.
 Devolva SOMENTE um objeto JSON com estas chaves, preenchendo apenas o que estiver legível (omita o que não encontrar):
 ${Object.entries(DOC_KEYS).map(([k,d])=>`- ${k}: ${d}`).join("\n")}
-Regras: o titular da UC é o nome que consta na conta de energia; números (lat, lon) como número com ponto decimal; nos campos com opções use exatamente uma das opções; não invente dados que não estejam nos documentos, exceto lat/lon aproximados pelo endereço.`;
+Regras: a conta de energia muitas vezes NÃO está no nome do cliente, então nome, CPF/CNPJ e RG vêm SOMENTE do RG/CNH ou cartão CNPJ (nunca da conta; se não houver documento de identidade, omita esses campos), e endereço, UC, classe, ligação e consumo vêm SOMENTE da conta de energia; números (lat, lon) como número com ponto decimal; nos campos com opções use exatamente uma das opções; não invente dados que não estejam nos documentos, exceto lat/lon aproximados pelo endereço.`;
       const out={};
       for(let i=0;i<imgs.length;i+=max){
         msg(`Lendo documentos${imgs.length>max?` (${i/max+1}/${Math.ceil(imgs.length/max)})`:""}…`);
@@ -1677,7 +1678,7 @@ Regras: o titular da UC é o nome que consta na conta de energia; números (lat,
       if(out.lat!=null)Q._coordAprox=true;
       if(Q.ligacao==="Trifásico"){Q.tensao="380/220 V";Q.disj=Q.disj||""}else if(Q.ligacao==="Bifásico"){Q.tensao="380/220 V";Q.disj=Q.disj||""}else{Q.tensao="220 V (F-N)";Q.disj=Q.disj||""}
       if(!n(Q.disj))Q._disjPadrao=true;else delete Q._disjPadrao;
-    } else if(qFiles.length&&!sample){aiNote="A leitura automática não está disponível nesta visualização; complete os dados do cliente abaixo. "}
+    } else if(docsLer.length&&!sample){aiNote="A leitura automática não está disponível nesta visualização; complete os dados do cliente abaixo. "}
     else {Q.disj="";Q._disjPadrao=true}
     Object.assign(Q,{iP,iQ,mP,mQ},estModulo(mP),estInversor(iP,Q.ligacao));
     const ds={i:$("#q_dsI").files[0],m:$("#q_dsM").files[0]},dsOk=[];
