@@ -1441,10 +1441,24 @@ if(/[?&]ponte=1/.test(location.search))setTimeout(()=>{
   let pedido=null;
   async function arquivos(pedir){
     const h=await idb("get").catch(()=>null);if(!h)throw new Error("o app ainda não tem pasta escolhida");
-    let perm=await h.queryPermission({mode:"read"});
-    if(perm!=="granted"){if(!pedir)return null;perm=await h.requestPermission({mode:"read"});if(perm!=="granted")throw new Error("acesso à pasta negado")}
+    let perm=await h.queryPermission({mode:"readwrite"});
+    if(perm!=="granted"){if(!pedir)return null;perm=await h.requestPermission({mode:"readwrite"});if(perm!=="granted")throw new Error("acesso à pasta negado")}
     const d=await h.getDirectoryHandle(cli).catch(()=>null);if(!d)throw new Error(`a pasta "${cli}" não existe; clique em Gerar todos os documentos antes`);
     const L=[];for await(const e of d.values())if(e.kind==="file"){const f=await e.getFile();L.push({nome:f.name,tipo:f.type,data:f.lastModified,buf:await f.arrayBuffer()})}
+    // anexos guardados no projeto (RG/CNH, documentos do cliente, procuração) que ainda não estão na pasta: pega da conta e já grava na pasta
+    try{
+      const ext=n=>((String(n).match(/\.[a-z0-9]{2,4}$/i)||[".pdf"])[0]).toLowerCase(),limpa=n=>String(n).replace(/[\\/:*?"<>|]+/g,"_");
+      const tem=re=>L.some(x=>re.test(x.nome));
+      for(const [k,a] of await anexosDoProjeto()){
+        let nome=null;
+        if(k==="docTit"&&!tem(/^09_Documento_titular/i))nome="09_Documento_titular_RG_CNH"+ext(a.nome);
+        else if(/^doc\d+$/.test(k)&&!tem(new RegExp("^09_Documento_cliente_"+k.slice(3)+"_","i")))nome=`09_Documento_cliente_${k.slice(3)}_${limpa(a.nome)}`;
+        else if(ANEXO_ARQ[k]&&!tem(new RegExp("^"+ANEXO_ARQ[k],"i")))nome=ANEXO_ARQ[k]+ext(a.nome);
+        if(!nome)continue;
+        L.push({nome,tipo:a.tipo,data:Date.now(),buf:a.buf.slice(0)});
+        try{const w=await (await d.getFileHandle(nome,{create:true})).createWritable();await w.write(new Blob([a.buf],{type:a.tipo||""}));await w.close()}catch(e){}
+      }
+    }catch(e){}
     return L;
   }
   async function enviar(pedir){
@@ -1716,8 +1730,9 @@ async function anexoPut(id,k,a){
 }
 async function anexoGet(id,k,nome){
   const a=await kv("get",`anexo:${id}:${k}`).catch(()=>null);if(a&&a.buf)return a;
-  if(!sb||!sessao)return null;
-  const {data,error}=await sb.storage.from("anexos").download(`${sessao.user.id}/${id}/${k}`);if(error||!data)return null;
+  if(!sb)return null;
+  const uid=sessao?sessao.user.id:((await sb.auth.getSession()).data.session||{user:{}}).user.id;if(!uid)return null;
+  const {data,error}=await sb.storage.from("anexos").download(`${uid}/${id}/${k}`);if(error||!data)return null;
   const b={nome:nome||k,tipo:data.type,buf:await data.arrayBuffer()};kv("put",`anexo:${id}:${k}`,b).catch(()=>{});return b;
 }
 async function anexosDoProjeto(){

@@ -130,7 +130,7 @@
     const ultimo = (re) => arq.filter((a) => re.test(a.n)).sort((a, b) => b.data - a.data)[0];
     // documento do titular: entre os documentos do cliente guardados pelo app, prefere RG/CNH e evita a conta de energia
     const nota = (a) => (/^09_documento_titular/.test(a.n) ? 10 : 0) + (/(rg|cnh|habilita|ident|carteira|cpf)/.test(a.n) ? 2 : 0) - (/(conta|fatura|equatorial|energia|boleto|comprovante)/.test(a.n) ? 3 : 0);
-    const docCli = () => arq.filter((a) => /^09_documento_cliente/.test(a.n)).sort((a, b) => nota(b) - nota(a))[0];
+    const docCli = () => arq.filter((a) => /^09_documento_(cliente|titular)/.test(a.n)).sort((a, b) => nota(b) - nota(a))[0];
     const mapa = [
       [/identificacao do titular/, () => [docCli()]],
       [/^procuracao/, () => [ultimo(/^10_procuracao/) || ultimo(/procura/)]],
