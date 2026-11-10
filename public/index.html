@@ -456,7 +456,7 @@ function calc(){
   c.anexo=c.pinst<=10?"I":"II"; c.categoria=c.pinst<=75?"Microgeração":"Minigeração"; c.anexoForm=c.pinst<=75?"I":"II";
   const vfn=220, vff=380;
   const I=n(P.disj);
-  c.pdisp=P.ligacao==="Monofásico"?vfn*I/1000:P.ligacao==="Bifásico"?2*vfn*I/1000:Math.sqrt(3)*vff*I/1000;
+  c.pdisp=n(P.disj)?pdEq().kw:0; // mesma PD dos documentos (V x I x FP 0,92)
   // strings
   const SL=listaStrings(), G=porMppt(SL), msMax=Math.max(...SL.map(x=>x.m)), msMin=Math.min(...SL.map(x=>x.m));
   c.strings=SL; c.mppts=G; c.qtdStr=SL.reduce((a,x)=>a+x.m,0);
