@@ -7,7 +7,7 @@ import Anthropic from "@anthropic-ai/sdk";
 const client = new Anthropic();
 
 const CAMPOS = {
-  nome: "nome completo da pessoa do RG/CNH (ou razão social do cartão CNPJ). NUNCA use o nome que aparece na conta de energia",
+  nome: "nome completo da pessoa do RG/CNH (ou razão social do cartão CNPJ), copiado letra por letra do campo NOME, com TODAS as palavras, inclusive o primeiro nome (não corte o início nem o fim; confira com a assinatura e com a filiação se ajudar). NUNCA use o nome que aparece na conta de energia",
   doc: "CPF do RG/CNH (ou CNPJ do cartão CNPJ). NUNCA use o CPF/CNPJ da conta de energia",
   rg: "RG com órgão emissor/UF, do documento de identidade",
   uc: "número da unidade consumidora / conta contrato",
@@ -71,7 +71,7 @@ export default async function handler(req, res) {
 
   try {
     const response = await client.messages.create({
-      model: "claude-haiku-5-5",
+      model: tipo === "identidade" ? "claude-sonnet-5-5" : "claude-haiku-5-5",
       max_tokens: 16000,
       output_config: { effort: "low", format: { type: "json_schema", schema } },
       messages: [
