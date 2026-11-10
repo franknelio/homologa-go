@@ -111,6 +111,7 @@
     const m = txt.match(/HGO-TRT:(\{[\s\S]*\})/);
     if (!m) { log("N\u00e3o achei os dados. No app, clique em \"Copiar dados da TRT\" e tente de novo.", "#c00"); return fim() }
     const D = JSON.parse(m[1]);
+    if (!confirm("Preencher a TRT do cliente " + D.nome + "?\n\nSe n\u00e3o for esse, clique em Cancelar, abra o projeto certo no HomologaGO e clique no favorito de novo.")) { log("Cancelado: abra o projeto certo no HomologaGO e clique no favorito de novo.", "#c00"); return fim() }
     log("Cliente: " + D.nome);
 
     const dispara = (el, ...tipos) => { for (const t of tipos) { el.dispatchEvent(new Event(t, { bubbles: true })); if ($) try { $(el).trigger(t) } catch (e) {} } };

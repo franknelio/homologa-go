@@ -59,6 +59,7 @@
     });
     if (!D) { log("N\u00e3o recebi os dados do HomologaGO. Abra o projeto do cliente no app e tente de novo (se a janelinha pedir, clique em \"Liberar a pasta\").", "#c00"); return fim() }
     log("\u2713 " + D.nome + " \u00b7 " + D.arquivos.length + " arquivos da pasta do cliente");
+    if (!confirm("Preencher o pedido da Equatorial do cliente " + D.nome + "?\n\nSe n\u00e3o for esse, clique em Cancelar, abra o projeto certo no HomologaGO e clique no favorito de novo.")) { log("Cancelado: abra o projeto certo no HomologaGO e clique no favorito de novo.", "#c00"); return fim() }
 
     // 2. CPF/CNPJ do solicitante (verifica\u00e7\u00e3o de d\u00e9bitos)
     const ehPasso1 = () => !temTexto(/^dados do titular da unidade$/) && [...document.querySelectorAll("input")].filter(vis).find((i) => /cpf|cnpj/.test(norm(rotulo(i))) || /^0{6,}$/.test(i.placeholder || ""));
