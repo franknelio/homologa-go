@@ -33,7 +33,13 @@
   // da pr\u00f3pria p\u00e1gina (mesmo site), o que deixa o script preencher e clicar em Cadastrar.
   async function cadastraContratante(D, tipo) {
     window.__hgoErroCad = "";
-    const link = [...document.querySelectorAll("a,button,input[type=button],span")].find((x) => /n[\u00e3a]o encontrado.*cadastr|clique aqui para cadastrar/i.test(x.textContent || x.value || "") && x.offsetParent);
+    const txtDe = (x) => (x.textContent || x.value || x.title || "").replace(/\s+/g, " ").trim();
+    const caixa = q("#contratante0_ResultPesquisa");
+    const zonas = [caixa, caixa && caixa.parentElement, caixa && caixa.parentElement && caixa.parentElement.parentElement, q("[id^=contratante0]") && q("[id^=contratante0]").closest("fieldset,table,div")].filter(Boolean);
+    let link = null;
+    for (const z of zonas) { link = [...z.querySelectorAll("a,button,input[type=button],span,img")].find((x) => (x.offsetParent || x.getClientRects().length) && /cadastr|novo contratante|incluir/i.test(txtDe(x) + " " + (x.getAttribute("onclick") || "") + " " + (x.getAttribute("href") || ""))); if (link) break }
+    if (!link) link = [...document.querySelectorAll("a,button,input[type=button],span")].find((x) => x.offsetParent && /n[\u00e3a]o (encontrad|cadastrad).*cadastr|clique aqui para cadastrar|cadastrar (novo )?contratante/i.test(txtDe(x)));
+    if (!link) window.__hgoDiag = "texto da pesquisa: " + (caixa ? txtDe(caixa).slice(0, 160) : "(sem caixa de resultado)");
     let alvo = null; const wo = window.open;
     let ifr = null;
     const abreQuadro = (url) => {
@@ -42,7 +48,7 @@
       document.body.appendChild(ifr); return ifr.contentWindow;
     };
     window.open = function (url) { alvo = url; return abreQuadro(url) };
-    try { if (link) link.click(); else { window.__hgoErroCad = "n\u00e3o achei o link de cadastrar"; return false } } finally { setTimeout(() => { window.open = wo }, 3000) }
+    try { if (link) link.click(); else { window.__hgoErroCad = "n\u00e3o achei o link de cadastrar; " + (window.__hgoDiag || ""); return false } } finally { setTimeout(() => { window.open = wo }, 3000) }
     await dorme(1500);
     // o formul\u00e1rio pode abrir num quadro (popup interceptado) ou na pr\u00f3pria p\u00e1gina
     const docDe = () => { try { if (ifr && ifr.contentDocument && ifr.contentDocument.body && /Nome/i.test(ifr.contentDocument.body.textContent)) return ifr.contentDocument } catch (e) {} return /Cadastrar Contratante/i.test(document.body.textContent) && [...document.querySelectorAll("input")].some((i) => i.offsetParent && /nome/i.test(i.name || i.id)) ? document : null };
@@ -174,7 +180,7 @@
           else dispara(c, "change", "blur");
         }
       }
-      const achou = await espera(() => /Nome:/i.test(res()) || /n\u00e3o encontrado/i.test(res()) ? res() : null, 6000);
+      const achou = await espera(() => /Nome:/i.test(res()) || /n\u00e3o (encontrad|cadastrad)|cadastr/i.test(res()) ? res() : null, 12000);
       if (achou && /Nome:/i.test(achou)) {
         log("\u2713 Contratante encontrado");
         clica(q("#proprietario0_AproveitaDados")); await dorme(800);
