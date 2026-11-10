@@ -18,6 +18,16 @@
   painel.innerHTML = '<b style="color:#FF2D87;font-size:15px">HomologaGO \u00b7 Preencher Equatorial</b><div id="hgoEqLog" style="margin-top:6px"></div>';
   document.body.appendChild(painel);
   const log = (t, cor) => { const d = document.createElement("div"); d.textContent = t; if (cor) d.style.color = cor; painel.querySelector("#hgoEqLog").appendChild(d); painel.scrollTop = 1e6 };
+
+  // confirma\u00e7\u00e3o dentro do painel (o confirm() do navegador \u00e9 cancelado sozinho quando a janelinha do app est\u00e1 em foco)
+  const pergunta = (txt) => new Promise(ok => {
+    const box = document.createElement("div");
+    box.style.cssText = "margin:8px 0;padding:8px;border:2px solid #FF2D87;border-radius:8px;background:#fff5fa";
+    const p = document.createElement("div"); p.textContent = txt; p.style.cssText = "font-weight:bold;font-size:14px;margin-bottom:6px"; box.appendChild(p);
+    const bt = (t, bg, v) => { const b = document.createElement("button"); b.textContent = t; b.style.cssText = "margin-right:8px;padding:6px 14px;border:0;border-radius:6px;color:#fff;font-weight:bold;cursor:pointer;background:" + bg; b.onclick = () => { box.remove(); ok(v) }; box.appendChild(b) };
+    bt("Sim, preencher", "#16a34a", true); bt("N\u00e3o", "#c00", false);
+    painel.appendChild(box); painel.scrollTop = 1e6; try { window.focus() } catch (e) {}
+  });
   const fim = () => { const x = document.createElement("button"); x.textContent = "Fechar"; x.style.cssText = "margin-top:8px;padding:4px 12px;border:0;border-radius:6px;background:#FF6A00;color:#fff;cursor:pointer"; x.onclick = () => painel.remove(); painel.appendChild(x); window.__hgoEq = false };
 
   // valor em campos de site com React/m\u00e1scara: usa o setter nativo e dispara os eventos
@@ -59,7 +69,7 @@
     });
     if (!D) { log("N\u00e3o recebi os dados do HomologaGO. Abra o projeto do cliente no app e tente de novo (se a janelinha pedir, clique em \"Liberar a pasta\").", "#c00"); return fim() }
     log("\u2713 " + D.nome + " \u00b7 " + D.arquivos.length + " arquivos da pasta do cliente");
-    if (!confirm("Preencher o pedido da Equatorial do cliente " + D.nome + "?\n\nSe n\u00e3o for esse, clique em Cancelar, abra o projeto certo no HomologaGO e clique no favorito de novo.")) { log("Cancelado: abra o projeto certo no HomologaGO e clique no favorito de novo.", "#c00"); return fim() }
+    if (!(await pergunta("Preencher o pedido da Equatorial do cliente " + D.nome + "?"))) { log("Cancelado: abra o projeto certo no HomologaGO e clique no favorito de novo.", "#c00"); return fim() }
 
     // 2. CPF/CNPJ do solicitante (verifica\u00e7\u00e3o de d\u00e9bitos)
     const ehPasso1 = () => !temTexto(/^dados do titular da unidade$/) && [...document.querySelectorAll("input")].filter(vis).find((i) => /cpf|cnpj/.test(norm(rotulo(i))) || /^0{6,}$/.test(i.placeholder || ""));

@@ -18,6 +18,16 @@
   document.body.appendChild(painel);
   const log = (t, cor) => { const d = document.createElement("div"); d.textContent = t; if (cor) d.style.color = cor; q("#hgoLog").appendChild(d); painel.scrollTop = 1e6 };
 
+  // confirma\u00e7\u00e3o dentro do painel (o confirm() do navegador \u00e9 cancelado sozinho quando a janelinha do app est\u00e1 em foco)
+  const pergunta = (txt) => new Promise(ok => {
+    const box = document.createElement("div");
+    box.style.cssText = "margin:8px 0;padding:8px;border:2px solid #FF2D87;border-radius:8px;background:#fff5fa";
+    const p = document.createElement("div"); p.textContent = txt; p.style.cssText = "font-weight:bold;font-size:14px;margin-bottom:6px"; box.appendChild(p);
+    const bt = (t, bg, v) => { const b = document.createElement("button"); b.textContent = t; b.style.cssText = "margin-right:8px;padding:6px 14px;border:0;border-radius:6px;color:#fff;font-weight:bold;cursor:pointer;background:" + bg; b.onclick = () => { box.remove(); ok(v) }; box.appendChild(b) };
+    bt("Sim, preencher", "#16a34a", true); bt("N\u00e3o", "#c00", false);
+    painel.appendChild(box); painel.scrollTop = 1e6; try { window.focus() } catch (e) {}
+  });
+
 
   // cadastra o contratante novo: a janela do SINCETI abre como popup; aqui ela abre num quadro dentro
   // da pr\u00f3pria p\u00e1gina (mesmo site), o que deixa o script preencher e clicar em Cadastrar.
@@ -111,7 +121,7 @@
     const m = txt.match(/HGO-TRT:(\{[\s\S]*\})/);
     if (!m) { log("N\u00e3o achei os dados. No app, clique em \"Copiar dados da TRT\" e tente de novo.", "#c00"); return fim() }
     const D = JSON.parse(m[1]);
-    if (!confirm("Preencher a TRT do cliente " + D.nome + "?\n\nSe n\u00e3o for esse, clique em Cancelar, abra o projeto certo no HomologaGO e clique no favorito de novo.")) { log("Cancelado: abra o projeto certo no HomologaGO e clique no favorito de novo.", "#c00"); return fim() }
+    if (!(await pergunta("Preencher a TRT do cliente " + D.nome + "?"))) { log("Cancelado: abra o projeto certo no HomologaGO e clique no favorito de novo.", "#c00"); return fim() }
     log("Cliente: " + D.nome);
 
     const dispara = (el, ...tipos) => { for (const t of tipos) { el.dispatchEvent(new Event(t, { bubbles: true })); if ($) try { $(el).trigger(t) } catch (e) {} } };
