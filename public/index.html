@@ -1716,8 +1716,11 @@ Regras: a conta muitas vezes NÃO está no nome do cliente, por isso não devolv
     Q.loc=$("#q_loc").value.trim();
     {const art=$("#q_art").value.trim();if(art)Q.rtArt=art}
     Q._equipEst=dsOk.length<2;Q.modalidade=qModSel;
+    // gerou de novo o mesmo cliente (mesma UC) sem anexar o RG/CNH: mantém nome/CPF/RG, o mesmo projeto e os anexos já guardados
+    const dg=x=>String(x||"").replace(/\D/g,""),ant=P||{},mesmo=!fDoc&&ant._id&&ant.nome&&dg(Q.uc)&&dg(Q.uc)===dg(ant.uc);
+    if(mesmo){for(const k of ["nome","doc","rg","tel"])if(ant[k]&&!Q[k])Q[k]=ant[k];aiNote=aiNote.replace(/Sem RG\/CNH:[^.]*\([^)]*\)\. /,"")+"Mesmo cliente: nome, CPF e RG/CNH mantidos do projeto anterior. "}
     P=Q;autoStrings();plantaImg=null;
-    P._id=novoId();store("hgo_current",P);if(artArq)kv("put","art:"+P._id,artArq).catch(()=>{});{const id=P._id,novos=[];for(const [k,el] of [["docTit",$("#q_docTit")],["proc",$("#q_proc")],["procDoc",$("#q_procDoc")]])if(el.files[0]){novos.push([k,el.files[0]]);el.value=""}qFiles.forEach((f,i)=>novos.push(["doc"+(i+1),f]));P._anexos={};novos.forEach(([k,f])=>P._anexos[k]=f.name);Promise.all(novos.map(async([k,f])=>anexoPut(id,k,{nome:f.name,tipo:f.type,buf:await f.arrayBuffer()}))).catch(()=>{})}buildFormFresh();currentDoc="form";render();salvarProjeto(true);
+    P._id=mesmo?ant._id:novoId();store("hgo_current",P);if(artArq)kv("put","art:"+P._id,artArq).catch(()=>{});{const id=P._id,novos=[];for(const [k,el] of [["docTit",$("#q_docTit")],["proc",$("#q_proc")],["procDoc",$("#q_procDoc")]])if(el.files[0]){novos.push([k,el.files[0]]);el.value=""}qFiles.forEach((f,i)=>novos.push(["doc"+(i+1),f]));P._anexos=mesmo?{...(ant._anexos||{})}:{};novos.forEach(([k,f])=>P._anexos[k]=f.name);Promise.all(novos.map(async([k,f])=>anexoPut(id,k,{nome:f.name,tipo:f.type,buf:await f.arrayBuffer()}))).catch(()=>{})}buildFormFresh();currentDoc="form";render();salvarProjeto(true);
     ["i","m"].forEach(t=>{if(P[t+"Fab"]&&P[t+"Mod"])buscarInmetro(t)});
     plantaAuto(true);
     const contas=qModSel!=="Autoconsumo local"?[...$("#q_rat").files]:[];
