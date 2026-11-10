@@ -142,11 +142,11 @@
       [/documentos adicionais/, (multi) => (multi ? [ultimo(/^05_/), ultimo(/^06_/), ultimo(/^08_inmetro_modulo/)] : [ultimo(/^05_/)])],
     ];
     const anexados = [];
-    for (const inp of [...document.querySelectorAll("input[type=file]")]) {
+    for (const inp of [...document.querySelectorAll("input[type=file]")].filter((i) => vis(i) || vis(i.parentElement))) {
       const r = norm(rotulo(inp)), m = mapa.find(([re]) => re.test(r));
       if (!m) continue;
       const lista = m[1](inp.multiple).filter(Boolean);
-      if (!lista.length) { if (/\*/.test(rotulo(inp))) avisos.push("N\u00e3o achei na pasta o arquivo para \"" + rotulo(inp).replace(/\s+/g, " ").trim().slice(0, 70) + "\""); continue }
+      if (!lista.length) { if (/\*/.test(rotulo(inp)) && !/identificacao do titular/.test(r)) avisos.push("N\u00e3o achei na pasta o arquivo para \"" + rotulo(inp).replace(/\s+/g, " ").trim().slice(0, 70) + "\""); continue }
       try {
         const dt = new DataTransfer();
         for (const a of lista) dt.items.add(new File([a.buf], a.nome, { type: a.tipo || (/\.pdf$/i.test(a.nome) ? "application/pdf" : "") }));
