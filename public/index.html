@@ -1678,7 +1678,7 @@ $("#qGo").addEventListener("click",async()=>{
   try{
     const rt=load("hgo_rt")||{};
     const Q={...BLANK,...rt,projeto:"Novo projeto",dataDoc:new Date().toISOString().slice(0,10)};
-    let found=0,aiNote="";
+    let found=0,aiNote="",ligLida=false;
     const fDoc=$("#q_docTit").files[0],docsLer=[...(fDoc?[fDoc]:[]),...qFiles];
     if(docsLer.length&&sample){
       msg("Preparando documentos…");
@@ -1700,7 +1700,7 @@ Regras: a conta muitas vezes NÃO está no nome do cliente, por isso não devolv
         const r=await sample.json(prompt,{images:imgs.slice(i,i+max),tipo:"fatura"});
         for(const [k,v] of Object.entries(r||{})){if(k in DOC_KEYS&&!["nome","doc","rg"].includes(k)&&v!==null&&v!==""&&out[k]==null)out[k]=v}
       }
-      if(qFiles.length&&!out.ligacao)aiNote+="Não achei na fatura se a ligação é monofásica, bifásica ou trifásica (ficou Monofásico): confira em Titular e UC. ";else if(out.ligacao)aiNote+="Ligação lida da fatura: "+out.ligacao+(out.ligacao==="Trifásico"?" (inversor trifásico 380 V)":"")+". ";
+      ligLida=!!out.ligacao;if(qFiles.length&&!out.ligacao)aiNote+="Não achei na fatura se a ligação é monofásica, bifásica ou trifásica: confira em Titular e UC. ";else if(out.ligacao)aiNote+="Ligação lida da fatura: "+out.ligacao+(out.ligacao==="Trifásico"?" (inversor trifásico 380 V)":"")+". ";
       if(!fDoc)aiNote+="Sem RG/CNH: nome e CPF do titular ficaram em branco (a fatura pode não estar no nome do cliente). ";
       for(const [k,v] of Object.entries(out)){Q[k]=String(v);found++}
       if(out.lat!=null)Q._coordAprox=true;
@@ -1709,6 +1709,8 @@ Regras: a conta muitas vezes NÃO está no nome do cliente, por isso não devolv
     } else if(docsLer.length&&!sample){aiNote="A leitura automática não está disponível nesta visualização; complete os dados do cliente abaixo. "}
     else {Q.disj="";Q._disjPadrao=true}
     Object.assign(Q,{iP,iQ,mP,mQ},estModulo(mP),estInversor(iP,Q.ligacao));
+    // a fatura não disse a ligação e o inversor só cabe em trifásico (acima de 10 kW): a UC é trifásica 380/220 V
+    if(!ligLida&&String(Q.iFases).startsWith("Trif")&&Q.ligacao!=="Trifásico"){Q.ligacao="Trifásico";Q.tensao="380/220 V";aiNote+="Ligação considerada Trifásico (inversor acima de 10 kW). "}
     const ds={i:$("#q_dsI").files[0],m:$("#q_dsM").files[0]},dsOk=[];
     for(const t of ["i","m"])if(ds[t]){
       const nome=t==="i"?"inversor":"módulo";msg(`Lendo o datasheet do ${nome}…`);
