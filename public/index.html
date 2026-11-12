@@ -2179,9 +2179,29 @@ if(/[?&]crm=1/.test(location.search)&&window.opener){
       const falta=[];if(!docs.length)falta.push("RG/CNH");if(!fats.length)falta.push("conta de energia");if(!(n(d.iP)&&n(d.mP)&&n(d.mQ)))falta.push("equipamentos");
       aviso(`📥 Recebido do CRM: ${d.cliente||"cliente"} · ${arqs.length} arquivo(s) do grupo de WhatsApp.`+(falta.length?` Falta: ${falta.join(", ")}. Complete e clique em Gerar projeto.`:" Gerando o projeto…"));
       try{e.source.postMessage({tipo:"hgo-crm-recebido",n:arqs.length},e.origin)}catch(_){}
+      crmJanela=e.source;crmOrigem=e.origin;botaoCRM();
       if(!falta.length&&qModSel){setTimeout(()=>$("#qGo").click(),400)}
     }catch(er){aviso("Não consegui usar os dados do CRM: "+er.message)}
   });
+  // devolve os PDFs do projeto para a etapa 4 do CRM
+  let crmJanela=null,crmOrigem="";
+  function botaoCRM(){
+    if($("#bCRM"))return;
+    const bt=document.createElement("button");bt.id="bCRM";bt.type="button";bt.className="btn primary";bt.style.margin="0 0 10px";bt.textContent="📤 Enviar projeto ao CRM (etapa 4)";
+    $(".quick").insertBefore(bt,$("#crmAviso").nextSibling);
+    bt.onclick=async()=>{
+      if(!crmJanela||crmJanela.closed){alert("A aba do CRM foi fechada. Abra o projeto pelo CRM de novo.");return}
+      if(!P.nome){alert("Gere o projeto primeiro.");return}
+      bt.disabled=true;const c=calc(),arqs=[],erros=[];
+      for(const d of activeDocs()){bt.textContent=`Gerando ${d.short}…`;
+        try{const blob=await docPdfBlob(d.id,c);arqs.push({nome:`${NAMES[d.id]}.pdf`,mime:"application/pdf",b64:await blobToB64(blob)})}catch(er){erros.push(d.short)}}
+      if(artArq){try{arqs.push({nome:"00_ART_TRT_assinada.pdf",mime:"application/pdf",b64:await blobToB64(await artAssinadaBlob())})}catch(er){erros.push("ART/TRT")}}
+      bt.textContent="Enviando ao CRM…";
+      try{crmJanela.postMessage({tipo:"hgo-crm-projeto",cliente:P.nome,uc:P.uc||"",arquivos:arqs},crmOrigem)}catch(er){erros.push("envio: "+er.message)}
+      bt.disabled=false;bt.textContent="📤 Enviar projeto ao CRM (etapa 4)";
+      aviso(`✓ ${arqs.length} PDF(s) enviados para a etapa 4 do CRM.`+(erros.length?` Não gerou: ${erros.join(", ")}.`:""));
+    };
+  }
   // avisa o CRM até ele responder
   let tent=0;const ping=setInterval(()=>{if(recebido||++tent>40){clearInterval(ping);return}try{window.opener.postMessage({tipo:"hgo-crm-pronto"},"*")}catch(_){}},500);
 }
