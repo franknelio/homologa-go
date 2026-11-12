@@ -412,6 +412,9 @@ const BLANK = {projeto:"Novo projeto", uf:"GO", classe:"Residencial", tipoSolic:
   cxMat:"METAL", cxDim:"380mm X 500mm X 186,4mm", memoModelo:"Técnico descritivo (ANEXO III)"};
 
 let P = load("hgo_current") || {...EXAMPLE};
+// inversor trifásico exige UC trifásica: corrige projetos antigos gravados como monofásicos
+function ajustaLigacao(){if(P&&String(P.iFases||"").startsWith("Trif")&&P.ligacao!=="Trifásico"&&!P._ligManual){P.ligacao="Trifásico";P.tensao="380/220 V";return true}return false}
+if(ajustaLigacao())store("hgo_current",P);
 let currentDoc = "form";
 let plantaImg = null; // data URL (não salva no localStorage se muito grande)
 
@@ -556,7 +559,7 @@ function onInput(e){
   const k=el.dataset.k;if(!k)return;P[k]=el.value;delete P._exemplo;if(k==="mReg"||k==="iReg")delete P["_inm"+k[0]];
   if(/^(m|i)[A-Z]/.test(k))delete P._equipEst;if(k==="lat"||k==="lon")delete P._coordAprox;if(k==="disj")delete P._disjPadrao;
   // UC trifásica: inversor sempre trifásico 380 V (regra do usuário)
-  if(k==="ligacao"&&e.type==="change"){P.tensao=P.ligacao==="Monofásico"?"220 V (F-N)":"380/220 V";if(P.ligacao==="Trifásico"&&!String(P.iFases||"").startsWith("Trif")){P.iFases="Trifásico 380/220 V";if(n(P.iP))P.iIout=+(n(P.iP)*1000/(Math.sqrt(3)*380)).toFixed(1)}store("hgo_current",P);buildFormFresh();render();return}
+  if(k==="ligacao"&&e.type==="change"){P._ligManual=P.ligacao!=="Trifásico"&&String(P.iFases||"").startsWith("Trif")?1:undefined;if(!P._ligManual)delete P._ligManual;P.tensao=P.ligacao==="Monofásico"?"220 V (F-N)":"380/220 V";if(P.ligacao==="Trifásico"&&!String(P.iFases||"").startsWith("Trif")){P.iFases="Trifásico 380/220 V";if(n(P.iP))P.iIout=+(n(P.iP)*1000/(Math.sqrt(3)*380)).toFixed(1)}store("hgo_current",P);buildFormFresh();render();return}
   clearTimeout(rT);rT=setTimeout(()=>{store("hgo_current",P);render()},250);
 }
 
@@ -1590,7 +1593,7 @@ $("#drawer").addEventListener("click",async e=>{
     if(x){P={...x,_id:id};delete P._pendente;delete P._soNuvem;plantaImg=P.planta||null;afterLoad()}else toast("Não foi possível abrir este projeto sem internet")}
   if(d){if(d.dataset.armed){const id=d.dataset.del;const all=projects();delete all[id];store("hgo_projects",all);if(sb&&sessao)await sb.from("projetos").delete().eq("id",id);openDrawer()}else{d.dataset.armed="1";d.textContent="Confirmar"}}
 });
-function afterLoad(){store("hgo_current",P);buildFormFresh();render();$("#drawer").hidden=true;carregarArt();inmetroAuto();plantaAuto()}
+function afterLoad(){ajustaLigacao();store("hgo_current",P);buildFormFresh();render();$("#drawer").hidden=true;carregarArt();inmetroAuto();plantaAuto()}
 function buildFormFresh(){const f=$("#form");const nf=f.cloneNode(false);f.replaceWith(nf);buildForm()}
 $("#bNew").addEventListener("click",()=>{P={...BLANK,...(load("hgo_rt")||{})};plantaImg=null;afterLoad();toast("Novo projeto em branco")});
 $("#bExample").addEventListener("click",()=>{P={...EXAMPLE};plantaImg=null;afterLoad()});
