@@ -19,7 +19,7 @@ const CAMPOS = {
   cidade: "município da instalação",
   cep: "CEP da instalação",
   uf: "UF",
-  ligacao: "tipo de fornecimento: Monofásico, Bifásico ou Trifásico",
+  ligacao: "tipo de fornecimento/ligação da UC: Monofásico, Bifásico ou Trifásico. Procure na conta os textos \"Tipo de Fornecimento\", \"Ligação\", \"Fases\", a classe (ex. \"B1 RESIDENCIAL TRIFÁSICO\", \"MONOFASICO\", \"TRIFASICO\", \"BIFASICO\") ou a tensão (\"380/220 V\" costuma ser trifásico). Se não estiver escrito, deduza pelo custo de disponibilidade cobrado: 30 kWh = Monofásico, 50 kWh = Bifásico, 100 kWh = Trifásico. Só deixe vazio se não houver nenhuma pista",
   consumo: "consumo em kWh dos últimos 12 meses, do mais antigo ao mais recente, separado por vírgulas",
   lat: "latitude aproximada do endereço em graus decimais, como texto (estimada pelo endereço se não constar)",
   lon: "longitude aproximada do endereço em graus decimais, como texto",
@@ -71,7 +71,7 @@ export default async function handler(req, res) {
 
   try {
     const response = await client.messages.create({
-      model: tipo === "identidade" ? "claude-sonnet-5-5" : "claude-haiku-5-5",
+      model: tipo === "identidade" || tipo === "fatura" ? "claude-sonnet-5-5" : "claude-haiku-5-5",
       max_tokens: 16000,
       output_config: { effort: "low", format: { type: "json_schema", schema } },
       messages: [

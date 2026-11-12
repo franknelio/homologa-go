@@ -555,6 +555,8 @@ function onInput(e){
   if(el.dataset.file){const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{plantaImg=r.result;P.planta=plantaImg.length<1500000?plantaImg:"";render()};r.readAsDataURL(f);return}
   const k=el.dataset.k;if(!k)return;P[k]=el.value;delete P._exemplo;if(k==="mReg"||k==="iReg")delete P["_inm"+k[0]];
   if(/^(m|i)[A-Z]/.test(k))delete P._equipEst;if(k==="lat"||k==="lon")delete P._coordAprox;if(k==="disj")delete P._disjPadrao;
+  // UC trifásica: inversor sempre trifásico 380 V (regra do usuário)
+  if(k==="ligacao"&&e.type==="change"){P.tensao=P.ligacao==="Monofásico"?"220 V (F-N)":"380/220 V";if(P.ligacao==="Trifásico"&&!String(P.iFases||"").startsWith("Trif")){P.iFases="Trifásico 380/220 V";if(n(P.iP))P.iIout=+(n(P.iP)*1000/(Math.sqrt(3)*380)).toFixed(1)}store("hgo_current",P);buildFormFresh();render();return}
   clearTimeout(rT);rT=setTimeout(()=>{store("hgo_current",P);render()},250);
 }
 
@@ -1606,7 +1608,7 @@ function estModulo(W){
   return {mVoc:voc,mVmp:vmp,mImp:+imp.toFixed(2),mIsc:+isc.toFixed(2),mC:C,mL:L,mBeta:beta,mEff:+(W/(C*L*10)).toFixed(1),mPeso:+(C*L*11).toFixed(1),mCel:W<=470?108:W<=565?144:132,mTipo:"Monocristalino"};
 }
 function estInversor(kW,ligacao){
-  const tri=ligacao==="Trifásico"&&kW>=5 || kW>10;
+  const tri=ligacao==="Trifásico" || kW>10; // UC trifásica: inversor sempre trifásico 380 V (regra do usuário)
   if(tri){const nm=kW<=12?2:kW<=25?3:kW<=50?4:6;
     return {iFases:"Trifásico 380/220 V",iVmax:1100,iMin:180,iMax:1000,iNmppt:nm,iImax:32,iIsc:40,iIout:+(kW*1000/(Math.sqrt(3)*380)).toFixed(1),iEff:98.4,iDht:3,iFp:1,iIP:"IP66"}}
   return {iFases:"Monofásico 220 V",iVmax:600,iMin:80,iMax:550,iNmppt:kW<=3.6?1:kW<=6?2:3,iImax:16,iIsc:20,iIout:+(kW*1000/220).toFixed(1),iEff:97.6,iDht:3,iFp:1,iIP:"IP65"};
@@ -1658,7 +1660,7 @@ drop.addEventListener("drop",e=>addFiles(e.dataTransfer.files));
 const DOC_KEYS={nome:"nome completo da pessoa do RG/CNH (nunca o nome da conta de energia)",doc:"CPF do RG/CNH ou CNPJ do cartão CNPJ (nunca o da conta)",rg:"RG com órgão emissor/UF",uc:"número da unidade consumidora / conta contrato",
   classe:"classe [Residencial | Comercial | Industrial | Rural | Poder público]",tel:"telefone",email:"e-mail",end:"logradouro e número da instalação (endereço da UC, não o de correspondência)",
   bairro:"bairro/setor da instalação",cidade:"município da instalação",cep:"CEP da instalação",uf:"UF",
-  ligacao:"tipo de fornecimento [Monofásico | Bifásico | Trifásico]",consumo:"histórico de consumo em kWh dos últimos 12 meses, do mais antigo ao mais recente, separado por vírgulas",
+  ligacao:"tipo de fornecimento [Monofásico | Bifásico | Trifásico] (procure Tipo de Fornecimento, Ligação, Fases, a classe ex. B1 RESIDENCIAL TRIFASICO ou a tensão 380/220 V; se não estiver escrito, deduza pelo custo de disponibilidade: 30 kWh Monofásico, 50 kWh Bifásico, 100 kWh Trifásico)",consumo:"histórico de consumo em kWh dos últimos 12 meses, do mais antigo ao mais recente, separado por vírgulas",
   lat:"latitude aproximada do endereço em graus decimais (estimativa pelo endereço, se não constar)",lon:"longitude aproximada do endereço em graus decimais"};
 
 const MODS=["Autoconsumo local","Autoconsumo remoto","Geração compartilhada","Múltiplas unidades consumidoras (EMUC)"];
@@ -1698,6 +1700,7 @@ Regras: a conta muitas vezes NÃO está no nome do cliente, por isso não devolv
         const r=await sample.json(prompt,{images:imgs.slice(i,i+max),tipo:"fatura"});
         for(const [k,v] of Object.entries(r||{})){if(k in DOC_KEYS&&!["nome","doc","rg"].includes(k)&&v!==null&&v!==""&&out[k]==null)out[k]=v}
       }
+      if(qFiles.length&&!out.ligacao)aiNote+="Não achei na fatura se a ligação é monofásica, bifásica ou trifásica (ficou Monofásico): confira em Titular e UC. ";else if(out.ligacao)aiNote+="Ligação lida da fatura: "+out.ligacao+(out.ligacao==="Trifásico"?" (inversor trifásico 380 V)":"")+". ";
       if(!fDoc)aiNote+="Sem RG/CNH: nome e CPF do titular ficaram em branco (a fatura pode não estar no nome do cliente). ";
       for(const [k,v] of Object.entries(out)){Q[k]=String(v);found++}
       if(out.lat!=null)Q._coordAprox=true;
@@ -1713,6 +1716,7 @@ Regras: a conta muitas vezes NÃO está no nome do cliente, por isso não devolv
     }
     if($("#q_dsA").files[0]){msg("Lendo a ART/TRT…");await guardarArt($("#q_dsA").files[0]);try{const rt=await lerDatasheet("a",$("#q_dsA").files[0]);Object.assign(Q,rt);guardarRT(Q);aiNote+="ART/TRT lida. "}catch(e){aiNote+=`ART/TRT não lida (${e.message}). `}}
     ["iFab","iMod","mFab","mMod"].forEach(k=>{const v=$("#q_"+k).value.trim();if(v||Q[k]==null)Q[k]=v});
+    if(Q.ligacao==="Trifásico"&&!String(Q.iFases||"").startsWith("Trif")){Q.iFases="Trifásico 380/220 V";Object.assign(Q,{iIout:+(iP*1000/(Math.sqrt(3)*380)).toFixed(1)})}
     Q.loc=$("#q_loc").value.trim();
     {const art=$("#q_art").value.trim();if(art)Q.rtArt=art}
     Q._equipEst=dsOk.length<2;Q.modalidade=qModSel;
