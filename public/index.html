@@ -413,8 +413,9 @@ const BLANK = {projeto:"Novo projeto", uf:"GO", classe:"Residencial", tipoSolic:
 
 let P = load("hgo_current") || {...EXAMPLE};
 // inversor trifásico exige UC trifásica: corrige projetos antigos gravados como monofásicos
+function ajustaAnexos(){if(P&&P._anexos&&/contrato/i.test(P._anexos.proc||"")&&!/procura/i.test(P._anexos.proc||"")){delete P._anexos.proc;return true}return false}
 function ajustaLigacao(){if(P&&String(P.iFases||"").startsWith("Trif")&&P.ligacao!=="Trifásico"&&!P._ligManual){P.ligacao="Trifásico";P.tensao="380/220 V";return true}return false}
-if(ajustaLigacao())store("hgo_current",P);
+if(ajustaLigacao()|ajustaAnexos())store("hgo_current",P);
 let currentDoc = "form";
 let plantaImg = null; // data URL (não salva no localStorage se muito grande)
 
@@ -1526,6 +1527,8 @@ $("#bAll").addEventListener("click",async()=>{
        if(k==="docTit")await gravar("09_Documento_titular_RG_CNH"+ext(a.nome),blob);
        else if(/^doc\d+$/.test(k))await gravar(`09_Documento_cliente_${k.slice(3)}_${limpa(a.nome)}`,blob);
        else if(ANEXO_ARQ[k])await gravar(ANEXO_ARQ[k]+ext(a.nome),blob)}
+     // sem procuração no projeto: tira da pasta uma 10_Procuracao antiga (ex. contrato gravado por engano)
+     if(destino&&!lista.some(([k])=>k==="proc"))for await (const [nm,h] of destino.entries())if(/^10_Procuracao/i.test(nm)&&h.kind==="file")try{await destino.removeEntry(nm)}catch(_){}
      if(!lista.some(([k])=>k==="procDoc")){const d=await kv("get","docRT").catch(()=>null);if(d)await gravar("11_Documento_procurador_RT"+ext(d.nome),b64blob(d.url))}
      if(!lista.some(([k])=>k==="docTit"||/^doc\d+$/.test(k)))erros.push("RG/CNH do titular: não está no projeto. Anexe em \"RG/CNH do titular\" (entrada rápida) e gere de novo")}
     if(artArq){b.textContent="Assinando a ART/TRT…";try{await gravar("00_ART_TRT_assinada.pdf",await artAssinadaBlob())}catch(e){erros.push("ART/TRT: "+e.message)}}
@@ -1593,7 +1596,7 @@ $("#drawer").addEventListener("click",async e=>{
     if(x){P={...x,_id:id};delete P._pendente;delete P._soNuvem;plantaImg=P.planta||null;afterLoad()}else toast("Não foi possível abrir este projeto sem internet")}
   if(d){if(d.dataset.armed){const id=d.dataset.del;const all=projects();delete all[id];store("hgo_projects",all);if(sb&&sessao)await sb.from("projetos").delete().eq("id",id);openDrawer()}else{d.dataset.armed="1";d.textContent="Confirmar"}}
 });
-function afterLoad(){ajustaLigacao();store("hgo_current",P);buildFormFresh();render();$("#drawer").hidden=true;carregarArt();inmetroAuto();plantaAuto()}
+function afterLoad(){ajustaLigacao();ajustaAnexos();store("hgo_current",P);buildFormFresh();render();$("#drawer").hidden=true;carregarArt();inmetroAuto();plantaAuto()}
 function buildFormFresh(){const f=$("#form");const nf=f.cloneNode(false);f.replaceWith(nf);buildForm()}
 $("#bNew").addEventListener("click",()=>{P={...BLANK,...(load("hgo_rt")||{})};plantaImg=null;afterLoad();toast("Novo projeto em branco")});
 $("#bExample").addEventListener("click",()=>{P={...EXAMPLE};plantaImg=null;afterLoad()});
@@ -1773,7 +1776,10 @@ async function anexoGet(id,k,nome){
   const {data,error}=await sb.storage.from("anexos").download(`${uid}/${id}/${k}`);if(error||!data)return null;
   const b={nome:nome||k,tipo:data.type,buf:await data.arrayBuffer()};kv("put",`anexo:${id}:${k}`,b).catch(()=>{});return b;
 }
-async function anexosDoProjeto(){
+// contrato da SolarCity não é procuração: nunca usar no lugar dela
+const ehContrato=nome=>/contrato/i.test(String(nome||""))&&!/procura/i.test(String(nome||""));
+async function anexosDoProjeto(){return (await anexosDoProjeto0()).filter(([k,a])=>!(k==="proc"&&ehContrato(a&&a.nome)))}
+async function anexosDoProjeto0(){
   if(!P._id)return [];const out=[],vistos=new Set();
   for(const [k,nome] of Object.entries(P._anexos||{})){const a=await anexoGet(P._id,k,nome);if(a){out.push([k,a]);vistos.add(k)}}
   // projetos antigos (guardados só no aparelho)
@@ -2177,7 +2183,7 @@ if(/[?&]crm=1/.test(location.search)&&window.opener){
     const d=e.data.dados||{},arqs=e.data.arquivos||[];
     try{
       $("#bNew").click();
-      const docs=arqs.filter(a=>a.papel==="doc"),fats=arqs.filter(a=>a.papel==="fatura"),procs=arqs.filter(a=>a.papel==="proc");
+      const docs=arqs.filter(a=>a.papel==="doc"),fats=arqs.filter(a=>a.papel==="fatura"),procs=arqs.filter(a=>a.papel==="proc"&&!ehContrato(a.nome));
       if(docs[0])arquivoNoCampo("#q_docTit",b64File(docs[0]));
       if(fats.length)addFiles(fats.map(b64File));
       if(procs[0])arquivoNoCampo("#q_proc",b64File(procs[0]));
