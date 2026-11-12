@@ -2152,6 +2152,40 @@ $("#lOffline").addEventListener("click",()=>{modoLocal=true;$("#login").hidden=t
 $("#bSair").addEventListener("click",async()=>{if(sb)await sb.auth.signOut();sessao=null;$("#drawer").hidden=true;$("#login").hidden=false;mostrarUsuario()});
 if("serviceWorker" in navigator&&location.protocol!=="file:")window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
 
+/* ---------------- CRM SolarCity → Homologa (documentos do grupo de WhatsApp) ----------------
+   O CRM abre esta página com ?crm=1. Quando ela fica pronta, avisa o CRM ("hgo-crm-pronto");
+   o CRM responde com os dados da venda e os arquivos do grupo, que entram no "Novo projeto". */
+if(/[?&]crm=1/.test(location.search)&&window.opener){
+  const ORIGEM_CRM=/^https:\/\/(solarcity-crm\.web\.app|solarcity-crm\.firebaseapp\.com)$|^http:\/\/localhost(:\d+)?$/;
+  let recebido=false;
+  const aviso=t=>{let b=$("#crmAviso");if(!b){b=document.createElement("div");b.id="crmAviso";b.style.cssText="background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46;border-radius:10px;padding:10px 12px;margin:0 0 10px;font-size:13px;font-weight:600";const q=$(".quick");q.insertBefore(b,q.children[1]||null)}b.textContent=t};
+  const b64File=a=>{const bin=atob(a.b64||""),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new File([u],a.nome||"arquivo",{type:a.mime||"application/octet-stream"})};
+  const poe=(id,v)=>{if(v!=null&&v!==""&&$(id)){$(id).value=String(v);$(id).dispatchEvent(new Event("input",{bubbles:true}))}};
+  const arquivoNoCampo=(id,f)=>{const dt=new DataTransfer();dt.items.add(f);$(id).files=dt.files;$(id).dispatchEvent(new Event("change",{bubbles:true}))};
+  addEventListener("message",async e=>{
+    if(!ORIGEM_CRM.test(e.origin)||!e.data||e.data.tipo!=="hgo-crm-dados"||recebido)return;
+    recebido=true;
+    const d=e.data.dados||{},arqs=e.data.arquivos||[];
+    try{
+      $("#bNew").click();
+      const docs=arqs.filter(a=>a.papel==="doc"),fats=arqs.filter(a=>a.papel==="fatura"),procs=arqs.filter(a=>a.papel==="proc");
+      if(docs[0])arquivoNoCampo("#q_docTit",b64File(docs[0]));
+      if(fats.length)addFiles(fats.map(b64File));
+      if(procs[0])arquivoNoCampo("#q_proc",b64File(procs[0]));
+      poe("#q_iP",d.iP);poe("#q_iQ",d.iQ||1);poe("#q_mP",d.mP);poe("#q_mQ",d.mQ);
+      poe("#q_iFab",d.iFab);poe("#q_iMod",d.iMod);poe("#q_mFab",d.mFab);poe("#q_mMod",d.mMod);
+      poe("#q_loc",d.loc);
+      if(d.modalidade&&MODS.includes(d.modalidade)){qModSel=d.modalidade;desenharQMod()}
+      const falta=[];if(!docs.length)falta.push("RG/CNH");if(!fats.length)falta.push("conta de energia");if(!(n(d.iP)&&n(d.mP)&&n(d.mQ)))falta.push("equipamentos");
+      aviso(`📥 Recebido do CRM: ${d.cliente||"cliente"} · ${arqs.length} arquivo(s) do grupo de WhatsApp.`+(falta.length?` Falta: ${falta.join(", ")}. Complete e clique em Gerar projeto.`:" Gerando o projeto…"));
+      try{e.source.postMessage({tipo:"hgo-crm-recebido",n:arqs.length},e.origin)}catch(_){}
+      if(!falta.length&&qModSel){setTimeout(()=>$("#qGo").click(),400)}
+    }catch(er){aviso("Não consegui usar os dados do CRM: "+er.message)}
+  });
+  // avisa o CRM até ele responder
+  let tent=0;const ping=setInterval(()=>{if(recebido||++tent>40){clearInterval(ping);return}try{window.opener.postMessage({tipo:"hgo-crm-pronto"},"*")}catch(_){}},500);
+}
+
 /* ---------------- início ---------------- */
 plantaImg=P.planta||null;
 buildForm();render();initAI();initAuth();
