@@ -2119,10 +2119,10 @@ function blobToB64(b){return new Promise((res,rej)=>{const r=new FileReader();r.
 async function initAI(){
   if(window.pdfjsLib&&window.pdfjsWorker)pdfjsLib.GlobalWorkerOptions.workerSrc="";
   imgLimits={maxCount:5};
-  sample={json:async(_prompt,{images,tipo})=>{
+  sample={json:async(_prompt,{images,tipo,texto})=>{
     if(!navigator.onLine)throw new Error("sem internet; a leitura automática precisa de conexão");
     if(!sessao)throw new Error("entre na sua conta para usar a leitura automática");
-    const body={images:await Promise.all(images.map(blobToB64)),tipo:tipo||""};
+    const body={images:await Promise.all((images||[]).map(blobToB64)),tipo:tipo||"",texto:texto||""};
     const r=await fetch("api/ler-documentos",{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+sessao.access_token},body:JSON.stringify(body)});
     const j=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(j.error||("erro "+r.status));
@@ -2190,6 +2190,21 @@ if(/[?&]crm=1/.test(location.search)&&window.opener){
       poe("#q_iP",d.iP);poe("#q_iQ",d.iQ||1);poe("#q_mP",d.mP);poe("#q_mQ",d.mQ);
       poe("#q_iFab",d.iFab);poe("#q_iMod",d.iMod);poe("#q_mFab",d.mFab);poe("#q_mMod",d.mMod);
       poe("#q_loc",d.loc);
+      // link do Google Maps: abre o link e troca pelas coordenadas
+      if(/^https?:\/\//i.test(String(d.loc||"").trim())&&sessao){aviso("📥 Recebido do CRM: "+(d.cliente||"cliente")+". Abrindo o link da localização…");
+        try{const r=await fetch("api/local?q="+encodeURIComponent(String(d.loc).trim()),{headers:{authorization:"Bearer "+sessao.access_token}});const j=await r.json();if(r.ok&&isFinite(j.lat))poe("#q_loc",`${(+j.lat).toFixed(7)}, ${(+j.lon).toFixed(7)}`)}catch(_){}}
+      // equipamentos: se o CRM não mandou separados, a IA lê das mensagens do grupo e das outras fotos/arquivos
+      if(!(n(d.iP)&&n(d.mP)&&n(d.mQ))&&sample){
+        aviso("📥 Recebido do CRM: "+(d.cliente||"cliente")+". Lendo os equipamentos nas mensagens do grupo…");
+        const textos=[];const junta=(o,p="")=>{if(o==null)return;if(typeof o==="string"||typeof o==="number"){if(String(o).length<5000)textos.push((p?p+": ":"")+o)}else if(Array.isArray(o))o.forEach(x=>junta(x,p));else if(typeof o==="object")for(const [k,v] of Object.entries(o))if(!/b64|base64/i.test(k))junta(v,k)};
+        junta(d);for(const [k,v] of Object.entries(e.data))if(!["tipo","dados","arquivos"].includes(k))junta(v,k);
+        const outros=arqs.filter(a=>!["doc","fatura"].includes(a.papel)&&!(a.papel==="proc"&&!ehContrato(a.nome)));
+        const imgs=[];for(const a of outros.slice(0,4)){try{imgs.push(...await fileToImages(b64File(a)))}catch(_){}}
+        try{const r=await sample.json("",{images:imgs.slice(0,4),tipo:"material",texto:textos.join("\n")});
+          for(const k of ["iP","iQ","mP","mQ","iFab","iMod","mFab","mMod"])if(r[k]!=null&&r[k]!==""&&!d[k])d[k]=String(r[k]).replace(",",".");
+          poe("#q_iP",d.iP);poe("#q_iQ",d.iQ||1);poe("#q_mP",d.mP);poe("#q_mQ",d.mQ);poe("#q_iFab",d.iFab);poe("#q_iMod",d.iMod);poe("#q_mFab",d.mFab);poe("#q_mMod",d.mMod);
+        }catch(er){console.warn("material",er)}
+      }
       if(d.modalidade&&MODS.includes(d.modalidade)){qModSel=d.modalidade;desenharQMod()}
       const falta=[];if(!docs.length)falta.push("RG/CNH");if(!fats.length)falta.push("conta de energia");if(!(n(d.iP)&&n(d.mP)&&n(d.mQ)))falta.push("equipamentos");
       aviso(`📥 Recebido do CRM: ${d.cliente||"cliente"} · ${arqs.length} arquivo(s) do grupo de WhatsApp.`+(falta.length?` Falta: ${falta.join(", ")}. Complete e clique em Gerar projeto.`:" Gerando o projeto…"));

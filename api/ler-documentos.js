@@ -59,19 +59,35 @@ async function usuarioLogado(authorization) {
   return permitidos.includes(String(usuario?.email || "").toLowerCase());
 }
 
+// "material" = equipamentos do sistema (mensagens do grupo de WhatsApp, proposta, foto do material)
+const CAMPOS_MAT = {
+  iP: "potência nominal de UM inversor em kW (ex. 15). Se vier em W, converta para kW",
+  iQ: "quantidade de inversores (1 se não disser)",
+  iFab: "fabricante/marca do inversor",
+  iMod: "modelo do inversor",
+  mP: "potência de UM módulo em W (ex. 620)",
+  mQ: "quantidade de módulos/placas",
+  mFab: "fabricante/marca do módulo",
+  mMod: "modelo do módulo",
+};
+const PROMPT_MAT = (texto) => `Abaixo estão mensagens de um grupo de WhatsApp e/ou imagens (proposta, pedido, nota, foto do material) de uma venda de energia solar. Extraia os equipamentos do sistema fotovoltaico vendido. Use "" para o que não encontrar. Não invente. Números só com dígitos e ponto decimal.
+${Object.entries(CAMPOS_MAT).map(([k, d]) => `- ${k}: ${d}`).join("\n")}
+${texto ? "\nMENSAGENS:\n" + texto : ""}`;
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "use POST" });
   if (!(await usuarioLogado(req.headers.authorization))) {
     return res.status(401).json({ error: "seu usuário não tem permissão para a leitura automática" });
   }
   const images = Array.isArray(req.body?.images) ? req.body.images.slice(0, 5) : [];
-  const tipo = ["identidade", "fatura"].includes(req.body?.tipo) ? req.body.tipo : "";
-  const campos = camposDo(tipo), schema = schemaDe(campos);
-  if (!images.length) return res.status(400).json({ error: "nenhuma imagem enviada" });
+  const tipo = ["identidade", "fatura", "material"].includes(req.body?.tipo) ? req.body.tipo : "";
+  const texto = String(req.body?.texto || "").slice(0, 20000);
+  const campos = tipo === "material" ? CAMPOS_MAT : camposDo(tipo), schema = schemaDe(campos);
+  if (!images.length && !(tipo === "material" && texto)) return res.status(400).json({ error: "nenhuma imagem enviada" });
 
   try {
     const response = await client.messages.create({
-      model: tipo === "identidade" || tipo === "fatura" ? "claude-sonnet-5-5" : "claude-haiku-5-5",
+      model: tipo ? "claude-sonnet-5-5" : "claude-haiku-5-5",
       max_tokens: 16000,
       output_config: { effort: "low", format: { type: "json_schema", schema } },
       messages: [
@@ -79,7 +95,7 @@ export default async function handler(req, res) {
           role: "user",
           content: [
             ...images.map((data) => ({ type: "image", source: { type: "base64", media_type: "image/jpeg", data } })),
-            { type: "text", text: promptDe(tipo, campos) },
+            { type: "text", text: tipo === "material" ? PROMPT_MAT(texto) : promptDe(tipo, campos) },
           ],
         },
       ],
