@@ -39,6 +39,13 @@
     let link = null;
     for (const z of zonas) { link = [...z.querySelectorAll("a,button,input[type=button],span,img")].find((x) => (x.offsetParent || x.getClientRects().length) && /cadastr|novo contratante|incluir/i.test(txtDe(x) + " " + (x.getAttribute("onclick") || "") + " " + (x.getAttribute("href") || ""))); if (link) break }
     if (!link) link = [...document.querySelectorAll("a,button,input[type=button],span")].find((x) => x.offsetParent && /n[\u00e3a]o (encontrad|cadastrad).*cadastr|clique aqui para cadastrar|cadastrar (novo )?contratante/i.test(txtDe(x)));
+    if (!link) try {
+      const pega = (el) => el ? el.outerHTML.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/\s+/g, " ") : "";
+      let bloco = caixa; for (let i = 0; i < 4 && bloco && bloco.parentElement; i++) bloco = bloco.parentElement;
+      const extras = [...document.querySelectorAll("[id^=as_], .autosuggest, ul")].filter((x) => /contrat|as_/i.test(x.id || x.className || "")).map(pega).join("\n");
+      const cad = [...document.querySelectorAll("a,button,input,span,img")].filter((x) => /cadastr|incluir|novo/i.test((x.textContent || x.value || x.title || x.alt || "") + (x.getAttribute("onclick") || ""))).slice(0, 30).map(pega).join("\n");
+      fetch("https://homologa-go.vercel.app/api/diag", { method: "POST", mode: "cors", headers: { "content-type": "text/plain" }, body: "SINCETI contratante | " + (window.__hgoDiag0 || "") + "\n=== BLOCO ===\n" + pega(bloco).slice(0, 25000) + "\n=== LISTAS ===\n" + extras.slice(0, 8000) + "\n=== CADASTRAR ===\n" + cad.slice(0, 15000) }).catch(() => {});
+    } catch (e) {}
     if (!link) window.__hgoDiag = "texto da pesquisa: " + (caixa ? txtDe(caixa).slice(0, 160) : "(sem caixa de resultado)");
     let alvo = null; const wo = window.open;
     let ifr = null;
