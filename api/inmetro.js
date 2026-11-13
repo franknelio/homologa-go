@@ -95,7 +95,13 @@ export default async function handler(req, res) {
 }
 
 // PDF oficial "Detalhes do Registro" (botão Exportar PDF da consulta pública do INMETRO)
+// o INMETRO às vezes falha numa tentativa e funciona na seguinte
 export async function pdfRegistro(reg) {
+  let erro;
+  for (let i = 0; i < 3; i++) { try { return await pdfRegistro1(reg) } catch (e) { erro = e; await new Promise((r) => setTimeout(r, 1500)) } }
+  throw erro;
+}
+async function pdfRegistro1(reg) {
   const u = BASE + "detalhe.aspx?pag=1&NumeroRegistro=" + encodeURIComponent(reg);
   const r1 = await fetch(u, { headers: UA, signal: AbortSignal.timeout(20000) });
   if (!r1.ok) throw new Error("INMETRO respondeu " + r1.status);
