@@ -1471,6 +1471,9 @@ if(/[?&]ponte=1/.test(location.search))setTimeout(()=>{
         L.push({nome,tipo:a.tipo,data:Date.now(),buf:a.buf.slice(0)});
         try{const w=await (await d.getFileHandle(nome,{create:true})).createWritable();await w.write(new Blob([a.buf],{type:a.tipo||""}));await w.close()}catch(e){}
       }
+      // ART/TRT assinada: se não está na pasta, gera da ART guardada no projeto (aparelho ou conta)
+      if(!tem(/^00_ART_TRT/i)&&P._id){try{const a=await kv("get","art:"+P._id).catch(()=>null)||await anexoGet(P._id,"art","ART_TRT.pdf");
+        if(a&&a.buf){artArq=a;const bl=await artAssinadaBlob(),nome="00_ART_TRT_assinada.pdf";L.push({nome,tipo:"application/pdf",data:Date.now(),buf:await bl.arrayBuffer()});try{const w=await (await d.getFileHandle(nome,{create:true})).createWritable();await w.write(bl);await w.close()}catch(e){}}}catch(e){}}
       // documento do procurador = CNH/RG do responsável técnico salvo na conta
       if(!tem(/^11_Documento_procurador/i)){let drt=await kv("get","docRT").catch(()=>null);
         if(!drt&&sb){try{const {data}=await sb.from("perfil").select("doc_rt,doc_rt_nome").maybeSingle();if(data&&data.doc_rt)drt={nome:data.doc_rt_nome||"Documento_RT.pdf",url:data.doc_rt}}catch(e){}}
@@ -1732,7 +1735,7 @@ Regras: a conta muitas vezes NÃO está no nome do cliente, por isso não devolv
     const dg=x=>String(x||"").replace(/\D/g,""),ant=P||{},mesmo=!fDoc&&ant._id&&ant.nome&&dg(Q.uc)&&dg(Q.uc)===dg(ant.uc);
     if(mesmo){for(const k of ["nome","doc","rg","tel"])if(ant[k]&&!Q[k])Q[k]=ant[k];aiNote=aiNote.replace(/Sem RG\/CNH:[^.]*\([^)]*\)\. /,"")+"Mesmo cliente: nome, CPF e RG/CNH mantidos do projeto anterior. "}
     P=Q;autoStrings();plantaImg=null;
-    P._id=mesmo?ant._id:novoId();store("hgo_current",P);if(artArq)kv("put","art:"+P._id,artArq).catch(()=>{});{const id=P._id,novos=[];for(const [k,el] of [["docTit",$("#q_docTit")],["proc",$("#q_proc")],["procDoc",$("#q_procDoc")]])if(el.files[0]){novos.push([k,el.files[0]]);el.value=""}qFiles.forEach((f,i)=>novos.push(["doc"+(i+1),f]));P._anexos=mesmo?{...(ant._anexos||{})}:{};novos.forEach(([k,f])=>P._anexos[k]=f.name);Promise.all(novos.map(async([k,f])=>anexoPut(id,k,{nome:f.name,tipo:f.type,buf:await f.arrayBuffer()}))).catch(()=>{})}buildFormFresh();currentDoc="form";render();salvarProjeto(true);
+    P._id=mesmo?ant._id:novoId();store("hgo_current",P);if(artArq){kv("put","art:"+P._id,artArq).catch(()=>{});anexoPut(P._id,"art",{tipo:"application/pdf",...artArq}).catch(()=>{})}{const id=P._id,novos=[];for(const [k,el] of [["docTit",$("#q_docTit")],["proc",$("#q_proc")],["procDoc",$("#q_procDoc")]])if(el.files[0]){novos.push([k,el.files[0]]);el.value=""}qFiles.forEach((f,i)=>novos.push(["doc"+(i+1),f]));P._anexos=mesmo?{...(ant._anexos||{})}:{};novos.forEach(([k,f])=>P._anexos[k]=f.name);Promise.all(novos.map(async([k,f])=>anexoPut(id,k,{nome:f.name,tipo:f.type,buf:await f.arrayBuffer()}))).catch(()=>{})}buildFormFresh();currentDoc="form";render();salvarProjeto(true);
     ["i","m"].forEach(t=>{if(P[t+"Fab"]&&P[t+"Mod"])buscarInmetro(t)});
     plantaAuto(true);
     const contas=qModSel!=="Autoconsumo local"?[...$("#q_rat").files]:[];
@@ -1835,8 +1838,8 @@ let artArq=null; // {nome, buf}
 function kv(op,k,v){return new Promise((ok,erro)=>{const r=indexedDB.open("hgo-arq",1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");
   r.onerror=()=>erro(r.error);r.onsuccess=()=>{try{const t=r.result.transaction("kv",op==="get"?"readonly":"readwrite").objectStore("kv");
   const q=op==="get"?t.get(k):t.put(v,k);q.onsuccess=()=>ok(q.result);q.onerror=()=>erro(q.error)}catch(e){erro(e)}}})}
-async function guardarArt(f){artArq={nome:f.name,buf:await f.arrayBuffer()};if(P._id)kv("put","art:"+P._id,artArq).catch(()=>{})}
-async function carregarArt(){artArq=null;if(P._id)artArq=await kv("get","art:"+P._id).catch(()=>null)||null}
+async function guardarArt(f){artArq={nome:f.name,tipo:"application/pdf",buf:await f.arrayBuffer()};if(P._id){kv("put","art:"+P._id,artArq).catch(()=>{});anexoPut(P._id,"art",artArq).catch(()=>{})}}
+async function carregarArt(){artArq=null;if(P._id)artArq=await kv("get","art:"+P._id).catch(()=>null)||await anexoGet(P._id,"art","ART_TRT.pdf").catch(()=>null)||null}
 function carregarScript(src){return new Promise((ok,erro)=>{if(document.querySelector(`script[src="${src}"]`))return ok();const e=document.createElement("script");e.src=src;e.onload=ok;e.onerror=()=>erro(new Error("não carregou "+src));document.head.appendChild(e)})}
 // procura no PDF onde assinar: o nome do RT e o do cliente (ou os rótulos "Assinatura do profissional/contratante")
 async function locaisAssinatura(buf){
