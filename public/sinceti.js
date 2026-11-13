@@ -67,22 +67,29 @@
     };
     const poe = (el, v) => { if (!el || v == null || v === "") return; el.removeAttribute("readonly"); el.focus(); el.value = v; disp(el, "input", "change", "keyup", "blur") };
     const escolhe = (el, re) => { if (!el) return; const o = [...el.options].find((o) => re.test(o.text)); if (o) { el.value = o.value; disp(el, "change") } };
-    const nac = [...dc.querySelectorAll("input[type=radio]")].find((r) => /nacional/i.test((r.parentElement || {}).textContent || "") && !/estrang/i.test(r.value || "")); if (nac && !nac.checked) nac.click();
-    const doc = campo(tipo === "PJ" ? /cnpj/i : /cpf/i); if (doc && !doc.value.replace(/\D/g, "")) poe(doc, D.doc);
-    poe(campo(tipo === "PJ" ? /raz[\u00e3a]o|^nome/i : /^nome$|nome\s*$|^NOME/i), String(D.nome).toUpperCase());
-    escolhe(campo(/sexo/i, "select"), D.sexo === "F" ? /fem/i : /masc/i);
-    const em = campo(/e-?mail/i); if (em) em.value = "";
+    // campos do formul\u00e1rio CadastrarContratantePF/PJ do SINCETI (ids conhecidos; r\u00f3tulo como reserva)
+    const id = (x) => { const e = dc.getElementById(x); return e && vis(e) ? e : null };
+    const vazio = (e) => e && !String(e.value || "").trim();
+    const nac = dc.querySelector("input[name=TIPO_TIPO][value=" + (tipo === "PJ" ? "PJ" : "PF") + "]") || [...dc.querySelectorAll("input[type=radio]")].find((r) => /nacional/i.test((r.parentElement || {}).textContent || "") && !/estrang/i.test(r.value || "")); if (nac && !nac.checked) { nac.click(); await dorme(800) }
+    const doc = id(tipo === "PJ" ? "CNPJ" : "CPF") || campo(tipo === "PJ" ? /cnpj/i : /^cpf$|cpf/i); if (doc && !doc.value.replace(/\D/g, "")) { poe(doc, D.doc); await dorme(1200) }
+    const nome = id(tipo === "PJ" ? "RAZAOSOCIAL" : "NOME") || id("NOME") || campo(tipo === "PJ" ? /raz[\u00e3a]o|^nome/i : /^nome$/i); poe(nome, String(D.nome).toUpperCase());
+    const sx = id("SEXO"); if (sx) { sx.value = D.sexo === "F" ? "F" : "M"; disp(sx, "change") } else escolhe(campo(/sexo/i, "select"), D.sexo === "F" ? /fem/i : /masc/i);
+    const em = id("EMAIL") || campo(/e-?mail/i); if (em) em.value = "";
+    const pais = id("ENDERECO_PAIS"); if (pais && !pais.value) { const o = [...pais.options].find((o) => /^bras/i.test(o.text)); if (o) { pais.value = o.value; disp(pais, "change") } }
     if (D.cep) {
-      poe(campo(/cep/i), D.cep);
-      const bt = [...dc.querySelectorAll("button,input[type=button],a")].find((b) => /endere[\u00e7c]o a partir do cep/i.test(b.textContent || b.value || ""));
-      if (bt) { bt.click(); await dorme(3000) }
+      const cep = id("CEP") || id("ENDERECO_CEP") || [...dc.querySelectorAll("input")].find((i) => vis(i) && /cep/i.test(i.id + i.name)); poe(cep, D.cep);
+      const bt = dc.getElementById("aproveitarCEP") || [...dc.querySelectorAll("button,input[type=button],a")].find((b) => /endere[\u00e7c]o a partir do cep/i.test(b.textContent || b.value || ""));
+      if (bt) { bt.click(); await dorme(3500) }
     }
-    const preenche = (re, v) => { const e = campo(re); if (e && !String(e.value || "").trim()) poe(e, v) };
-    preenche(/logradouro$/i, D.logradouro); preenche(/n[\u00fau]mero/i, D.numero || "S/N"); preenche(/bairro/i, D.bairro); preenche(/telefone|celular|fone/i, D.tel);
-    const tl = campo(/tipo\s*(de\s*)?logradouro/i, "select"); if (tl && !tl.value && D.tipoLog) escolhe(tl, new RegExp("^\\s*" + D.tipoLog, "i"));
-    const uf = campo(/^uf|estado/i, "select"); if (uf && !uf.value) escolhe(uf, new RegExp("^\\s*" + D.uf + "\\b|goi", "i"));
-    // cidade costuma vir do CEP; se ficou vazia, tenta escolher pelo nome
-    const ci = campo(/cidade|munic/i, "select"); if (ci && !ci.value) escolhe(ci, new RegExp(D.cidade.normalize("NFD").replace(/[\u0300-\u036f]/g, ""), "i"));
+    const tl = id("TIPOLOGRADOURO"); if (tl && !tl.value) { const alvoT = String(D.tipoLog || "RUA").toUpperCase(); const o = [...tl.options].find((o) => o.value && o.value.toUpperCase() === alvoT) || [...tl.options].find((o) => o.value === "RUA"); if (o) { tl.value = o.value; disp(tl, "change") } }
+    const lg = id("LOGRADOURO"); if (vazio(lg)) poe(lg, String(D.logradouro || "").toUpperCase());
+    const nu = id("ENDERECO_NUMERO") || campo(/n[\u00fau]mero/i); if (vazio(nu)) poe(nu, D.numero || "S/N");
+    const ba = id("BAIRRO"); if (vazio(ba)) poe(ba, String(D.bairro || "CENTRO").toUpperCase().slice(0, 30));
+    const ufi = dc.getElementById("UF"); if (ufi && !String(ufi.value || "").trim()) poe(ufi, D.uf || "GO");
+    const te = id("ENDERECO_TELEFONE"); if (vazio(te) && D.tel) poe(te, D.tel);
+    // cidade costuma vir do CEP; se ficou vazia, escolhe pelo nome no select (select2)
+    const ci = dc.getElementById("CIDADE") || dc.querySelector("select[id*=CIDADE],select[name*=CIDADE]");
+    if (ci && !ci.value && D.cidade) { const alvo = D.cidade.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase(); const o = [...ci.options].find((o) => o.text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase() === alvo); if (o) { ci.value = o.value; disp(ci, "change") } }
     await dorme(500);
     const cad = [...dc.querySelectorAll("button,input[type=button],input[type=submit],a")].filter(vis).find((b) => /^\s*cadastrar\s*$/i.test(b.textContent || b.value || ""));
     if (!cad) { window.__hgoErroCad = "n\u00e3o achei o bot\u00e3o Cadastrar da janela"; return false }
