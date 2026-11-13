@@ -33,20 +33,6 @@
   // da pr\u00f3pria p\u00e1gina (mesmo site), o que deixa o script preencher e clicar em Cadastrar.
   async function cadastraContratante(D, tipo) {
     window.__hgoErroCad = "";
-    const txtDe = (x) => (x.textContent || x.value || x.title || "").replace(/\s+/g, " ").trim();
-    const caixa = q("#contratante0_ResultPesquisa");
-    const zonas = [caixa, caixa && caixa.parentElement, caixa && caixa.parentElement && caixa.parentElement.parentElement, q("[id^=contratante0]") && q("[id^=contratante0]").closest("fieldset,table,div")].filter(Boolean);
-    let link = null;
-    for (const z of zonas) { link = [...z.querySelectorAll("a,button,input[type=button],span,img")].find((x) => (x.offsetParent || x.getClientRects().length) && /cadastr|novo contratante|incluir/i.test(txtDe(x) + " " + (x.getAttribute("onclick") || "") + " " + (x.getAttribute("href") || ""))); if (link) break }
-    if (!link) link = [...document.querySelectorAll("a,button,input[type=button],span")].find((x) => x.offsetParent && /n[\u00e3a]o (encontrad|cadastrad).*cadastr|clique aqui para cadastrar|cadastrar (novo )?contratante/i.test(txtDe(x)));
-    if (!link) try {
-      const pega = (el) => el ? el.outerHTML.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/\s+/g, " ") : "";
-      let bloco = caixa; for (let i = 0; i < 4 && bloco && bloco.parentElement; i++) bloco = bloco.parentElement;
-      const extras = [...document.querySelectorAll("[id^=as_], .autosuggest, ul")].filter((x) => /contrat|as_/i.test(x.id || x.className || "")).map(pega).join("\n");
-      const cad = [...document.querySelectorAll("a,button,input,span,img")].filter((x) => /cadastr|incluir|novo/i.test((x.textContent || x.value || x.title || x.alt || "") + (x.getAttribute("onclick") || ""))).slice(0, 30).map(pega).join("\n");
-      fetch("https://homologa-go.vercel.app/api/diag", { method: "POST", mode: "cors", headers: { "content-type": "text/plain" }, body: "SINCETI contratante | " + (window.__hgoDiag0 || "") + "\n=== BLOCO ===\n" + pega(bloco).slice(0, 25000) + "\n=== LISTAS ===\n" + extras.slice(0, 8000) + "\n=== CADASTRAR ===\n" + cad.slice(0, 15000) }).catch(() => {});
-    } catch (e) {}
-    if (!link) window.__hgoDiag = "texto da pesquisa: " + (caixa ? txtDe(caixa).slice(0, 160) : "(sem caixa de resultado)");
     let alvo = null; const wo = window.open;
     let ifr = null;
     const abreQuadro = (url) => {
@@ -55,10 +41,10 @@
       document.body.appendChild(ifr); return ifr.contentWindow;
     };
     window.open = function (url) { alvo = url; return abreQuadro(url) };
-    try { if (link) link.click(); else { window.__hgoErroCad = "n\u00e3o achei o link de cadastrar; " + (window.__hgoDiag || "") + "; " + (window.__hgoDiag0 || ""); return false } } finally { setTimeout(() => { window.open = wo }, 3000) }
+    try { abreQuadro("main.php?form=CadastrarContratante" + (tipo === "PJ" ? "PJ" : "PF")) } finally { setTimeout(() => { window.open = wo }, 3000) }
     await dorme(1500);
     // o formul\u00e1rio pode abrir num quadro (popup interceptado) ou na pr\u00f3pria p\u00e1gina
-    const docDe = () => { try { if (ifr && ifr.contentDocument && ifr.contentDocument.body && /Nome/i.test(ifr.contentDocument.body.textContent)) return ifr.contentDocument } catch (e) {} return /Cadastrar Contratante/i.test(document.body.textContent) && [...document.querySelectorAll("input")].some((i) => i.offsetParent && /nome/i.test(i.name || i.id)) ? document : null };
+    const docDe = () => { try { const dd = ifr && ifr.contentDocument; if (dd && dd.readyState === "complete" && dd.body && [...dd.querySelectorAll("input")].some((i) => /nome|cpf|cnpj/i.test(i.name || i.id) && i.type !== "hidden")) return dd } catch (e) {} return /Cadastrar Contratante/i.test(document.body.textContent) && [...document.querySelectorAll("input")].some((i) => i.offsetParent && /nome/i.test(i.name || i.id)) ? document : null };
     const dc = await espera(docDe, 15000);
     if (!dc) { window.__hgoErroCad = "a janela de cadastro n\u00e3o carregou"; return false }
     if (ifr) try { ifr.contentWindow.opener = window } catch (e) {}
@@ -177,7 +163,8 @@
       const pj = String(D.doc).length > 11, tipo = pj ? "PJ" : "PF";
       const res = () => (q("#contratante0_ResultPesquisa") || {}).textContent || "";
       if (!res().includes(D.doc) && !res().replace(/\D/g, "").includes(D.doc)) {
-        const rad = q("#contratante0_Contratante" + tipo);
+        // o bloco do contratante chega depois (ajax): espera o r\u00e1dio aparecer
+        const rad = await espera(() => q("#contratante0_Contratante" + tipo), 20000);
         clica(rad); await dorme(600);
         if (rad && !rad.checked) { rad.checked = true; dispara(rad, "click", "change") ; await dorme(600) }
         const c = q("#contratante0_CampoContratante" + tipo);
