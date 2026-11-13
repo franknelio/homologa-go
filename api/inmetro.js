@@ -70,6 +70,10 @@ async function registrosDaMarca(marca, limite) {
 }
 
 export default async function handler(req, res) {
+  // diagnóstico público do PDF (dados públicos do INMETRO; não devolve o arquivo)
+  if (req.query.diag && /^\d{6}\/\d{4}$/.test(String(req.query.diag))) {
+    try { const b = await pdfRegistro(String(req.query.diag)); return res.status(200).json({ ok: true, bytes: b.length }) } catch (e) { return res.status(200).json({ ok: false, erro: String(e.message || e) }) }
+  }
   if (!(await usuarioLogado(req.headers.authorization))) return res.status(401).json({ error: "entre na sua conta para consultar o INMETRO" });
   if (req.query.pdf) {
     const reg = String(req.query.pdf).match(/^\d{6}\/\d{4}$/)?.[0];
@@ -107,7 +111,11 @@ export async function pdfRegistro(reg) {
   form.set("__EVENTARGUMENT", "");
   const r = await fetch(u, { method: "POST", body: form, signal: AbortSignal.timeout(30000), headers: { ...UA, "content-type": "application/x-www-form-urlencoded", cookie, referer: u } });
   const buf = Buffer.from(await r.arrayBuffer());
-  if (buf.subarray(0, 4).toString() !== "%PDF") throw new Error("o INMETRO não devolveu o PDF");
+  if (buf.subarray(0, 4).toString() !== "%PDF") {
+    const txt = buf.toString("latin1").replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+    console.log("INMETRO-PDF", reg, r.status, r.headers.get("content-type"), "GET", r1.status, h.length, "campos", [...form.keys()].join(","), "|", txt.slice(0, 1500));
+    throw new Error("o INMETRO não devolveu o PDF (" + r.status + " " + (r.headers.get("content-type") || "") + ": " + txt.slice(0, 160) + ")");
+  }
   return buf;
 }
 
