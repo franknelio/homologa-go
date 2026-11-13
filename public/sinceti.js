@@ -48,7 +48,7 @@
       document.body.appendChild(ifr); return ifr.contentWindow;
     };
     window.open = function (url) { alvo = url; return abreQuadro(url) };
-    try { if (link) link.click(); else { window.__hgoErroCad = "n\u00e3o achei o link de cadastrar; " + (window.__hgoDiag || ""); return false } } finally { setTimeout(() => { window.open = wo }, 3000) }
+    try { if (link) link.click(); else { window.__hgoErroCad = "n\u00e3o achei o link de cadastrar; " + (window.__hgoDiag || "") + "; " + (window.__hgoDiag0 || ""); return false } } finally { setTimeout(() => { window.open = wo }, 3000) }
     await dorme(1500);
     // o formul\u00e1rio pode abrir num quadro (popup interceptado) ou na pr\u00f3pria p\u00e1gina
     const docDe = () => { try { if (ifr && ifr.contentDocument && ifr.contentDocument.body && /Nome/i.test(ifr.contentDocument.body.textContent)) return ifr.contentDocument } catch (e) {} return /Cadastrar Contratante/i.test(document.body.textContent) && [...document.querySelectorAll("input")].some((i) => i.offsetParent && /nome/i.test(i.name || i.id)) ? document : null };
@@ -170,14 +170,17 @@
       const pj = String(D.doc).length > 11, tipo = pj ? "PJ" : "PF";
       const res = () => (q("#contratante0_ResultPesquisa") || {}).textContent || "";
       if (!res().includes(D.doc) && !res().replace(/\D/g, "").includes(D.doc)) {
-        clica(q("#contratante0_Contratante" + tipo)); await dorme(400);
+        const rad = q("#contratante0_Contratante" + tipo);
+        clica(rad); await dorme(600);
+        if (rad && !rad.checked) { rad.checked = true; dispara(rad, "click", "change") ; await dorme(600) }
         const c = q("#contratante0_CampoContratante" + tipo);
+        window.__hgoDiag0 = "r\u00e1dio " + (rad ? (rad.checked ? "marcado" : "N\u00c3O marcado") : "n\u00e3o achado") + "; campo CPF " + (c ? (c.offsetParent ? "vis\u00edvel" : "escondido") : "n\u00e3o achado");
         if (c) {
           digita(c, D.doc);
           // lista de sugest\u00f5es (bsn.AutoSuggest): precisa do mouseover para marcar a op\u00e7\u00e3o antes do clique
           const op = await espera(() => res().trim() ? null : [...document.querySelectorAll("#as_" + c.id + " li a")].find((x) => x.offsetParent), 6000);
           if (op) { op.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); op.onmouseover && op.onmouseover(); clica(op); await dorme(1500) }
-          else dispara(c, "change", "blur");
+          else { const ul = q("#as_" + c.id); window.__hgoDiag0 += "; sugest\u00f5es: " + (ul ? (ul.textContent || "").replace(/\s+/g, " ").trim().slice(0, 120) || "(vazia)" : "(nenhuma lista)"); dispara(c, "change", "blur") }
         }
       }
       const achou = await espera(() => /Nome:/i.test(res()) || /n\u00e3o (encontrad|cadastrad)|cadastr/i.test(res()) ? res() : null, 12000);
