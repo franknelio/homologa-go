@@ -41,10 +41,12 @@
       document.body.appendChild(ifr); return ifr.contentWindow;
     };
     window.open = function (url) { alvo = url; return abreQuadro(url) };
-    try { abreQuadro("main.php?form=CadastrarContratante" + (tipo === "PJ" ? "PJ" : "PF")) } finally { setTimeout(() => { window.open = wo }, 3000) }
+    // bot\u00e3o verde "Contratante n\u00e3o encontrado. Clique aqui para cadastrar" (aparece ap\u00f3s pesquisar o CPF)
+    const botao = await espera(() => [...document.querySelectorAll("a,button,input[type=button],div,span")].filter((x) => x.offsetParent && /n[\u00e3a]o encontrad[\s\S]*cadastr/i.test(x.textContent || x.value || "")).sort((a, b) => (a.textContent || "").length - (b.textContent || "").length)[0], 6000);
+    try { if (botao) { (botao.closest("a,button") || botao).click(); await dorme(2500) } if (!ifr) abreQuadro("main.php?form=CadastrarContratante" + (tipo === "PJ" ? "PJ" : "PF")) } finally { setTimeout(() => { window.open = wo }, 5000) }
     await dorme(1500);
     // o formul\u00e1rio pode abrir num quadro (popup interceptado) ou na pr\u00f3pria p\u00e1gina
-    const docDe = () => { try { const dd = ifr && ifr.contentDocument; if (dd && dd.readyState === "complete" && dd.body && [...dd.querySelectorAll("input")].some((i) => /nome|cpf|cnpj/i.test(i.name || i.id) && i.type !== "hidden")) return dd } catch (e) {} return /Cadastrar Contratante/i.test(document.body.textContent) && [...document.querySelectorAll("input")].some((i) => i.offsetParent && /nome/i.test(i.name || i.id)) ? document : null };
+    const docDe = () => { try { const dd = ifr && ifr.contentDocument; if (dd && dd.readyState === "complete" && dd.body && [...dd.querySelectorAll("input")].some((i) => /nome|cpf|cnpj/i.test(i.name || i.id) && i.type !== "hidden")) return dd; if (!ifr) { const dlg = [...document.querySelectorAll(".ui-dialog,[role=dialog]")].find((x) => x.offsetParent && x.querySelector("input")); if (dlg) return document } } catch (e) {} return /Cadastrar Contratante/i.test(document.body.textContent) && [...document.querySelectorAll("input")].some((i) => i.offsetParent && /nome/i.test(i.name || i.id)) ? document : null };
     const dc = await espera(docDe, 15000);
     if (!dc) { window.__hgoErroCad = "a janela de cadastro n\u00e3o carregou"; return false }
     if (ifr) try { ifr.contentWindow.opener = window } catch (e) {}
@@ -86,12 +88,19 @@
     if (!cad) { window.__hgoErroCad = "n\u00e3o achei o bot\u00e3o Cadastrar da janela"; return false }
     let alerta = ""; const wa = W.alert; W.alert = (m) => { alerta = String(m) }; W.confirm = () => true;
     cad.click();
-    await dorme(4000); W.alert = wa;
-    const txtFim = (() => { try { return (ifr ? ifr.contentDocument.body.textContent : document.body.textContent) || "" } catch (e) { return "" } })();
-    if (/obrigat|inv[\u00e1a]lid|erro/i.test(alerta) && !/sucesso/i.test(alerta)) { window.__hgoErroCad = "SINCETI respondeu: " + alerta; return false }
+    const docAgora = () => { try { return ifr ? ifr.contentDocument : document } catch (e) { return null } };
+    const okTxt = () => { const d = docAgora(); const t = alerta + " " + ((d && d.body && d.body.textContent) || ""); return /sucesso|cadastrado com|realizado com/i.test(t) };
+    await espera(okTxt, 10000); W.alert = wa;
+    const d2 = docAgora();
+    const avisosForm = d2 ? [...d2.querySelectorAll(".formError,.formErrorContent,.erro,.error,.msgErro")].filter(vis).map((e) => (e.textContent || "").trim()).filter(Boolean) : [];
+    if (!okTxt()) {
+      try { fetch("https://homologa-go.vercel.app/api/diag", { method: "POST", mode: "cors", headers: { "content-type": "text/plain" }, body: "SINCETI cadastro contratante | alerta: " + alerta + " | avisos: " + avisosForm.join(" / ") + "\n" + ((d2 && d2.body && d2.body.innerHTML) || "").replace(/<script[\s\S]*?<\/script>/gi, "").replace(/\s+/g, " ").slice(0, 50000) }).catch(() => {}) } catch (e) {}
+      window.__hgoErroCad = "o SINCETI n\u00e3o confirmou o cadastro" + (alerta ? ": " + alerta.slice(0, 120) : "") + (avisosForm.length ? " (" + avisosForm.slice(0, 3).join("; ") + ")" : "") + ". O quadro do cadastro ficou aberto: confira, corrija e clique em Cadastrar nele";
+      return false;
+    }
     if (ifr) setTimeout(() => ifr.remove(), 1500);
     log("\u2713 Contratante cadastrado" + (alerta ? " (" + alerta.slice(0, 80) + ")" : "") + " \u00b7 sexo " + (D.sexo === "F" ? "feminino" : "masculino") + " \u00b7 sem e-mail");
-    return !/obrigat/i.test(txtFim) || /sucesso/i.test(alerta + txtFim);
+    return true;
   }
   try {
     if (!q("#FORMADEREGISTRO")) {
