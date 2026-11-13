@@ -178,44 +178,40 @@
     if (q("#CONTRATO_VALOR0")) {
       const pj = String(D.doc).length > 11, tipo = pj ? "PJ" : "PF";
       const res = () => (q("#contratante0_ResultPesquisa") || {}).textContent || "";
-      if (!res().includes(D.doc) && !res().replace(/\D/g, "").includes(D.doc)) {
-        // o bloco do contratante chega depois (ajax): espera o r\u00e1dio aparecer
-        const rad = await espera(() => q("#contratante0_Contratante" + tipo), 20000);
-        clica(rad); await dorme(600);
-        if (rad && !rad.checked) { rad.checked = true; dispara(rad, "click", "change") ; await dorme(600) }
-        const c = q("#contratante0_CampoContratante" + tipo);
-        window.__hgoDiag0 = "r\u00e1dio " + (rad ? (rad.checked ? "marcado" : "N\u00c3O marcado") : "n\u00e3o achado") + "; campo CPF " + (c ? (c.offsetParent ? "vis\u00edvel" : "escondido") : "n\u00e3o achado");
-        if (c) {
-          digita(c, D.doc);
-          // lista de sugest\u00f5es (bsn.AutoSuggest): precisa do mouseover para marcar a op\u00e7\u00e3o antes do clique
-          const op = await espera(() => res().trim() ? null : [...document.querySelectorAll("#as_" + c.id + " li a")].find((x) => x.offsetParent), 6000);
-          if (op) { op.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); op.onmouseover && op.onmouseover(); clica(op); await dorme(1500) }
-          else { const ul = q("#as_" + c.id); window.__hgoDiag0 += "; sugest\u00f5es: " + (ul ? (ul.textContent || "").replace(/\s+/g, " ").trim().slice(0, 120) || "(vazia)" : "(nenhuma lista)"); dispara(c, "change", "blur") }
-        }
-      }
-      const achou = await espera(() => /Nome:/i.test(res()) || /n\u00e3o (encontrad|cadastrad)|cadastr/i.test(res()) ? res() : null, 12000);
-      if (achou && /Nome:/i.test(achou)) {
-        log("\u2713 Contratante encontrado");
-        clica(q("#proprietario0_AproveitaDados")); await dorme(800);
-        log("\u2713 Propriet\u00e1rio: aproveita dados do contratante");
-      } else {
+      const normC = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
+      const selecionado = () => /Nome:/i.test(res());
+      // marca o tipo de contratante, digita o CPF/CNPJ (ou o nome) e escolhe a sugest\u00e3o; devolve true se ficou selecionado
+      const selContratante = async (modo) => {
+        const suf = tipo + (modo === "nome" ? "Nome" : "");
+        const rad = await espera(() => q("#contratante0_Contratante" + suf), 20000);
+        if (!rad) { window.__hgoDiag0 = "op\u00e7\u00e3o do contratante n\u00e3o apareceu"; return false }
+        clica(rad); await dorme(500);
+        if (!rad.checked) { rad.checked = true; dispara(rad, "click", "change"); await dorme(500) }
+        const c = await espera(() => { const x = q("#contratante0_CampoContratante" + suf); return x && x.offsetParent ? x : null }, 5000);
+        if (!c) { window.__hgoDiag0 = "campo de pesquisa do contratante n\u00e3o apareceu"; return false }
+        const termo = modo === "nome" ? String(D.nome).toUpperCase() : String(D.doc);
+        // digita em duas etapas: a lista de sugest\u00f5es guarda a busca anterior e n\u00e3o refaz a mesma
+        digita(c, ""); await dorme(200); digita(c, termo.slice(0, -1)); await dorme(500); digita(c, termo);
+        const lista = () => [...document.querySelectorAll("#as_" + c.id + " li a")].filter((x) => x.offsetParent);
+        const op = await espera(() => { if (selecionado()) return "ok"; const l = lista(); if (!l.length) return null; return modo === "nome" ? (l.find((x) => normC(x.textContent).includes(normC(D.nome))) || l[0]) : l[0] }, 10000);
+        if (op && op !== "ok") { op.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); op.onmouseover && op.onmouseover(); clica(op); await dorme(1500) }
+        const ok = !!(await espera(() => selecionado() ? 1 : null, 6000));
+        if (!ok) { const ul = q("#as_" + c.id); window.__hgoDiag0 = "pesquisa por " + (modo === "nome" ? "nome" : "CPF/CNPJ") + " sem resultado (" + (ul ? normC(ul.textContent).slice(0, 80) || "lista vazia" : "sem lista") + ")" }
+        return ok;
+      };
+      const aproveita = async () => { const p = await espera(() => q("#proprietario0_AproveitaDados"), 5000); if (p && !p.checked) { clica(p); await dorme(800) } log("\u2713 Propriet\u00e1rio: aproveita dados do contratante") };
+      let ok = selecionado() || await selContratante("doc");
+      if (ok) log("\u2713 Contratante encontrado");
+      else {
         log("Contratante n\u00e3o cadastrado: cadastrando " + D.nome + "\u2026");
-        const ok = await cadastraContratante(D, tipo);
-        if (ok) {
-          // pesquisa de novo o CPF/CNPJ j\u00e1 cadastrado
-          const c = q("#contratante0_CampoContratante" + tipo);
-          if (c) {
-            digita(c, ""); await dorme(300); digita(c, D.doc);
-            const op = await espera(() => [...document.querySelectorAll("#as_" + c.id + " li a")].find((x) => x.offsetParent), 8000);
-            if (op) { op.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); op.onmouseover && op.onmouseover(); clica(op); await dorme(1500) }
-          }
-          if (await espera(() => /Nome:/i.test(res()), 6000)) {
-            log("\u2713 Contratante cadastrado e selecionado");
-            clica(q("#proprietario0_AproveitaDados")); await dorme(800);
-            log("\u2713 Propriet\u00e1rio: aproveita dados do contratante");
-          } else avisos.push("Contratante cadastrado, mas n\u00e3o ficou selecionado: digite o CPF " + D.doc + " no campo do contratante e clique no nome; depois marque \"Aproveita Dados do Contratante\"");
+        if (await cadastraContratante(D, tipo)) {
+          await dorme(1500);
+          ok = selecionado() || await selContratante("doc") || await selContratante("nome") || await selContratante("doc");
+          if (ok) log("\u2713 Contratante cadastrado e selecionado");
+          else avisos.push("Contratante cadastrado, mas n\u00e3o ficou selecionado (" + (window.__hgoDiag0 || "") + "): marque \"Contratante Pessoa F\u00edsica\", digite o CPF " + D.doc + " e clique no nome");
         } else avisos.push("N\u00e3o consegui cadastrar o contratante " + D.doc + " sozinho (" + (window.__hgoErroCad || "janela n\u00e3o abriu") + ")");
       }
+      if (ok) await aproveita();
       txtSet("CONTRATO_DATAINICIO0", D.inicio); txtSet("CONTRATO_DATAFIM0", D.fim); txtSet("CONTRATO_VALOR0", D.valor);
       log("\u2713 In\u00edcio " + D.inicio + " \u00b7 t\u00e9rmino " + D.fim + " \u00b7 valor R$ " + D.valor);
 
