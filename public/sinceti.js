@@ -101,7 +101,6 @@
     const d2 = docAgora();
     const avisosForm = d2 ? [...d2.querySelectorAll(".formError,.formErrorContent,.erro,.error,.msgErro")].filter(vis).map((e) => (e.textContent || "").trim()).filter(Boolean) : [];
     if (!okTxt()) {
-      try { fetch("https://homologa-go.vercel.app/api/diag", { method: "POST", mode: "cors", headers: { "content-type": "text/plain" }, body: "SINCETI cadastro contratante | alerta: " + alerta + " | avisos: " + avisosForm.join(" / ") + "\n" + ((d2 && d2.body && d2.body.innerHTML) || "").replace(/<script[\s\S]*?<\/script>/gi, "").replace(/\s+/g, " ").slice(0, 50000) }).catch(() => {}) } catch (e) {}
       window.__hgoErroCad = "o SINCETI n\u00e3o confirmou o cadastro" + (alerta ? ": " + alerta.slice(0, 120) : "") + (avisosForm.length ? " (" + avisosForm.slice(0, 3).join("; ") + ")" : "") + ". O quadro do cadastro ficou aberto: confira, corrija e clique em Cadastrar nele";
       return false;
     }

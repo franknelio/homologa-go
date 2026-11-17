@@ -70,10 +70,6 @@ async function registrosDaMarca(marca, limite) {
 }
 
 export default async function handler(req, res) {
-  // diagnóstico público do PDF (dados públicos do INMETRO; não devolve o arquivo)
-  if (req.query.diag && /^\d{6}\/\d{4}$/.test(String(req.query.diag))) {
-    try { const b = await pdfRegistro(String(req.query.diag)); return res.status(200).json({ ok: true, bytes: b.length }) } catch (e) { return res.status(200).json({ ok: false, erro: String(e.message || e) }) }
-  }
   if (!(await usuarioLogado(req.headers.authorization))) return res.status(401).json({ error: "entre na sua conta para consultar o INMETRO" });
   if (req.query.pdf) {
     const reg = String(req.query.pdf).match(/^\d{6}\/\d{4}$/)?.[0];
