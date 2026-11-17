@@ -523,7 +523,40 @@ function checks(c){
   if(P._equipEst) add("warn","Especificações elétricas do módulo e do inversor estimadas pela potência. Confira com o datasheet em “Módulos” e “Inversor” e informe marca, modelo e registro INMETRO.");
   if(P._coordAprox) add("warn","Coordenadas aproximadas pelo endereço. Confira no Google Maps antes de protocolar.");
   if(!n(P.carga)&&!String(P.cargas||"").trim()&&cargaInst()) add("ok",`Levantamento de carga gerado automaticamente com eletrodomésticos e eletrônicos: ${fmt(cargaInst())} kW (35% abaixo da potência do inversor).`);
+  for(const x of conferenciaCruzada(c))if(!r.some(y=>y[1]===x[1]))r.push(x);
   if(P._disjPadrao) add("warn",`Disjuntor de entrada calculado pela corrente do inversor: ${P.disj} A (a conta não informa). Confirme no padrão.`);
+  return r;
+}
+
+/* ---------------- conferência entre documentos ---------------- */
+// o que diverge entre formulário, memorial, unifilar, blocos, TRT e INMETRO; "bad" bloqueia o Gerar todos
+function conferenciaCruzada(c){
+  const r=[];const add=(s,t)=>r.push([s,t]);const dg=x=>String(x||"").replace(/\D/g,"");const perto=(a,b)=>Math.abs(a-b)<0.006;
+  if(!c.pinst)return r;
+  // ligação da UC x inversor
+  if(String(P.iFases||"").startsWith("Trif")&&P.ligacao!=="Trifásico")add("bad",`Inversor trifásico 380 V numa UC ${({Monofásico:"monofásica",Bifásico:"bifásica"})[P.ligacao]||"sem ligação definida"}: o formulário e o unifilar ficam incoerentes. Corrija o tipo de ligação ou o inversor.`);
+  // disjuntor: o mesmo no padrão de entrada (formulário/unifilar) e na proteção CA da geração (memorial/blocos)
+  if(n(P.disj)&&c.disjCA!==n(P.disj))add("bad",`Disjuntor diferente entre os documentos: padrão de entrada ${P.disj} A (formulário e unifilar) e proteção CA da geração ${c.disjCA} A (memorial, unifilar e blocos). Use ${c.disjCA} A no disjuntor de entrada ou revise o padrão.`);
+  if(!n(P.disj))add("bad","Disjuntor de entrada vazio: formulário, memorial e unifilar ficariam sem o valor.");
+  // dados do titular e da UC que aparecem em todos os documentos
+  const falta=[["nome","nome do titular"],["doc","CPF/CNPJ"],["uc","UC / conta contrato"],["end","endereço"],["cidade","cidade"]].filter(([k])=>!String(P[k]||"").trim()).map(([,t])=>t);
+  if(falta.length)add("bad","Faltam no projeto (saem em branco nos documentos): "+falta.join(", ")+".");
+  if(P.nome&&!P._conferido)add("warn","Dados lidos dos documentos ainda não conferidos (nome, CPF, UC, ligação, disjuntor).");
+  // TRT x projeto
+  if(!artArq)add("warn","TRT/ART não anexada: não deu para conferir CPF e potência com o formulário.");
+  else if(trtInfo&&trtInfo.ok&&trtInfo.texto){
+    const cpf=dg(P.doc);
+    if(cpf&&!trtInfo.dig.includes(cpf))add("bad",`A TRT anexada não tem o CPF/CNPJ ${P.doc} do titular. Pode ser a TRT de outro cliente.`);
+    const k=trtInfo.kws;
+    if(k.length){
+      if(k.some(x=>perto(x,c.pca)))add("ok",`TRT com ${fmt(c.pca,3)} kW, igual à potência dos inversores no formulário.`);
+      else if(k.some(x=>perto(x,c.pcc)))add("bad",`A TRT usa a potência dos módulos (${fmt(c.pcc,3)} kWp), mas o formulário usa a dos inversores (${fmt(c.pca,3)} kW). Foi o motivo da reprova de 03/11: emita a TRT com ${fmt(c.pca,3)}.`);
+      else add("bad",`A potência da TRT (${k.map(x=>fmt(x,3)).join(", ")}) não bate com a dos inversores no formulário (${fmt(c.pca,3)} kW).`);
+    }else add("warn","Não achei a potência no texto da TRT anexada; confira se é "+fmt(c.pca,3)+" kW.");
+    if(P.rtArt&&!trtInfo.dig.includes(dg(P.rtArt)))add("warn",`O número da ART/TRT do projeto (${esc(P.rtArt)}) não aparece no PDF anexado.`);
+  }else if(trtInfo&&trtInfo.ok&&!trtInfo.texto)add("warn","A TRT anexada é imagem (sem texto): confira CPF e potência à mão.");
+  // INMETRO: relatório de ensaio do inversor é obrigatório no portal
+  if(!P.iReg)add("bad","Sem registro INMETRO do inversor: o portal exige o relatório de ensaio.");
   return r;
 }
 
@@ -1504,7 +1537,10 @@ if(/[?&]ponte=1/.test(location.search))setTimeout(()=>{
 $("#bPasta").addEventListener("click",()=>escolherPasta().catch(e=>{if(e.name!=="AbortError")toast("Não foi possível usar a pasta: "+e.message)}));
 
 $("#bAll").addEventListener("click",async()=>{
-  if(P.nome&&!P._conferido&&!confirm(`Os dados de ${P.nome} (nome, CPF, UC, ligação e disjuntor) ainda não foram conferidos com os documentos.\n\nOK = gerar mesmo assim\nCancelar = vou conferir antes`))return;
+  {const cc=conferenciaCruzada(calc()),ruins=cc.filter(x=>x[0]==="bad"),av=cc.filter(x=>x[0]==="warn");
+   const lim=t=>"• "+String(t).replace(/<[^>]+>/g,"");
+   if(ruins.length&&!confirm(`Os documentos de ${P.nome||"este projeto"} têm ${ruins.length} divergência(s) que costumam reprovar:\n\n${ruins.map(x=>lim(x[1])).join("\n")}\n\nOK = gerar mesmo assim (não recomendado)\nCancelar = corrigir antes`))return;
+   if(!ruins.length&&av.length&&!confirm(`Antes de gerar, confira:\n\n${av.map(x=>lim(x[1])).join("\n")}\n\nOK = gerar\nCancelar = conferir antes`))return;}
   const b=$("#bAll");b.disabled=true;const c=calc();
   const salvos=[],erros=[],pendentes=[];
   try{
@@ -1877,8 +1913,21 @@ let artArq=null; // {nome, buf}
 function kv(op,k,v){return new Promise((ok,erro)=>{const r=indexedDB.open("hgo-arq",1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");
   r.onerror=()=>erro(r.error);r.onsuccess=()=>{try{const t=r.result.transaction("kv",op==="get"?"readonly":"readwrite").objectStore("kv");
   const q=op==="get"?t.get(k):t.put(v,k);q.onsuccess=()=>ok(q.result);q.onerror=()=>erro(q.error)}catch(e){erro(e)}}})}
-async function guardarArt(f){artArq={nome:f.name,tipo:"application/pdf",buf:await f.arrayBuffer()};if(P._id){kv("put","art:"+P._id,artArq).catch(()=>{});anexoPut(P._id,"art",artArq).catch(()=>{})}}
-async function carregarArt(){artArq=null;if(P._id)artArq=await kv("get","art:"+P._id).catch(()=>null)||await anexoGet(P._id,"art","ART_TRT.pdf").catch(()=>null)||null}
+async function guardarArt(f){artArq={nome:f.name,tipo:"application/pdf",buf:await f.arrayBuffer()};analisarTRT();if(P._id){kv("put","art:"+P._id,artArq).catch(()=>{});anexoPut(P._id,"art",artArq).catch(()=>{})}}
+async function carregarArt(){artArq=null;trtInfo=null;if(P._id)artArq=await kv("get","art:"+P._id).catch(()=>null)||await anexoGet(P._id,"art","ART_TRT.pdf").catch(()=>null)||null;analisarTRT()}
+// lê o texto da TRT anexada (PDF do SINCETI) para conferir com o projeto: CPF do contratante e potência (kW)
+let trtInfo=null;
+async function analisarTRT(){
+  trtInfo=null;if(!artArq||!artArq.buf||!window.pdfjsLib){render();return}
+  try{const pdf=await pdfjsLib.getDocument({data:new Uint8Array(artArq.buf.slice(0))}).promise;let t="";
+    for(let i=1;i<=Math.min(pdf.numPages,4);i++){const tc=await (await pdf.getPage(i)).getTextContent();t+=" "+tc.items.map(x=>x.str).join(" ")}
+    const dig=t.replace(/\D/g,"");
+    const kws=[...t.matchAll(/(\d{1,4}(?:[.,]\d{1,3})?)\s*(?:kWp|kW|KWP|KW)\b/g)].map(m=>parseFloat(m[1].replace(",",".")));
+    const qtd=[...t.matchAll(/Quantidade[^\d]{0,40}(\d{1,4}[.,]\d{1,3})/gi)].map(m=>+m[1].replace(",","."));
+    trtInfo={ok:true,texto:t.length>50,dig,kws:[...new Set([...kws,...qtd])].filter(x=>x>0&&x<10000)};
+  }catch(e){trtInfo={ok:false,erro:e.message}}
+  render();
+}
 function carregarScript(src){return new Promise((ok,erro)=>{if(document.querySelector(`script[src="${src}"]`))return ok();const e=document.createElement("script");e.src=src;e.onload=ok;e.onerror=()=>erro(new Error("não carregou "+src));document.head.appendChild(e)})}
 // procura no PDF onde assinar: o nome do RT e o do cliente (ou os rótulos "Assinatura do profissional/contratante")
 async function locaisAssinatura(buf){
