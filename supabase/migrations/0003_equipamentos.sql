@@ -8,7 +8,4 @@ create table if not exists public.equipamentos (
   primary key (user_id, tipo, chave)
 );
 alter table public.equipamentos enable row level security;
-create policy "equipamentos ver os proprios" on public.equipamentos for select to authenticated using (user_id = (select auth.uid()));
-create policy "equipamentos criar os proprios" on public.equipamentos for insert to authenticated with check (user_id = (select auth.uid()));
-create policy "equipamentos alterar os proprios" on public.equipamentos for update to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
-create policy "equipamentos excluir os proprios" on public.equipamentos for delete to authenticated using (user_id = (select auth.uid()));
+create policy "equipamentos proprios" on public.equipamentos for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
