@@ -1,16 +1,10 @@
 "use strict";
-/* ---------------- acompanhamento: situação do projeto e pareceres de reprova ---------------- */
-// SITUACOES fica em 01-dados.js (usado pelo formulário)
-function corSituacao(s){return /Aprovad|Conclu/.test(s||"")?"ok":/Reprovad/.test(s||"")?"bad":/Protocolad|Vistoria|TRT/.test(s||"")?"warn":""}
-// guarda quando a situação muda (histórico para prazos e para o painel)
-function registraSituacao(){const s=P.situacao||"Em preparo",h=P._hist||[];if(!h.length||h[h.length-1].s!==s){P._hist=[...h,{s,em:new Date().toISOString()}].slice(-30)}}
-document.addEventListener("change",e=>{if(e.target.closest("#form")&&e.target.dataset.k==="situacao"){registraSituacao();store("hgo_current",P);render()}});
-
+/* ---------------- parecer de reprova: motivos e correções (o acompanhamento do protocolo fica no CRM) ---------------- */
 function htmlReprovas(){
   const L=P.reprovas||[];
   return `<div class="inm"><label class="btn">Ler parecer de reprova (PDF, foto ou print do e-mail)<input type="file" id="repFile" multiple accept="application/pdf,.pdf,image/*" hidden></label><span id="repSt"></span></div>
   <textarea id="repTxt" placeholder="Ou cole aqui o texto do e-mail da Equatorial e toque em Ler texto"></textarea><div class="inm"><button class="btn" type="button" id="bRepTxt">Ler texto</button></div>
-  ${L.length?`<div class="replist">${L.slice().reverse().map(r=>`<div class="chk bad"><b>✕</b><span><b>Reprova ${esc(r.data||new Date(r.em).toLocaleDateString("pt-BR"))}${r.protocolo?` · protocolo ${esc(r.protocolo)}`:""}</b>${r.itens.map(i=>`<br>${i.doc?`<b>${esc(i.doc)}:</b> `:""}${esc(i.motivo)}${i.corr?` <i>→ ${esc(i.corr)}</i>`:""}`).join("")}</span></div>`).join("")}</div>`:""}`;
+  ${L.length&&!L[L.length-1].resolvida?`<div class="inm"><button class="btn" type="button" id="bRepOk">Já fiz as correções</button></div>`:""}${L.length?`<div class="replist">${L.slice().reverse().map(r=>`<div class="chk ${r.resolvida?"ok":"bad"}"><b>${r.resolvida?"✓":"✕"}</b><span><b>Reprova ${esc(r.data||new Date(r.em).toLocaleDateString("pt-BR"))}${r.protocolo?` · protocolo ${esc(r.protocolo)}`:""}</b>${r.itens.map(i=>`<br>${i.doc?`<b>${esc(i.doc)}:</b> `:""}${esc(i.motivo)}${i.corr?` <i>→ ${esc(i.corr)}</i>`:""}`).join("")}</span></div>`).join("")}</div>`:""}`;
 }
 function lerItensReprova(txt){return String(txt||"").split(/\n+/).map(l=>l.split("|").map(x=>x.trim())).filter(p=>p.join("").length>3).map(p=>p.length>=3?{doc:p[0],motivo:p[1],corr:p.slice(2).join(" | ")}:p.length===2?{doc:p[0],motivo:p[1],corr:""}:{doc:"",motivo:p[0],corr:""})}
 async function lerReprova({files=[],texto=""}){
@@ -23,19 +17,18 @@ async function lerReprova({files=[],texto=""}){
     const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||"erro "+r.status);
     const d=j.dados||{},itens=lerItensReprova(d.motivos);
     if(!itens.length)throw new Error("não achei motivos de reprova nesse arquivo");
-    P.reprovas=[...(P.reprovas||[]),{em:new Date().toISOString(),data:d.data||"",protocolo:d.protocolo||"",itens}];
-    if(d.protocolo&&!P.protocolo)P.protocolo=d.protocolo;
-    P.situacao="Reprovado";registraSituacao();
+    P.reprovas=[...(P.reprovas||[]),{em:new Date().toISOString(),data:d.data||"",protocolo:d.protocolo||"",itens,resolvida:false}];
     store("hgo_current",P);buildFormFresh();render();
     const sec=document.querySelector('details[data-s="acomp"]');if(sec)sec.open=true;
-    toast(`${itens.length} motivo(s) de reprova lidos; veja a correção de cada um em Acompanhamento`);
+    toast(`${itens.length} motivo(s) de reprova lidos; veja a correção de cada um na seção do parecer`);
   }catch(e){st("Não consegui ler: "+e.message)}
 }
 document.addEventListener("change",e=>{if(e.target.id==="repFile"&&e.target.files.length)lerReprova({files:[...e.target.files]})});
+document.addEventListener("click",e=>{if(e.target.id==="bRepOk"){const L=P.reprovas||[];if(L.length){L[L.length-1].resolvida=true;store("hgo_current",P);buildFormFresh();render();const sec=document.querySelector('details[data-s="acomp"]');if(sec)sec.open=true}}});
 document.addEventListener("click",e=>{if(e.target.id==="bRepTxt"){const t=($("#repTxt")||{}).value||"";if(t.trim())lerReprova({texto:t.slice(0,20000)})}});
-// a última reprova aparece no checklist até o projeto ser protocolado de novo
+// a última reprova aparece no checklist até você marcar "Já fiz as correções"
 function avisosReprova(){
-  const L=P.reprovas||[];if(P.situacao!=="Reprovado"||!L.length)return [];
+  const L=P.reprovas||[];if(!L.length||L[L.length-1].resolvida)return [];
   const r=L[L.length-1];return r.itens.map(i=>["warn",`Reprova ${esc(r.data||"")}: ${i.doc?esc(i.doc)+" — ":""}${esc(i.motivo)}${i.corr?` → ${esc(i.corr)}`:""}`]);
 }
 

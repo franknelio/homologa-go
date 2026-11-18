@@ -1,6 +1,5 @@
 "use strict";
 /* ---------------- Esquema do formulário ---------------- */
-const SITUACOES=["Em preparo","TRT emitida","Protocolado","Reprovado","Aprovado","Vistoria","Concluído"];
 const SECTIONS = [
  {id:"cli", t:"Titular e unidade consumidora", f:[
   ["nome","Nome do titular da UC","text","full"],["doc","CPF / CNPJ"],["rg","RG / Inscrição estadual"],
@@ -46,9 +45,8 @@ const SECTIONS = [
  {id:"ben", t:"Beneficiárias e anexos", f:[
   ["benef","UCs do rateio","area","full","Uma por linha: UC ; titular ; endereço ; % ; consumo médio kWh. Use os botões abaixo para ler as contas e calcular os %."],
   ["planta","Imagem de satélite para a planta","file","full","Print do Google Earth/Maps com o telhado e o padrão"]]},
- {id:"acomp", t:"Acompanhamento na Equatorial", f:[
-  ["situacao","Situação do projeto","sel",SITUACOES],["protocolo","Nº do protocolo"],["dataProt","Data do protocolo","date"],
-  ["reprovas","Pareceres de reprova","reprova","full"]]}
+ {id:"acomp", t:"Parecer de reprova da Equatorial", f:[
+  ["reprovas","Motivos da reprova e correções (o acompanhamento do protocolo fica no CRM)","reprova","full"]]}
 ];
 
 const EXAMPLE = {

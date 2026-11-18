@@ -1,4 +1,4 @@
-// Etapa 6: situação do projeto, parecer de reprova lido por IA (resposta simulada), biblioteca de equipamentos e busca.
+// Etapa 6: parecer de reprova lido por IA (resposta simulada), biblioteca de equipamentos e busca.
 import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
@@ -17,19 +17,19 @@ before(async () => {
 });
 after(async () => { await nav?.close(); srv?.fechar() });
 
-test("parecer de reprova vira motivos com correção e a situação muda para Reprovado", async () => {
+test("parecer de reprova vira motivos com correção e aparece no checklist", async () => {
   const r = await pag.evaluate(async () => {
     P = { ...BLANK, nome: "CLIENTE R", mP: 620, mQ: 20, iP: 10, iQ: 1, disj: 63 };
     await lerReprova({ texto: "Prezado, sua solicitação foi reprovada..." });
-    return { sit: P.situacao, prot: P.protocolo, itens: P.reprovas[0].itens, checks: checks(calc()).filter(([, t]) => /^Reprova/.test(t)).length, hist: P._hist.map((h) => h.s) };
+    return { prot: P.reprovas[0].protocolo, itens: P.reprovas[0].itens, checks: checks(calc()).filter(([, t]) => /^Reprova/.test(t)).length, situacao: "situacao" in P };
   });
-  assert.equal(r.sit, "Reprovado"); assert.equal(r.prot, "2026/123456");
+  assert.equal(r.prot, "2026/123456"); assert.equal(r.situacao, false);
   assert.deepEqual(r.itens[1], { doc: "Diagrama unifilar", motivo: "Falta o quadro do inversor", corr: "Incluir o quadro de proteção CA" });
-  assert.equal(r.checks, 2); assert.deepEqual(r.hist, ["Reprovado"]);
+  assert.equal(r.checks, 2);
 });
 
-test("protocolado de novo: os avisos da reprova saem do checklist", async () => {
-  const n = await pag.evaluate(() => { P.situacao = "Protocolado"; return checks(calc()).filter(([, t]) => /^Reprova/.test(t)).length });
+test("depois de marcar as correções feitas, os avisos saem do checklist", async () => {
+  const n = await pag.evaluate(() => { document.querySelector("#bRepOk").click(); return checks(calc()).filter(([, t]) => /^Reprova/.test(t)).length });
   assert.equal(n, 0);
 });
 
@@ -45,7 +45,7 @@ test("biblioteca guarda o equipamento e preenche o próximo projeto pelo modelo"
   assert.deepEqual(r, [true, true, 48.2, "Registro INMETRO nº 012345/2025", 12, 1000, "Trifásico", 1]);
 });
 
-test("lista de projetos busca por nome, UC e CPF e filtra por situação", async () => {
+test("lista de projetos busca por nome, UC e CPF", async () => {
   const r = await pag.evaluate(async () => {
     store("hgo_projects", {
       a: { _id: "a", nome: "JOSE DA SILVA", uc: "1000111", doc: "529.982.247-25", situacao: "Aprovado", _saved: "2026-11-01T00:00:00Z" },
@@ -56,8 +56,7 @@ test("lista de projetos busca por nome, UC e CPF e filtra por situação", async
     const todos = nomes();
     document.querySelector("#pbusca").value = "52998"; await listarProjetos(); const cpf = nomes();
     document.querySelector("#pbusca").value = "2000222"; await listarProjetos(); const uc = nomes();
-    document.querySelector("#pbusca").value = ""; document.querySelector("#psit").value = "Reprovado"; await listarProjetos(); const sit = nomes();
-    return { todos, cpf, uc, sit };
+    return { todos, cpf, uc };
   });
-  assert.deepEqual(r, { todos: ["MARIA SOUZA", "JOSE DA SILVA"], cpf: ["JOSE DA SILVA"], uc: ["MARIA SOUZA"], sit: ["MARIA SOUZA"] });
+  assert.deepEqual(r, { todos: ["MARIA SOUZA", "JOSE DA SILVA"], cpf: ["JOSE DA SILVA"], uc: ["MARIA SOUZA"] });
 });

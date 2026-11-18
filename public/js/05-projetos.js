@@ -71,29 +71,28 @@ async function sincronizar(){
 window.addEventListener("online",sincronizar);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")sincronizar().catch(()=>{})});
 $("#bSave").addEventListener("click",()=>salvarProjeto(false));
-// lista de projetos com busca por nome, UC ou CPF e filtro por situação; na nuvem a busca vai além dos 200 mais recentes
+// lista de projetos com busca por nome, UC ou CPF; na nuvem a busca vai além dos 200 mais recentes
 let buscaT;
 async function openDrawer(){
   $("#drawer").hidden=false;
-  if(!$("#pbusca"))$("#plist").insertAdjacentHTML("beforebegin",`<div class="pbusca"><input id="pbusca" type="search" placeholder="Buscar por nome, UC ou CPF" autocomplete="off"><select id="psit"><option value="">Todas as situações</option>${SITUACOES.map(s=>`<option>${esc(s)}</option>`).join("")}</select></div>`);
+  if(!$("#pbusca"))$("#plist").insertAdjacentHTML("beforebegin",`<div class="pbusca"><input id="pbusca" type="search" placeholder="Buscar por nome, UC ou CPF" autocomplete="off"></div>`);
   await listarProjetos();
 }
 async function listarProjetos(){
-  const q=($("#pbusca")||{}).value?.trim()||"",fs=($("#psit")||{}).value||"",dg=x=>String(x||"").replace(/\D/g,"");
+  const q=($("#pbusca")||{}).value?.trim()||"",dg=x=>String(x||"").replace(/\D/g,"");
   $("#plist").innerHTML=`<p class="note">Carregando…</p>`;
   const all=projects();
   if(sb&&sessao&&navigator.onLine){
-    let qb=sb.from("projetos").select("id,nome,uc,atualizado_em,situacao:dados->>situacao,doc:dados->>doc").order("atualizado_em",{ascending:false});
+    let qb=sb.from("projetos").select("id,nome,uc,atualizado_em,doc:dados->>doc").order("atualizado_em",{ascending:false});
     if(q){const t=q.replace(/[%,()*]/g," ").trim();qb=qb.or(`nome.ilike.%${t}%,uc.ilike.%${t}%`)}
     const {data,error}=await qb.limit(q?100:300);
-    if(!error)for(const r of data){if(excluidos().includes(r.id))continue;if(!all[r.id]||(all[r.id]._saved||"")<r.atualizado_em)all[r.id]={...(all[r.id]||{}),_id:r.id,nome:r.nome,uc:r.uc,situacao:r.situacao,doc:r.doc,_saved:r.atualizado_em,_soNuvem:!all[r.id]||(all[r.id]._saved||"")<r.atualizado_em}}
+    if(!error)for(const r of data){if(excluidos().includes(r.id))continue;if(!all[r.id]||(all[r.id]._saved||"")<r.atualizado_em)all[r.id]={...(all[r.id]||{}),_id:r.id,nome:r.nome,uc:r.uc,doc:r.doc,_saved:r.atualizado_em,_soNuvem:!all[r.id]||(all[r.id]._saved||"")<r.atualizado_em}}
   }
-  const bate=x=>{if(fs&&(x.situacao||"Em preparo")!==fs)return false;if(!q)return true;const t=q.toUpperCase();return String(x.nome||"").toUpperCase().includes(t)||(dg(q).length>=3&&(dg(x.uc).includes(dg(q))||dg(x.doc).includes(dg(q))))||String(x.uc||"").includes(q)};
+  const bate=x=>{if(!q)return true;const t=q.toUpperCase();return String(x.nome||"").toUpperCase().includes(t)||(dg(q).length>=3&&(dg(x.uc).includes(dg(q))||dg(x.doc).includes(dg(q))))||String(x.uc||"").includes(q)};
   const ids=Object.keys(all).filter(id=>bate(all[id])).sort((a,b)=>(all[b]._saved||"").localeCompare(all[a]._saved||""));
-  $("#plist").innerHTML=ids.length?ids.map(id=>{const x=all[id],s=x.situacao||"Em preparo";return `<div class="pitem"><div><b>${esc(x.nome||"Sem titular")}</b><small><span class="sit ${corSituacao(s)}">${esc(s)}</span> UC ${esc(x.uc||"—")} · ${x._saved?new Date(x._saved).toLocaleString("pt-BR"):""}${x._pendente?" · aguardando envio":""}</small></div><button class="btn" type="button" data-open="${id}">Abrir</button><button class="btn" type="button" data-del="${id}" aria-label="Excluir">Excluir</button></div>`}).join(""):`<p class="note">${q||fs?"Nenhum projeto encontrado.":"Nenhum projeto salvo ainda."}</p>`;
+  $("#plist").innerHTML=ids.length?ids.map(id=>{const x=all[id];return `<div class="pitem"><div><b>${esc(x.nome||"Sem titular")}</b><small>UC ${esc(x.uc||"—")} · ${x._saved?new Date(x._saved).toLocaleString("pt-BR"):""}${x._pendente?" · aguardando envio":""}</small></div><button class="btn" type="button" data-open="${id}">Abrir</button><button class="btn" type="button" data-del="${id}" aria-label="Excluir">Excluir</button></div>`}).join(""):`<p class="note">${q?"Nenhum projeto encontrado.":"Nenhum projeto salvo ainda."}</p>`;
 }
 document.addEventListener("input",e=>{if(e.target.id==="pbusca"){clearTimeout(buscaT);buscaT=setTimeout(listarProjetos,350)}});
-document.addEventListener("change",e=>{if(e.target.id==="psit")listarProjetos()});
 $("#bProjects").addEventListener("click",openDrawer);
 $("#bClose").addEventListener("click",()=>$("#drawer").hidden=true);
 $("#drawer").addEventListener("click",async e=>{
