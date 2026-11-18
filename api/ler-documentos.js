@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { dentroDoLimite } from "./_uso.js";
 
 // Lê fotos de RG/CNH, CPF/CNPJ e conta de energia e devolve os campos do projeto.
 // Variáveis de ambiente: ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY e
@@ -79,6 +80,8 @@ export default async function handler(req, res) {
   if (!(await usuarioLogado(req.headers.authorization))) {
     return res.status(401).json({ error: "seu usuário não tem permissão para a leitura automática" });
   }
+  const uso = await dentroDoLimite(req.headers.authorization);
+  if (!uso.ok) return res.status(429).json({ error: `limite de ${uso.limite} leituras automáticas por dia atingido; amanhã libera de novo` });
   const images = Array.isArray(req.body?.images) ? req.body.images.slice(0, 5) : [];
   const tipo = ["identidade", "fatura", "material"].includes(req.body?.tipo) ? req.body.tipo : "";
   const texto = String(req.body?.texto || "").slice(0, 20000);

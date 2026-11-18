@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { dentroDoLimite } from "./_uso.js";
 
 // Lê páginas do datasheet (PDF convertido em imagens no navegador) de um módulo ou inversor
 // e devolve as especificações elétricas e mecânicas usadas nos documentos.
@@ -71,6 +72,8 @@ export default async function handler(req, res) {
   if (!(await usuarioLogado(req.headers.authorization))) {
     return res.status(401).json({ error: "seu usuário não tem permissão para a leitura automática" });
   }
+  const uso = await dentroDoLimite(req.headers.authorization);
+  if (!uso.ok) return res.status(429).json({ error: `limite de ${uso.limite} leituras automáticas por dia atingido; amanhã libera de novo` });
   const tipo = ["inversor", "art"].includes(req.body?.tipo) ? req.body.tipo : "modulo";
   const campos = CAMPOS[tipo];
   const images = Array.isArray(req.body?.images) ? req.body.images.slice(0, 4) : [];
