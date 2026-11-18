@@ -20,11 +20,13 @@ test("funções da pasta api compilam", () => {
   }
 });
 
-test("scripts do index.html compilam", () => {
+test("scripts do app compilam juntos (sem nome declarado duas vezes)", () => {
   const html = ler("public/index.html");
-  const blocos = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
-  assert.ok(blocos.length > 0);
-  assert.doesNotThrow(() => checa(blocos.join("\n;\n")));
+  const inline = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  const arquivos = [...html.matchAll(/<script src="(js\/[^"]+)"><\/script>/g)].map((m) => m[1]);
+  assert.ok(arquivos.length > 0);
+  for (const f of arquivos) assert.ok(ler("public/sw.js").includes(`"${f}"`), `${f} fora do cache do service worker`);
+  assert.doesNotThrow(() => checa([...arquivos.map((f) => ler("public/" + f)), ...inline].join("\n;\n")));
 });
 
 for (const fav of ["public/sinceti.js", "public/equatorial.js"]) {
