@@ -107,3 +107,12 @@ test("coordenadas coladas em Localização corrigem lat/lon aproximadas e diverg
   });
   assert.deepEqual(r, [true, true, -17.425678, -49.668111, false, false]);
 });
+
+test("potência dos módulos sai igual (2 casas) em formulário, memorial e unifilar", async () => {
+  const r = await pag.evaluate(() => {
+    P = { ...BLANK, nome: "X", mP: 620, mQ: 28, iP: 15, iQ: 1, iFases: "Trifásico 380/220 V", ligacao: "Trifásico", disj: 40, nStr: 2, mPorStr: 14 };
+    const c = calc(), txt = (id) => { const d = document.createElement("div"); d.innerHTML = BUILD[id](c).join(" "); return d.textContent };
+    return ["form", "memo", "unif"].map((id) => [id, txt(id).includes("17,36"), /17,4\s?kWp/.test(txt(id))]);
+  });
+  for (const [id, tem, arred] of r) { assert.ok(tem, `${id} sem 17,36`); assert.ok(!arred, `${id} com 17,4 kWp`) }
+});

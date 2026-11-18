@@ -227,7 +227,7 @@ function docMemoTec(c){
   // 8. gerador
   const dimM=n(P.mC)&&n(P.mL)?`${fmt(n(P.mC)*1000,0)} x ${fmt(n(P.mL)*1000,0)} mm`:"";
   const p8=pg(`<h4>6.1.&nbsp;&nbsp; Dimensionamento do gerador</h4>
-   <p>O gerador é formado por ${c.qtd} modulos da marca ${esc(UP(P.mFab))}, modelo ${esc(UP(P.mMod))} e potência de ${fmt(n(P.mP),0)} W, totalizando uma potência total de ${fmt(c.pcc,1)} kWp${regInm("m")?`, com registro INMETRO nº ${esc(regInm("m"))}`:""}. As informações do gerador são mostrados na tabela a seguir:</p>
+   <p>O gerador é formado por ${c.qtd} modulos da marca ${esc(UP(P.mFab))}, modelo ${esc(UP(P.mMod))} e potência de ${fmt(n(P.mP),0)} W, totalizando uma potência total de ${fmt(c.pcc,2)} kWp${regInm("m")?`, com registro INMETRO nº ${esc(regInm("m"))}`:""}. As informações do gerador são mostrados na tabela a seguir:</p>
    <div class="mds"><div class="mdsh">Características Elétricas · ${esc(UP(P.mFab))} ${esc(UP(P.mMod))}</div>
    ${tg([["Condição de Teste","STC"],["Potência Máxima (Pmax)",fmt(n(P.mP),0)+" W"],["Voltagem de Potência Máxima (Vmp)",fmt(n(P.mVmp))+" V"],["Corrente de Potência Máxima (Imp)",fmt(n(P.mImp))+" A"],["Voltagem de Circuito Aberto (Voc)",fmt(n(P.mVoc))+" V"],["Corrente de Curto-Circuito (Isc)",fmt(n(P.mIsc))+" A"],["Eficiência do Módulo (%)",fmt(n(P.mEff),1)+" %"],["Coeficiente de temperatura (Voc)",fmt(n(P.mBeta),2)+" %/°C"],["Tipo de células",esc(P.mTipo||"")],["Número de células",fmt(n(P.mCel),0)],["Dimensões",dimM],["Peso",fmt(n(P.mPeso),1)+" kg"],["Quantidade",c.qtd],["Potência total",fmt(c.pcc,2)+" kWp"],["Registro INMETRO",esc(regInm("m"))]])}
    <div class="mdsn">*STC: Irradiância 1000W/m², Temperatura da Célula 25°C, Massa de Ar 1,5</div></div>`);
@@ -331,7 +331,7 @@ function docForm(c){
    <div class="asg"><div><span>${esc(cidRT())}</span>Local</div><div><span>${dataBR()}</span>Data</div><div><span>${imgAssin("height:40px;margin-top:-30px;margin-bottom:-8px")}</span>Assinatura do Responsável</div></div></div></div>
   </div>${rodape}</div>`;
   const pe=x=>`<td class="pe">${x??""}</td>`,cz=x=>`<td class="cz">${x??""}</td>`;
-  const solar=Array.from({length:10},(_,i)=>i===0?`<tr><td>1</td>${pe(fmt(n(P.mP),0))}${pe(c.qtd)}${pe(fmt(c.pcc,1))}${pe(fmt(c.area))}${pe(esc(UP(P.mFab)))}${pe(esc(UP(P.mMod)))}</tr>`:`<tr><td>${i+1}</td>${pe()}${pe()}${pe(0)}${pe()}${pe()}${pe()}</tr>`).join("");
+  const solar=Array.from({length:10},(_,i)=>i===0?`<tr><td>1</td>${pe(fmt(n(P.mP),0))}${pe(c.qtd)}${pe(fmt(c.pcc,2))}${pe(fmt(c.area))}${pe(esc(UP(P.mFab)))}${pe(esc(UP(P.mMod)))}</tr>`:`<tr><td>${i+1}</td>${pe()}${pe()}${pe(0)}${pe()}${pe()}${pe()}</tr>`).join("");
   const iq=Math.max(1,n(P.iQ)),vInv=P.iFases.startsWith("Trif")?380:220,inom=Math.round(n(P.iIout)||c.iout);
   const invs=Array.from({length:30},(_,i)=>i<iq?`<tr><td>${i+1}</td>${pe(esc(UP(P.iFab)))}${pe(esc(UP(P.iMod)))}${pe(fmt(n(P.iP)))}${pe(vInv)}${pe(inom)}${pe(fmt(n(P.iFp)||1,n(P.iFp)%1?2:0))}${pe(fmt(n(P.iEff),1))}${pe("&lt; "+fmt(n(P.iDht)||3,0))}</tr>`:`<tr><td>${i+1}</td>${pe()}${pe()}${pe()}${pe()}${pe()}${pe()}${pe()}${pe()}</tr>`).join("");
   const p3=`<div class="sheet ax ug"><div class="afr">
@@ -676,7 +676,7 @@ function docPlanta(c){
     g+=`<rect x="${mx+230}" y="${my+130}" width="240" height="200" fill="#EFEDE6" stroke="#111" stroke-width="1.8"/>`+S.t(mx+350,my+318,"EDIFICAÇÃO",{fs:9,a:"middle",b:1});
     const cols=Math.min(10,Math.max(1,Math.ceil(Math.sqrt(c.qtd*2)))),rows=Math.ceil(c.qtd/cols)||1;const pw=Math.min(20,200/cols),ph=Math.min(30,120/rows);
     for(let i=0;i<c.qtd&&i<60;i++){const r=Math.floor(i/cols),cc=i%cols;g+=`<rect x="${mx+350-cols*pw/2+cc*pw}" y="${my+150+r*ph}" width="${pw-2}" height="${ph-2}" fill="#2B4A7A" stroke="#fff" stroke-width=".8"/>`}
-    g+=S.t(mx+350,my+150+rows*ph+14,`${c.qtd} módulos · ${fmt(c.area,1)} m²`,{fs:8.5,a:"middle"});
+    g+=S.t(mx+350,my+150+rows*ph+14,`${c.qtd} módulos · ${fmt(c.area)} m²`,{fs:8.5,a:"middle"});
     g+=`<rect x="${mx+250}" y="${my+440}" width="40" height="14" fill="#111"/>`+S.t(mx+300,my+451,"PADRÃO DE ENTRADA / MEDIÇÃO",{fs:8.5,b:1});
     g+=`<rect x="${mx+440}" y="${my+300}" width="16" height="22" fill="#E0A010" stroke="#111"/>`+S.t(mx+462,my+316,"INVERSOR",{fs:8.5,b:1});
     g+=`<circle cx="${mx+330}" cy="${my+mh-35}" r="6" fill="#fff" stroke="#111" stroke-width="1.4"/>`+S.t(mx+340,my+mh-14,"Poste da rede BT",{fs:8});
@@ -694,7 +694,7 @@ function docPlanta(c){
   g+=`<circle cx="${rx+160}" cy="${my+96}" r="7" fill="#C0392B" stroke="#fff" stroke-width="2"/>`+S.t(rx+172,my+92,`${fmt(n(P.lat),5)}`,{fs:8.5,b:1})+S.t(rx+172,my+104,`${fmt(n(P.lon),5)}`,{fs:8.5,b:1});
   g+=S.lines(rx+10,my+184,[`${esc(P.cidade||"")} – ${esc(P.uf||"")}`,`${esc(P.bairro||"")} · CEP ${esc(P.cep||"")}`,`Google Maps: ${fmt(n(P.lat),6).replace(",",".")}, ${fmt(n(P.lon),6).replace(",",".")}`],{fs:9,lh:14});
   g+=S.rect(rx,my+262,319,278,"#fff",1.2)+S.t(rx+8,my+278,"QUADRO DE INFORMAÇÕES",{fs:10,b:1});
-  const info=[["UC",P.uc],["Titular",P.nome],["Potência instalada",fmt(c.pinst)+" kW"],["Módulos",`${c.qtd} × ${P.mP||""} Wp`],["Área do arranjo",fmt(c.area,1)+" m²"],["Inversor",`${P.iFab||""} ${P.iMod||""}`],["Telhado",`${P.telhado||""} · ${P.orient||""} · ${P.incl||""}°`],["Local do inversor",P.locInv],["Padrão",`${P.padrao||""} · ${P.ramal||""}`]];
+  const info=[["UC",P.uc],["Titular",P.nome],["Potência instalada",fmt(c.pinst)+" kW"],["Módulos",`${c.qtd} × ${P.mP||""} Wp`],["Área do arranjo",fmt(c.area)+" m²"],["Inversor",`${P.iFab||""} ${P.iMod||""}`],["Telhado",`${P.telhado||""} · ${P.orient||""} · ${P.incl||""}°`],["Local do inversor",P.locInv],["Padrão",`${P.padrao||""} · ${P.ramal||""}`]];
   info.forEach((r,i)=>{g+=S.t(rx+8,my+300+i*25,esc(r[0]),{fs:8})+S.t(rx+8,my+312+i*25,esc(String(r[1]??"").slice(0,52)),{fs:9,b:1})});
   g+=carimbo(20,H-118,W-40,96,"Planta de situação e localização","01/01");
   return [`<div class="sheet land"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">${g}</svg></div>`];
