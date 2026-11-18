@@ -13,7 +13,7 @@ async function usuarioLogado(authorization) {
 const UA = { "user-agent": "HomologaGO/1.0 (homologa-go.vercel.app)", "accept-language": "pt-BR" };
 const ok = (lat, lon) => isFinite(lat) && isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 && (lat || lon);
 
-function coords(t) {
+export function coords(t) {
   t = decodeURIComponent(String(t)).replace(/\+/g, " ");
   // pino do Google Maps (!3d lat !4d lon), depois @lat,lon, depois "lat, lon" solto
   let m = t.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) || t.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || t.match(/(-?\d{1,2}[.,]\d{3,})\s*[,;\s]\s*(-?\d{1,3}[.,]\d{3,})/);

@@ -124,7 +124,7 @@ async function pdfRegistro1(reg) {
 // pontua o quanto um modelo registrado corresponde ao modelo procurado
 // 10 = igual (vale mesmo com potência diferente, pois o modelo foi escrito pelo usuário); 6 = mesma série com a mesma potência (ex. datasheet "HN19RN-72H600W-620" e registro "HN19RN-72H610W");
 // 5 = um contém o outro; 1 = só o começo do nome parecido (sugestão)
-function pontos(registrado, procurado, pot) {
+export function pontos(registrado, procurado, pot) {
   const n = norm(registrado), alvo = norm(procurado);
   if (n === alvo) return 10;
   const serie = alvo.replace(/\d{3,4}W?(\d{3,4}W?)?$/, "").replace(/\d{3,4}W.*$/, "");

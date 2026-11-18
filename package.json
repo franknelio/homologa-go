@@ -6,5 +6,8 @@
   "description": "Gera os documentos de homologação de micro e minigeração fotovoltaica para a Equatorial Goiás.",
   "dependencies": {
     "@anthropic-ai/sdk": "^1.0.0"
+  },
+  "scripts": {
+    "test": "node --test \"tests/*.test.mjs\""
   }
 }
