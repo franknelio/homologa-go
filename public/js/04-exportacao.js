@@ -32,7 +32,21 @@ async function saveFile(filename,data){
     toast("Arquivo salvo: "+filename);return true;
   }catch(e){toast("Não foi possível salvar ("+e.message+").");return false}
 }
-async function docPdfBlob(id,c){
+// letras que as fontes padrão do PDF (WinAnsi) desenham; fora disso a página sai como imagem para não perder símbolo
+const WINANSI=new Set([..."€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ"]);
+const TROCA_PDF={"≥":">=","≤":"<=","→":"->","←":"<-","⚠":"!","−":"-","≈":"~"};
+const textoVetorial=sv=>[...(sv.textContent||"")].every(ch=>ch.charCodeAt(0)<256||WINANSI.has(ch)||TROCA_PDF[ch]);
+// página que é só desenho (unifilar, blocos, planta): vai para o PDF como vetor, nítida em qualquer zoom e bem mais leve
+function soDesenho(sh){const sv=sh.firstElementChild;return sh.children.length===1&&sv&&sv.tagName.toLowerCase()==="svg"&&!sv.querySelector("foreignObject")&&textoVetorial(sv)}
+async function desenhoVetorial(pdf,sh,pw){
+  const sv=sh.firstElementChild,sr=sh.getBoundingClientRect(),vr=sv.getBoundingClientRect(),k=pw/sr.width;
+  const cl=sv.cloneNode(true);
+  const tw=document.createTreeWalker(cl,NodeFilter.SHOW_TEXT);for(let t;(t=tw.nextNode());)t.nodeValue=t.nodeValue.replace(/[≥≤→←⚠−≈]/g,ch=>TROCA_PDF[ch]);
+  // a fonte do texto vem do CSS da folha; o svg2pdf não lê CSS externo
+  if(!cl.getAttribute("font-family"))cl.setAttribute("font-family",/times|serif/i.test(getComputedStyle(sv).fontFamily)&&!/sans/i.test(getComputedStyle(sv).fontFamily)?"times":"helvetica");
+  await window.svg2pdf.svg2pdf(cl,pdf,{x:(vr.left-sr.left)*k,y:(vr.top-sr.top)*k,width:vr.width*k,height:vr.height*k});
+}
+async function docPdfBlob(id,c,{vetor=true}={}){
   const {jsPDF}=window.jspdf;
   const holder=document.createElement("div");holder.style.cssText="position:fixed;left:-20000px;top:0;";document.body.appendChild(holder);
   let pdf=null;
@@ -43,11 +57,14 @@ async function docPdfBlob(id,c){
       // prancha A0: desenha no tamanho real do desenho para sair nítida na impressão
       const big=sh.classList.contains("big");
       if(big){const sv=sh.querySelector("svg");const [,, vw,vh]=sv.getAttribute("viewBox").split(" ").map(Number);sh.style.width=vw+"px";sh.style.height=vh+"px";sv.setAttribute("width",vw);sv.setAttribute("height",vh)}
-      const canvas=await html2canvas(sh,{scale:big?2.6:2,backgroundColor:"#ffffff",useCORS:true,logging:false});
-      const img=canvas.toDataURL("image/jpeg",0.92);
       const fmtP=big?"a0":"a4",pw=big?1189:land?297:210,ph=big?841:land?210:297;
       if(!pdf)pdf=new jsPDF({orientation:land?"landscape":"portrait",unit:"mm",format:fmtP});else pdf.addPage(fmtP,land?"landscape":"portrait");
-      pdf.addImage(img,"JPEG",0,0,pw,ph);
+      if(vetor&&window.svg2pdf&&soDesenho(sh)){
+        try{await desenhoVetorial(pdf,sh,pw);continue}
+        catch(e){console.warn("PDF vetorial falhou, usando imagem",e);pdf.setFillColor(255,255,255);pdf.rect(0,0,pw,ph,"F")}
+      }
+      const canvas=await html2canvas(sh,{scale:big?2.6:2,backgroundColor:"#ffffff",useCORS:true,logging:false});
+      pdf.addImage(canvas.toDataURL("image/jpeg",0.92),"JPEG",0,0,pw,ph);
     }
   }finally{holder.remove()}
   return pdf.output("blob");

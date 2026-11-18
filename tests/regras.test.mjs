@@ -88,3 +88,12 @@ test("potência usada no formulário é a do inversor (pca), não a dos módulos
   const c = await pag.evaluate(() => { const c = calc(); return [c.pcc, c.pca, c.pinst] });
   assert.deepEqual(c, [12.4, 10, 10]);
 });
+
+test("unifilar, blocos e planta saem em PDF vetorial (texto de verdade, arquivo leve)", { timeout: 120000 }, async () => {
+  const r = await pag.evaluate(async () => {
+    const out = {};
+    for (const id of ["unif", "blocos", "planta"]) { const t = await (await docPdfBlob(id, calc())).text(); out[id] = [t.length, /DIAGRAMA|PLANTA|BLOCOS/.test(t)] }
+    return out;
+  }).catch((e) => ({ erro: e.message }));
+  for (const [id, [tam, temTexto]] of Object.entries(r)) { assert.ok(tam < 600000, `${id} com ${tam} bytes`); assert.ok(temTexto, `${id} sem texto`) }
+});

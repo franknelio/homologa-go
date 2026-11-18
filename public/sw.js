@@ -1,7 +1,7 @@
 // Guarda o app para abrir sem internet. A leitura de documentos (api/) sempre vai à rede.
-const CACHE = "homologago-v92";
+const CACHE = "homologago-v93";
 const ARQUIVOS = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png",
-  "vendor/html2canvas.min.js", "vendor/jspdf.umd.min.js", "vendor/jszip.min.js", "vendor/xlsx.full.min.js",
+  "vendor/html2canvas.min.js", "vendor/jspdf.umd.min.js", "vendor/svg2pdf.umd.min.js", "vendor/jszip.min.js", "vendor/xlsx.full.min.js",
   "vendor/pdf.min.js", "vendor/pdf.worker.min.js", "vendor/supabase.js",
   "js/01-dados.js", "js/02-formulario.js", "js/03-documentos.js", "js/04-exportacao.js", "js/05-projetos.js",
   "js/06-leitura.js", "js/07-art.js", "js/08-extras.js", "js/09-conta.js"];
