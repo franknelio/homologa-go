@@ -31,7 +31,7 @@ function onInput(e){
   const el=e.target;
   if(el.dataset.file){const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{plantaImg=r.result;P.planta=plantaImg.length<1500000?plantaImg:"";render()};r.readAsDataURL(f);return}
   const k=el.dataset.k;if(!k)return;P[k]=el.value;delete P._exemplo;if(k==="mReg"||k==="iReg")delete P["_inm"+k[0]];
-  if(/^(m|i)[A-Z]/.test(k))delete P._equipEst;if(k==="lat"||k==="lon")delete P._coordAprox;if(k==="disj")delete P._disjPadrao;
+  if(/^(m|i)[A-Z]/.test(k))delete P._equipEst;if(k==="lat"||k==="lon")delete P._coordAprox;if(k==="loc"&&e.type==="change"&&ajustaCoord())syncForm();if(k==="disj")delete P._disjPadrao;
   // UC trifásica: inversor sempre trifásico 380 V (regra do usuário)
   if(k==="ligacao"&&e.type==="change"){P._ligManual=P.ligacao!=="Trifásico"&&String(P.iFases||"").startsWith("Trif")?1:undefined;if(!P._ligManual)delete P._ligManual;P.tensao=P.ligacao==="Monofásico"?"220 V (F-N)":"380/220 V";if(P.ligacao==="Trifásico"&&!String(P.iFases||"").startsWith("Trif")){P.iFases="Trifásico 380/220 V";if(n(P.iP))P.iIout=+(n(P.iP)*1000/(Math.sqrt(3)*380)).toFixed(1)}store("hgo_current",P);buildFormFresh();render();return}
   clearTimeout(rT);rT=setTimeout(()=>{store("hgo_current",P);render()},250);

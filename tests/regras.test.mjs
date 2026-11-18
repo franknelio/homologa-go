@@ -97,3 +97,13 @@ test("unifilar, blocos e planta saem em PDF vetorial (texto de verdade, arquivo 
   }).catch((e) => ({ erro: e.message }));
   for (const [id, [tam, temTexto]] of Object.entries(r)) { assert.ok(tam < 600000, `${id} com ${tam} bytes`); assert.ok(temTexto, `${id} sem texto`) }
 });
+
+test("coordenadas coladas em Localização corrigem lat/lon aproximadas e divergência bloqueia", async () => {
+  const r = await pag.evaluate(() => {
+    P = { ...BLANK, loc: "-17.425678308272293, -49.668111089530846", lat: "-16.40", lon: "-48.40", _coordAprox: true, mP: 610, mQ: 5, iP: 3, iQ: 1, disj: 40 };
+    const antes = conferenciaCruzada(calc()).some(([s, t]) => s === "bad" && /Latitude\/longitude/.test(t));
+    const mudou = ajustaCoord();
+    return [antes, mudou, P.lat, P.lon, !!P._coordAprox, conferenciaCruzada(calc()).some(([, t]) => /Latitude\/longitude/.test(t))];
+  });
+  assert.deepEqual(r, [true, true, -17.425678, -49.668111, false, false]);
+});

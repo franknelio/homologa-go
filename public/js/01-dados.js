@@ -72,7 +72,11 @@ let P = load("hgo_current") || {...EXAMPLE};
 // inversor trifásico exige UC trifásica: corrige projetos antigos gravados como monofásicos
 function ajustaAnexos(){if(P&&P._anexos&&/contrato/i.test(P._anexos.proc||"")&&!/procura/i.test(P._anexos.proc||"")){delete P._anexos.proc;return true}return false}
 function ajustaLigacao(){if(P&&String(P.iFases||"").startsWith("Trif")&&P.ligacao!=="Trifásico"&&!P._ligManual){P.ligacao="Trifásico";P.tensao="380/220 V";return true}return false}
-if(ajustaLigacao()|ajustaAnexos())store("hgo_current",P);
+// coordenadas coladas em "Localização" (link do Maps ou "lat, lon") valem sobre as aproximadas pelo endereço
+function coordDoLoc(t){t=String(t||"");const m=t.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)||t.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)||t.match(/(-?\d{1,2}[.,]\d{3,})\s*[,;\s]\s*(-?\d{1,3}[.,]\d{3,})/);if(!m)return null;const lat=+m[1].replace(",","."),lon=+m[2].replace(",",".");return isFinite(lat)&&isFinite(lon)&&Math.abs(lat)<=90&&Math.abs(lon)<=180?{lat,lon}:null}
+const distM=(a,b)=>{const R=6371000,r=Math.PI/180,dl=(b.lat-a.lat)*r,dn=(b.lon-a.lon)*r;const x=Math.sin(dl/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(x))};
+function ajustaCoord(){const c=P&&coordDoLoc(P.loc);if(!c)return false;const at={lat:parseFloat(String(P.lat).replace(",",".")),lon:parseFloat(String(P.lon).replace(",","."))};if(isFinite(at.lat)&&isFinite(at.lon)&&distM(c,at)<100)return false;P.lat=+c.lat.toFixed(6);P.lon=+c.lon.toFixed(6);delete P._coordAprox;return true}
+if(ajustaLigacao()|ajustaAnexos()|ajustaCoord())store("hgo_current",P);
 let currentDoc = "form";
 let plantaImg = null; // data URL (não salva no localStorage se muito grande)
 
@@ -213,6 +217,8 @@ function conferenciaCruzada(c){
     }else add("warn","Não achei a potência no texto da TRT anexada; confira se é "+fmt(c.pca,3)+" kW.");
     if(P.rtArt&&!trtInfo.dig.includes(dg(P.rtArt)))add("warn",`O número da ART/TRT do projeto (${esc(P.rtArt)}) não aparece no PDF anexado.`);
   }else if(trtInfo&&trtInfo.ok&&!trtInfo.texto)add("warn","A TRT anexada é imagem (sem texto): confira CPF e potência à mão.");
+  // coordenadas do formulário x ponto colado em Localização
+  {const lc=coordDoLoc(P.loc),at={lat:n(P.lat),lon:n(P.lon)};if(lc&&at.lat&&distM(lc,at)>300)add("bad",`Latitude/longitude do formulário (${P.lat}, ${P.lon}) a ${fmt(distM(lc,at)/1000,1)} km do ponto colado em Localização. Use as coordenadas do ponto.`)}
   // INMETRO: relatório de ensaio do inversor é obrigatório no portal
   if(!P.iReg)add("bad","Sem registro INMETRO do inversor: o portal exige o relatório de ensaio.");
   return r;

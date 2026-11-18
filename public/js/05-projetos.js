@@ -103,7 +103,7 @@ $("#drawer").addEventListener("click",async e=>{
     if(x){P={...x,_id:id};delete P._pendente;delete P._soNuvem;delete P._nuvemEm;plantaImg=P.planta||null;afterLoad()}else toast("Não foi possível abrir este projeto sem internet")}
   if(d){if(d.dataset.armed){const id=d.dataset.del;const all=projects();delete all[id];store("hgo_projects",all);await excluirNuvem(id);listarProjetos()}else{d.dataset.armed="1";d.textContent="Confirmar"}}
 });
-function afterLoad(){ajustaLigacao();ajustaAnexos();store("hgo_current",P);buildFormFresh();render();$("#drawer").hidden=true;carregarArt();inmetroAuto();plantaAuto()}
+function afterLoad(){ajustaLigacao();ajustaAnexos();ajustaCoord();store("hgo_current",P);buildFormFresh();render();$("#drawer").hidden=true;carregarArt();inmetroAuto();plantaAuto()}
 function buildFormFresh(){const f=$("#form");const nf=f.cloneNode(false);f.replaceWith(nf);buildForm()}
 $("#bNew").addEventListener("click",()=>{P={...BLANK,...(load("hgo_rt")||{})};plantaImg=null;afterLoad();toast("Novo projeto em branco")});
 $("#bExample").addEventListener("click",()=>{P={...EXAMPLE};plantaImg=null;afterLoad()});
