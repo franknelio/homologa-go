@@ -17,6 +17,7 @@ async function salvarProjeto(silencioso){
   P._saved=new Date().toISOString();
   const all=projects();all[P._id]={...semImagemGrande(P),_pendente:!!sb,_nuvemEm:(all[P._id]||{})._nuvemEm};store("hgo_projects",all);store("hgo_current",P);
   const ok=await enviarNuvem(P._id);
+  if(typeof guardarEquip==="function")guardarEquip().catch(()=>{});
   if(!silencioso)toast(ok?"Projeto salvo na sua conta":sessao?"Sem conexão: salvo no aparelho, sobe quando a internet voltar":"Projeto salvo neste aparelho");
 }
 // envia um projeto; se outro aparelho mudou a nuvem depois da última sincronização, nada se perde:
@@ -70,16 +71,29 @@ async function sincronizar(){
 window.addEventListener("online",sincronizar);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")sincronizar().catch(()=>{})});
 $("#bSave").addEventListener("click",()=>salvarProjeto(false));
+// lista de projetos com busca por nome, UC ou CPF e filtro por situação; na nuvem a busca vai além dos 200 mais recentes
+let buscaT;
 async function openDrawer(){
-  $("#drawer").hidden=false;$("#plist").innerHTML=`<p class="note">Carregando…</p>`;
+  $("#drawer").hidden=false;
+  if(!$("#pbusca"))$("#plist").insertAdjacentHTML("beforebegin",`<div class="pbusca"><input id="pbusca" type="search" placeholder="Buscar por nome, UC ou CPF" autocomplete="off"><select id="psit"><option value="">Todas as situações</option>${SITUACOES.map(s=>`<option>${esc(s)}</option>`).join("")}</select></div>`);
+  await listarProjetos();
+}
+async function listarProjetos(){
+  const q=($("#pbusca")||{}).value?.trim()||"",fs=($("#psit")||{}).value||"",dg=x=>String(x||"").replace(/\D/g,"");
+  $("#plist").innerHTML=`<p class="note">Carregando…</p>`;
   const all=projects();
   if(sb&&sessao&&navigator.onLine){
-    const {data,error}=await sb.from("projetos").select("id,nome,uc,atualizado_em").order("atualizado_em",{ascending:false}).limit(200);
-    if(!error)for(const r of data){if(excluidos().includes(r.id))continue;if(!all[r.id]||(all[r.id]._saved||"")<r.atualizado_em)all[r.id]={...(all[r.id]||{}),_id:r.id,nome:r.nome,uc:r.uc,_saved:r.atualizado_em,_soNuvem:!all[r.id]||(all[r.id]._saved||"")<r.atualizado_em}}
+    let qb=sb.from("projetos").select("id,nome,uc,atualizado_em,situacao:dados->>situacao,doc:dados->>doc").order("atualizado_em",{ascending:false});
+    if(q){const t=q.replace(/[%,()*]/g," ").trim();qb=qb.or(`nome.ilike.%${t}%,uc.ilike.%${t}%`)}
+    const {data,error}=await qb.limit(q?100:300);
+    if(!error)for(const r of data){if(excluidos().includes(r.id))continue;if(!all[r.id]||(all[r.id]._saved||"")<r.atualizado_em)all[r.id]={...(all[r.id]||{}),_id:r.id,nome:r.nome,uc:r.uc,situacao:r.situacao,doc:r.doc,_saved:r.atualizado_em,_soNuvem:!all[r.id]||(all[r.id]._saved||"")<r.atualizado_em}}
   }
-  const ids=Object.keys(all).sort((a,b)=>(all[b]._saved||"").localeCompare(all[a]._saved||""));
-  $("#plist").innerHTML=ids.length?ids.map(id=>`<div class="pitem"><div><b>${esc(all[id].nome||"Sem titular")}</b><small>UC ${esc(all[id].uc||"—")} · ${all[id]._saved?new Date(all[id]._saved).toLocaleString("pt-BR"):""}${all[id]._pendente?" · aguardando envio":""}</small></div><button class="btn" type="button" data-open="${id}">Abrir</button><button class="btn" type="button" data-del="${id}" aria-label="Excluir">Excluir</button></div>`).join(""):`<p class="note">Nenhum projeto salvo ainda.</p>`;
+  const bate=x=>{if(fs&&(x.situacao||"Em preparo")!==fs)return false;if(!q)return true;const t=q.toUpperCase();return String(x.nome||"").toUpperCase().includes(t)||(dg(q).length>=3&&(dg(x.uc).includes(dg(q))||dg(x.doc).includes(dg(q))))||String(x.uc||"").includes(q)};
+  const ids=Object.keys(all).filter(id=>bate(all[id])).sort((a,b)=>(all[b]._saved||"").localeCompare(all[a]._saved||""));
+  $("#plist").innerHTML=ids.length?ids.map(id=>{const x=all[id],s=x.situacao||"Em preparo";return `<div class="pitem"><div><b>${esc(x.nome||"Sem titular")}</b><small><span class="sit ${corSituacao(s)}">${esc(s)}</span> UC ${esc(x.uc||"—")} · ${x._saved?new Date(x._saved).toLocaleString("pt-BR"):""}${x._pendente?" · aguardando envio":""}</small></div><button class="btn" type="button" data-open="${id}">Abrir</button><button class="btn" type="button" data-del="${id}" aria-label="Excluir">Excluir</button></div>`}).join(""):`<p class="note">${q||fs?"Nenhum projeto encontrado.":"Nenhum projeto salvo ainda."}</p>`;
 }
+document.addEventListener("input",e=>{if(e.target.id==="pbusca"){clearTimeout(buscaT);buscaT=setTimeout(listarProjetos,350)}});
+document.addEventListener("change",e=>{if(e.target.id==="psit")listarProjetos()});
 $("#bProjects").addEventListener("click",openDrawer);
 $("#bClose").addEventListener("click",()=>$("#drawer").hidden=true);
 $("#drawer").addEventListener("click",async e=>{
@@ -88,7 +102,7 @@ $("#drawer").addEventListener("click",async e=>{
   if(o){const id=o.dataset.open;let x=projects()[id];
     const nv=await versaoNuvem(id).catch(()=>null);if(nv){x=nv;const a=projects();a[id]={...nv,_pendente:false};store("hgo_projects",a)}
     if(x){P={...x,_id:id};delete P._pendente;delete P._soNuvem;delete P._nuvemEm;plantaImg=P.planta||null;afterLoad()}else toast("Não foi possível abrir este projeto sem internet")}
-  if(d){if(d.dataset.armed){const id=d.dataset.del;const all=projects();delete all[id];store("hgo_projects",all);await excluirNuvem(id);openDrawer()}else{d.dataset.armed="1";d.textContent="Confirmar"}}
+  if(d){if(d.dataset.armed){const id=d.dataset.del;const all=projects();delete all[id];store("hgo_projects",all);await excluirNuvem(id);listarProjetos()}else{d.dataset.armed="1";d.textContent="Confirmar"}}
 });
 function afterLoad(){ajustaLigacao();ajustaAnexos();store("hgo_current",P);buildFormFresh();render();$("#drawer").hidden=true;carregarArt();inmetroAuto();plantaAuto()}
 function buildFormFresh(){const f=$("#form");const nf=f.cloneNode(false);f.replaceWith(nf);buildForm()}

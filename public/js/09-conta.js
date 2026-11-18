@@ -28,11 +28,11 @@ async function initAuth(){
   if(!cfg||!window.supabase){modoLocal=true;mostrarUsuario();return}
   sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true}});
   const {data}=await sb.auth.getSession();sessao=data.session;
-  sb.auth.onAuthStateChange((_ev,s)=>{sessao=s;mostrarUsuario();if(s){$("#login").hidden=true;sincronizar();carregarAssin().catch(()=>{});carregarDocRT().catch(()=>{})}});
+  sb.auth.onAuthStateChange((_ev,s)=>{sessao=s;mostrarUsuario();if(s){$("#login").hidden=true;sincronizar();carregarAssin().catch(()=>{});carregarDocRT().catch(()=>{});carregarBiblioteca().catch(()=>{})}});
   if(!sessao){$("#login").hidden=false;$("#lOffline").hidden=navigator.onLine}
   else{$("#login").hidden=true;sincronizar();
     // o RT salvo na conta vale em qualquer aparelho e prevalece sobre o guardado no navegador
-    carregarAssin().catch(()=>{});carregarDocRT().catch(()=>{});setTimeout(()=>{inmetroAuto();plantaAuto()},1500);
+    carregarAssin().catch(()=>{});carregarDocRT().catch(()=>{});carregarBiblioteca().catch(()=>{});setTimeout(()=>{inmetroAuto();plantaAuto()},1500);
     sb.auth.getUser().then(({data:u})=>{const rt=u&&u.user&&u.user.user_metadata&&u.user.user_metadata.rt;if(rt)store("hgo_rt",{...(load("hgo_rt")||{}),...rt})}).catch(()=>{})}
   mostrarUsuario();
 }

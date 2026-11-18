@@ -75,6 +75,16 @@ const PROMPT_MAT = (texto) => `Abaixo estão mensagens de um grupo de WhatsApp e
 ${Object.entries(CAMPOS_MAT).map(([k, d]) => `- ${k}: ${d}`).join("\n")}
 ${texto ? "\nMENSAGENS:\n" + texto : ""}`;
 
+// "reprova" = parecer/e-mail da Equatorial reprovando a solicitação de acesso
+const CAMPOS_REP = {
+  protocolo: "número do protocolo, processo ou nota de serviço",
+  data: "data do parecer no formato dd/mm/aaaa",
+  motivos: "cada motivo de reprova numa linha, no formato: documento | motivo exatamente como a Equatorial escreveu | correção a fazer no projeto",
+};
+const PROMPT_REP = (texto) => `As imagens e/ou o texto abaixo são um parecer da Equatorial Goiás sobre uma solicitação de conexão de micro/minigeração fotovoltaica (NT.00020.EQTL). Extraia os motivos da reprova e diga, para cada um, qual documento corrigir (formulário, memorial, diagrama unifilar, diagrama de blocos, planta, TRT/ART, procuração, INMETRO, documentos do titular etc.) e o que mudar. Use "" para o que não encontrar. Não invente motivos.
+${Object.entries(CAMPOS_REP).map(([k, d]) => `- ${k}: ${d}`).join("\n")}
+${texto ? "\nTEXTO DO PARECER:\n" + texto : ""}`;
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "use POST" });
   if (!(await usuarioLogado(req.headers.authorization))) {
@@ -83,10 +93,11 @@ export default async function handler(req, res) {
   const uso = await dentroDoLimite(req.headers.authorization);
   if (!uso.ok) return res.status(429).json({ error: `limite de ${uso.limite} leituras automáticas por dia atingido; amanhã libera de novo` });
   const images = Array.isArray(req.body?.images) ? req.body.images.slice(0, 5) : [];
-  const tipo = ["identidade", "fatura", "material"].includes(req.body?.tipo) ? req.body.tipo : "";
+  const tipo = ["identidade", "fatura", "material", "reprova"].includes(req.body?.tipo) ? req.body.tipo : "";
   const texto = String(req.body?.texto || "").slice(0, 20000);
-  const campos = tipo === "material" ? CAMPOS_MAT : camposDo(tipo), schema = schemaDe(campos);
-  if (!images.length && !(tipo === "material" && texto)) return res.status(400).json({ error: "nenhuma imagem enviada" });
+  const comTexto = tipo === "material" || tipo === "reprova";
+  const campos = tipo === "material" ? CAMPOS_MAT : tipo === "reprova" ? CAMPOS_REP : camposDo(tipo), schema = schemaDe(campos);
+  if (!images.length && !(comTexto && texto)) return res.status(400).json({ error: "nenhuma imagem enviada" });
 
   try {
     const response = await client.messages.create({
@@ -98,7 +109,7 @@ export default async function handler(req, res) {
           role: "user",
           content: [
             ...images.map((data) => ({ type: "image", source: { type: "base64", media_type: "image/jpeg", data } })),
-            { type: "text", text: tipo === "material" ? PROMPT_MAT(texto) : promptDe(tipo, campos) },
+            { type: "text", text: tipo === "material" ? PROMPT_MAT(texto) : tipo === "reprova" ? PROMPT_REP(texto) : promptDe(tipo, campos) },
           ],
         },
       ],

@@ -1,5 +1,6 @@
 "use strict";
 /* ---------------- Esquema do formulário ---------------- */
+const SITUACOES=["Em preparo","TRT emitida","Protocolado","Reprovado","Aprovado","Vistoria","Concluído"];
 const SECTIONS = [
  {id:"cli", t:"Titular e unidade consumidora", f:[
   ["nome","Nome do titular da UC","text","full"],["doc","CPF / CNPJ"],["rg","RG / Inscrição estadual"],
@@ -44,7 +45,10 @@ const SECTIONS = [
   ["memoModelo","Modelo do memorial","sel",["Técnico descritivo (ANEXO III)","Simplificado"]],["rtAssin","Assinatura do responsável técnico","sig","full"],["assinaCli","Assinar também pelo cliente (procuração)","sel",["Sim","Não"]]]},
  {id:"ben", t:"Beneficiárias e anexos", f:[
   ["benef","UCs do rateio","area","full","Uma por linha: UC ; titular ; endereço ; % ; consumo médio kWh. Use os botões abaixo para ler as contas e calcular os %."],
-  ["planta","Imagem de satélite para a planta","file","full","Print do Google Earth/Maps com o telhado e o padrão"]]}
+  ["planta","Imagem de satélite para a planta","file","full","Print do Google Earth/Maps com o telhado e o padrão"]]},
+ {id:"acomp", t:"Acompanhamento na Equatorial", f:[
+  ["situacao","Situação do projeto","sel",SITUACOES],["protocolo","Nº do protocolo"],["dataProt","Data do protocolo","date"],
+  ["reprovas","Pareceres de reprova","reprova","full"]]}
 ];
 
 const EXAMPLE = {
@@ -179,6 +183,7 @@ function checks(c){
   if(P._coordAprox) add("warn","Coordenadas aproximadas pelo endereço. Confira no Google Maps antes de protocolar.");
   if(!n(P.carga)&&!String(P.cargas||"").trim()&&cargaInst()) add("ok",`Levantamento de carga gerado automaticamente com eletrodomésticos e eletrônicos: ${fmt(cargaInst())} kW (35% abaixo da potência do inversor).`);
   for(const x of conferenciaCruzada(c))if(!r.some(y=>y[1]===x[1]))r.push(x);
+  if(typeof avisosReprova==="function")r.push(...avisosReprova());
   if(P._disjPadrao) add("warn",`Disjuntor de entrada calculado pela corrente do inversor: ${P.disj} A (a conta não informa). Confirme no padrão.`);
   return r;
 }

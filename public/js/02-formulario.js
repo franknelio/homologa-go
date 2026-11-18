@@ -8,13 +8,14 @@ function buildForm(){
   $("#form").addEventListener("input",onInput);$("#form").addEventListener("change",onInput);
 }
 function fd([k,l,t="text",o,u]){
-  const full=(o==="full"||u==="full"||(t==="area")||(t==="file"))?" full":"";
+  const full=(o==="full"||u==="full"||(t==="area")||(t==="file")||(t==="reprova"))?" full":"";
   const id="f_"+k;
   let inp;
   if(t==="sel") inp=`<select id="${id}" data-k="${k}">${o.map(x=>`<option ${P[k]===x?"selected":""}>${esc(x)}</option>`).join("")}</select>`;
   else if(t==="area") inp=`<textarea id="${id}" data-k="${k}" placeholder="${esc(u||"")}">${val(k)}</textarea>`;
   else if(t==="chips") inp=`<div class="chips" data-chips="${k}">${o.map(x=>`<button type="button" class="chip" data-chip="${esc(x)}" aria-pressed="${P[k]===x}">${esc(x.replace(" (EMUC)",""))}</button>`).join("")}</div>`;
   else if(t==="sig") inp=`<div class="sigbox">${assinRT?`<img src="${assinRT}" alt="Assinatura">`:"<span>Nenhuma assinatura salva</span>"}</div><div class="inm"><label class="btn">Enviar imagem da assinatura<input type="file" id="sigFile" accept="image/*" hidden></label>${assinRT?`<button class="btn" type="button" id="sigDel">Remover</button>`:""}<span id="sigSt">Entra sozinha em todos os documentos.</span></div><div class="inm" style="margin-top:8px"><label class="btn">${docRTnome?"Trocar":"Enviar"} CNH/RG do responsável técnico (PDF)<input type="file" id="docRTFile" accept="application/pdf,.pdf,image/*" hidden></label><span id="docRTSt">${docRTnome?"✓ "+esc(docRTnome)+" salvo na sua conta. Vai em todo projeto como documento do procurador.":"Nenhum documento do RT salvo."}</span></div>`;
+  else if(t==="reprova") inp=typeof htmlReprovas==="function"?htmlReprovas():"";
   else if(t==="file") inp=`<input id="${id}" type="file" accept="image/*" data-file="1">`;
   else inp=`<input id="${id}" data-k="${k}" type="${t==="date"?"date":"text"}" ${t==="num"?'inputmode="decimal"':""} value="${val(k)}">`;
   const unit=(t==="num"||t==="file")&&u?`<span class="u">${esc(u)}</span>`:"";
