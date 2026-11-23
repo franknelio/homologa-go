@@ -63,47 +63,97 @@ if(/[?&]crm=1/.test(location.search)&&window.opener){
   const ORIGEM_CRM=/^https:\/\/(solarcity-crm\.web\.app|solarcity-crm\.firebaseapp\.com)$|^http:\/\/localhost(:\d+)?$/;
   let recebido=false;
   const aviso=t=>{let b=$("#crmAviso");if(!b){b=document.createElement("div");b.id="crmAviso";b.style.cssText="background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46;border-radius:10px;padding:10px 12px;margin:0 0 10px;font-size:13px;font-weight:600";const q=$(".quick");q.insertBefore(b,q.children[1]||null)}b.textContent=t};
-  const b64File=a=>{const bin=atob(a.b64||""),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new File([u],a.nome||"arquivo",{type:a.mime||"application/octet-stream"})};
+  // arquivos do CRM em qualquer formato: {nome,mime,b64|base64|data(URL)|url} ou File/Blob/ArrayBuffer, em qualquer chave da mensagem
+  const dataUrl=s=>/^data:[^;,]*(;base64)?,/i.test(String(s||""));
+  const deB64=(b64,nome,mime)=>{const bin=atob(String(b64).replace(/^data:[^,]*,/,"").replace(/\s/g,"")),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new File([u],nome||"arquivo",{type:mime||"application/octet-stream"})};
+  const mimeDoNome=nm=>/\.pdf$/i.test(nm)?"application/pdf":/\.png$/i.test(nm)?"image/png":/\.webp$/i.test(nm)?"image/webp":/\.(jpe?g|jfif)$/i.test(nm)?"image/jpeg":"";
+  function achaArquivos(o,fora=[],vistos=new Set(),prof=0){
+    if(o==null||typeof o!=="object"||vistos.has(o)||prof>6)return fora;vistos.add(o);
+    if(o instanceof Blob){fora.push({blob:o,nome:o.name||"arquivo"});return fora}
+    if(Array.isArray(o)){o.forEach(x=>achaArquivos(x,fora,vistos,prof+1));return fora}
+    const conteudo=o.b64||o.base64||o.conteudo||o.content||(dataUrl(o.data)?o.data:null)||(dataUrl(o.dataUrl)?o.dataUrl:null)||(dataUrl(o.url)?o.url:null);
+    const bin=o.buf||o.buffer||o.bytes||(o.data instanceof ArrayBuffer||ArrayBuffer.isView(o.data)?o.data:null)||(o.blob instanceof Blob?o.blob:null)||(o.file instanceof Blob?o.file:null);
+    const url=!conteudo&&typeof o.url==="string"&&/^https:\/\//i.test(o.url)?o.url:null;
+    if(conteudo||bin||url){fora.push({nome:o.nome||o.name||o.fileName||o.filename||"arquivo",mime:o.mime||o.mimeType||o.mimetype||o.type||o.tipoArquivo||"",papel:String(o.papel||o.role||o.categoria||o.tipo||"").toLowerCase(),conteudo,bin,url});return fora}
+    for(const [k,v] of Object.entries(o))if(v&&typeof v==="object")achaArquivos(v,fora,vistos,prof+1);
+    return fora;
+  }
+  async function viraFile(a){
+    let nome=a.nome,mime=a.mime||mimeDoNome(a.nome);
+    if(a.blob)return new File([a.blob],nome,{type:a.blob.type||mime});
+    if(a.conteudo){const m=String(a.conteudo).match(/^data:([^;,]*)/);return deB64(a.conteudo,nome,mime||(m&&m[1]))}
+    if(a.bin){const b=a.bin instanceof Blob?a.bin:new Blob([a.bin]);return new File([b],nome,{type:mime||b.type})}
+    const r=await fetch(a.url);if(!r.ok)throw new Error("download "+r.status);const b=await r.blob();return new File([b],nome,{type:mime||b.type})
+  }
+  // papel do arquivo: o que o CRM disse, o nome do arquivo, e se nada disso servir, a IA olha o arquivo
+  const papelDe=a=>{const t=(a.papel+" "+a.nome).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[_\-.()]+/g," ");
+    if(/contrato/.test(t)&&!/procura/.test(t))return "contrato";
+    if(/procura/.test(t)||a.papel==="proc")return "proc";
+    if(/fatura|conta (de )?(luz|energia)|equatorial|\bconta\b|^fat/.test(t)||a.papel==="fatura")return "fatura";
+    if(/\b(rg|cnh|identidade|documento.?pessoal|doc)\b|^doc$/.test(t)||a.papel==="doc")return "doc";
+    return ""};
+  async function classifica(f){
+    if(!sample||!(f.type.startsWith("image/")||f.type==="application/pdf"))return "";
+    try{const imgs=await fileToImages(f,1);const r=await sample.json("",{images:imgs.slice(0,1),tipo:"classificar"});return ({rg_cnh:"doc",fatura:"fatura",procuracao:"proc",contrato:"contrato"})[String(r.tipo||"").trim()]||""}catch(_){return ""}
+  }
+  const usados={doc:0,fatura:0,proc:0};
+  async function usaArquivos(lista){
+    const res={doc:0,fatura:0,proc:0,outros:0,erros:[]};
+    for(const a of lista){
+      let f;try{f=await viraFile(a)}catch(er){res.erros.push(a.nome+": "+er.message);continue}
+      if(!f.size){res.erros.push(a.nome+": vazio");continue}
+      if(!f.type){const t=mimeDoNome(f.name);if(t)f=new File([f],f.name,{type:t})}
+      let p=papelDe(a);if(!p)p=await classifica(f);
+      if(p==="doc"&&!$("#q_docTit").files.length&&!usados.doc){arquivoNoCampo("#q_docTit",f);usados.doc++;res.doc++}
+      else if(p==="fatura"){addFiles([f]);usados.fatura++;res.fatura++}
+      else if(p==="proc"&&!ehContrato(f.name)&&!usados.proc){arquivoNoCampo("#q_proc",f);usados.proc++;res.proc++}
+      else res.outros++;
+    }
+    return res;
+  }
   const poe=(id,v)=>{if(v!=null&&v!==""&&$(id)){$(id).value=String(v);$(id).dispatchEvent(new Event("input",{bubbles:true}))}};
   const arquivoNoCampo=(id,f)=>{const dt=new DataTransfer();dt.items.add(f);$(id).files=dt.files;$(id).dispatchEvent(new Event("change",{bubbles:true}))};
+  let dadosCRM=null,nomeCRM="cliente",arqsCRM=[];
+  const avisoFinal=(d,extra="")=>{const falta=[];if(!usados.doc)falta.push("RG/CNH");if(!usados.fatura)falta.push("conta de energia");if(!(n(d.iP)&&n(d.mP)&&n(d.mQ)))falta.push("equipamentos");
+    aviso(`📥 Recebido do CRM: ${nomeCRM} · ${arqsCRM.length} arquivo(s) do grupo de WhatsApp (RG/CNH ${usados.doc}, conta ${usados.fatura}, procuração ${usados.proc}).`+(falta.length?` Falta: ${falta.join(", ")}. Complete e clique em Gerar projeto.`:" Gerando o projeto…")+extra);return falta};
   addEventListener("message",async e=>{
-    if(!ORIGEM_CRM.test(e.origin)||!e.data||e.data.tipo!=="hgo-crm-dados"||recebido)return;
+    if(!ORIGEM_CRM.test(e.origin)||!e.data||typeof e.data!=="object"||!/^hgo-crm/.test(String(e.data.tipo||""))||/pronto|recebido|projeto/.test(e.data.tipo))return;
+    // arquivos que chegam depois, numa mensagem separada
+    if(recebido){const L=achaArquivos(e.data);if(!L.length)return;arqsCRM.push(...L);const r=await usaArquivos(L);try{e.source.postMessage({tipo:"hgo-crm-recebido",n:arqsCRM.length},e.origin)}catch(_){}
+      const falta=avisoFinal(dadosCRM||{},r.erros.length?` (não abri: ${r.erros.join("; ")})`:"");if(!falta.length&&qModSel)setTimeout(()=>$("#qGo").click(),400);return}
+    if(e.data.tipo!=="hgo-crm-dados")return;
     recebido=true;
-    const d=e.data.dados||{},arqs=e.data.arquivos||[];
+    const d=e.data.dados||{};dadosCRM=d;nomeCRM=d.cliente||d.nome||"cliente";
+    const arqs=achaArquivos(e.data);arqsCRM=arqs;
     try{
       $("#bNew").click();
-      const docs=arqs.filter(a=>a.papel==="doc"),fats=arqs.filter(a=>a.papel==="fatura"),procs=arqs.filter(a=>a.papel==="proc"&&!ehContrato(a.nome));
-      if(docs[0])arquivoNoCampo("#q_docTit",b64File(docs[0]));
-      if(fats.length)addFiles(fats.map(b64File));
-      if(procs[0])arquivoNoCampo("#q_proc",b64File(procs[0]));
+      aviso("📥 Recebido do CRM: "+nomeCRM+". Separando os "+arqs.length+" arquivo(s)…");
+      const r=await usaArquivos(arqs);
       poe("#q_iP",d.iP);poe("#q_iQ",d.iQ||1);poe("#q_mP",d.mP);poe("#q_mQ",d.mQ);
       poe("#q_iFab",d.iFab);poe("#q_iMod",d.iMod);poe("#q_mFab",d.mFab);poe("#q_mMod",d.mMod);
       poe("#q_loc",d.loc);
       // link do Google Maps: abre o link e troca pelas coordenadas
-      if(/^https?:\/\//i.test(String(d.loc||"").trim())&&sessao){aviso("📥 Recebido do CRM: "+(d.cliente||"cliente")+". Abrindo o link da localização…");
-        try{const r=await fetch("api/local?q="+encodeURIComponent(String(d.loc).trim()),{headers:{authorization:"Bearer "+sessao.access_token}});const j=await r.json();if(r.ok&&isFinite(j.lat))poe("#q_loc",`${(+j.lat).toFixed(7)}, ${(+j.lon).toFixed(7)}`)}catch(_){}}
-      // equipamentos: se o CRM não mandou separados, a IA lê das mensagens do grupo e das outras fotos/arquivos
+      if(/^https?:\/\//i.test(String(d.loc||"").trim())&&sessao){aviso("📥 Recebido do CRM: "+nomeCRM+". Abrindo o link da localização…");
+        try{const rr=await fetch("api/local?q="+encodeURIComponent(String(d.loc).trim()),{headers:{authorization:"Bearer "+sessao.access_token}});const j=await rr.json();if(rr.ok&&isFinite(j.lat))poe("#q_loc",`${(+j.lat).toFixed(7)}, ${(+j.lon).toFixed(7)}`)}catch(_){}}
+      // equipamentos: se o CRM não mandou separados, a IA lê das mensagens do grupo
       if(!(n(d.iP)&&n(d.mP)&&n(d.mQ))&&sample){
-        aviso("📥 Recebido do CRM: "+(d.cliente||"cliente")+". Lendo os equipamentos nas mensagens do grupo…");
-        const textos=[];const junta=(o,p="")=>{if(o==null)return;if(typeof o==="string"||typeof o==="number"){if(String(o).length<5000)textos.push((p?p+": ":"")+o)}else if(Array.isArray(o))o.forEach(x=>junta(x,p));else if(typeof o==="object")for(const [k,v] of Object.entries(o))if(!/b64|base64/i.test(k))junta(v,k)};
-        junta(d);for(const [k,v] of Object.entries(e.data))if(!["tipo","dados","arquivos"].includes(k))junta(v,k);
-        const outros=arqs.filter(a=>!["doc","fatura"].includes(a.papel)&&!(a.papel==="proc"&&!ehContrato(a.nome)));
-        const imgs=[];for(const a of outros.slice(0,4)){try{imgs.push(...await fileToImages(b64File(a)))}catch(_){}}
-        try{const r=await sample.json("",{images:imgs.slice(0,4),tipo:"material",texto:textos.join("\n")});
-          for(const k of ["iP","iQ","mP","mQ","iFab","iMod","mFab","mMod"])if(r[k]!=null&&r[k]!==""&&!d[k])d[k]=String(r[k]).replace(",",".");
+        aviso("📥 Recebido do CRM: "+nomeCRM+". Lendo os equipamentos nas mensagens do grupo…");
+        const textos=[];const junta=(o,p="")=>{if(o==null)return;if(typeof o==="string"||typeof o==="number"){if(String(o).length<5000&&!dataUrl(o))textos.push((p?p+": ":"")+o)}else if(Array.isArray(o))o.forEach(x=>junta(x,p));else if(typeof o==="object"&&!(o instanceof Blob))for(const [k,v] of Object.entries(o))if(!/b64|base64|conteudo|content|buf|bytes/i.test(k))junta(v,k)};
+        junta(d);for(const [k,v] of Object.entries(e.data))if(!["tipo","dados"].includes(k))junta(v,k);
+        try{const rr=await sample.json("",{images:[],tipo:"material",texto:textos.join("\n")});
+          for(const k of ["iP","iQ","mP","mQ","iFab","iMod","mFab","mMod"])if(rr[k]!=null&&rr[k]!==""&&!d[k])d[k]=String(rr[k]).replace(",",".");
           poe("#q_iP",d.iP);poe("#q_iQ",d.iQ||1);poe("#q_mP",d.mP);poe("#q_mQ",d.mQ);poe("#q_iFab",d.iFab);poe("#q_iMod",d.iMod);poe("#q_mFab",d.mFab);poe("#q_mMod",d.mMod);
-          if(!(n(d.iP)&&n(d.mP)&&n(d.mQ)))d._diag=`Li ${textos.length} texto(s) e ${outros.length} arquivo(s) extra(s) do CRM e não achei os equipamentos`;
-        }catch(er){d._diag="Leitura dos equipamentos falhou: "+er.message}
+        }catch(_){}
       }
       if(d.modalidade&&MODS.includes(d.modalidade)){qModSel=d.modalidade;desenharQMod()}
-      const falta=[];if(!docs.length)falta.push("RG/CNH");if(!fats.length)falta.push("conta de energia");if(!(n(d.iP)&&n(d.mP)&&n(d.mQ)))falta.push("equipamentos");
-      aviso(`📥 Recebido do CRM: ${d.cliente||"cliente"} · ${arqs.length} arquivo(s) do grupo de WhatsApp.`+(falta.length?` Falta: ${falta.join(", ")}. Complete e clique em Gerar projeto.`:" Gerando o projeto…")+(d._diag&&falta.includes("equipamentos")?` (${d._diag}. Arquivos: ${arqs.map(a=>(a.papel||"?")+"="+a.nome).join(", ")}; campos: ${Object.keys(d).filter(k=>k!=="_diag").join(", ")||"nenhum"})`:""));
+      const diag=!arqs.length?` (o CRM não mandou nenhum arquivo nesta abertura; campos recebidos: ${Object.keys(e.data).concat(Object.keys(d).map(k=>"dados."+k)).join(", ")})`:r.erros.length?` (não abri: ${r.erros.join("; ")})`:"";
+      const falta=avisoFinal(d,diag);
+      if(!arqs.length)console.warn("HomologaGO: mensagem do CRM sem arquivos",Object.keys(e.data),Object.keys(d));
       try{e.source.postMessage({tipo:"hgo-crm-recebido",n:arqs.length},e.origin)}catch(_){}
       crmJanela=e.source;crmOrigem=e.origin;botaoCRM();
       if(!falta.length&&qModSel){setTimeout(()=>$("#qGo").click(),400)}
     }catch(er){aviso("Não consegui usar os dados do CRM: "+er.message)}
   });
-  // devolve os PDFs do projeto para a etapa 4 do CRM
   let crmJanela=null,crmOrigem="";
   function botaoCRM(){
     if($("#bCRM"))return;

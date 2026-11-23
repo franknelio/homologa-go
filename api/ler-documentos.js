@@ -85,6 +85,11 @@ const PROMPT_REP = (texto) => `As imagens e/ou o texto abaixo são um parecer da
 ${Object.entries(CAMPOS_REP).map(([k, d]) => `- ${k}: ${d}`).join("\n")}
 ${texto ? "\nTEXTO DO PARECER:\n" + texto : ""}`;
 
+// "classificar" = diz o que é cada arquivo vindo do CRM/WhatsApp, para nunca anexar documento errado
+const CAMPOS_CLS = { tipo: "exatamente uma opção: rg_cnh (RG, CNH ou outro documento de identidade com foto), fatura (conta de energia da Equatorial), procuracao, contrato, outro" };
+const PROMPT_CLS = `A imagem é um arquivo enviado num grupo de WhatsApp de uma venda de energia solar. Diga que documento é. Contrato de venda/prestação de serviço é "contrato", nunca "procuracao".
+- tipo: ${CAMPOS_CLS.tipo}`;
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "use POST" });
   if (!(await usuarioLogado(req.headers.authorization))) {
@@ -93,15 +98,15 @@ export default async function handler(req, res) {
   const uso = await dentroDoLimite(req.headers.authorization);
   if (!uso.ok) return res.status(429).json({ error: `limite de ${uso.limite} leituras automáticas por dia atingido; amanhã libera de novo` });
   const images = Array.isArray(req.body?.images) ? req.body.images.slice(0, 5) : [];
-  const tipo = ["identidade", "fatura", "material", "reprova"].includes(req.body?.tipo) ? req.body.tipo : "";
+  const tipo = ["identidade", "fatura", "material", "reprova", "classificar"].includes(req.body?.tipo) ? req.body.tipo : "";
   const texto = String(req.body?.texto || "").slice(0, 20000);
   const comTexto = tipo === "material" || tipo === "reprova";
-  const campos = tipo === "material" ? CAMPOS_MAT : tipo === "reprova" ? CAMPOS_REP : camposDo(tipo), schema = schemaDe(campos);
+  const campos = tipo === "material" ? CAMPOS_MAT : tipo === "reprova" ? CAMPOS_REP : tipo === "classificar" ? CAMPOS_CLS : camposDo(tipo), schema = schemaDe(campos);
   if (!images.length && !(comTexto && texto)) return res.status(400).json({ error: "nenhuma imagem enviada" });
 
   try {
     const response = await client.messages.create({
-      model: tipo ? "claude-sonnet-5-5" : "claude-haiku-5-5",
+      model: tipo && tipo !== "classificar" ? "claude-sonnet-5-5" : "claude-haiku-5-5",
       max_tokens: 16000,
       output_config: { effort: "low", format: { type: "json_schema", schema } },
       messages: [
@@ -109,7 +114,7 @@ export default async function handler(req, res) {
           role: "user",
           content: [
             ...images.map((data) => ({ type: "image", source: { type: "base64", media_type: "image/jpeg", data } })),
-            { type: "text", text: tipo === "material" ? PROMPT_MAT(texto) : tipo === "reprova" ? PROMPT_REP(texto) : promptDe(tipo, campos) },
+            { type: "text", text: tipo === "material" ? PROMPT_MAT(texto) : tipo === "reprova" ? PROMPT_REP(texto) : tipo === "classificar" ? PROMPT_CLS : promptDe(tipo, campos) },
           ],
         },
       ],
