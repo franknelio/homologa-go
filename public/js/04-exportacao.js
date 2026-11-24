@@ -106,16 +106,37 @@ function idb(op,val){return new Promise((ok,erro)=>{const r=indexedDB.open("hgo"
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 async function escolherPasta(){
   const h=await window.showDirectoryPicker({id:"hgo-clientes",mode:"readwrite",startIn:"documents"});
-  try{await idb("put",h)}catch(e){}$("#bPasta").textContent="Pasta: "+h.name;toast("Os clientes serão salvos em: "+h.name);return h}
+  try{await idb("put",h)}catch(e){toast("Não consegui guardar a pasta escolhida neste navegador: "+e.message)}marcaPasta(h,true);toast("Os clientes serão salvos em: "+h.name);return h}
+// pasta já escolhida: só pede a permissão (um clique em "Permitir"), nunca abre de novo a janela de escolher pasta
+async function liberarPasta(h){
+  if(await h.queryPermission({mode:"readwrite"})==="granted")return true;
+  try{return await h.requestPermission({mode:"readwrite"})==="granted"}catch(e){return false}
+}
+// o Edge recusou a permissão (ou o clique já "esfriou"): explica e oferece liberar com um clique novo
+function pedirPasta(h){return new Promise((ok,erro)=>{
+  const box=document.createElement("div");box.id="pastaPerm";box.style.cssText="position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px";
+  box.innerHTML=`<div style="background:#fff;color:#222;border-radius:12px;width:min(520px,100%);padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.35)">
+    <h3 style="margin:0 0 8px">Liberar a pasta ${esc(h.name)}</h3>
+    <p style="margin:0 0 8px;font-size:14px">O Edge pede a sua autorização para o app gravar na pasta <b>${esc(h.name)}</b>. Clique em <b>Liberar</b> e, no aviso do Edge, escolha <b>"Permitir em todas as visitas"</b> (assim ele não pergunta mais).</p>
+    <p style="margin:0 0 14px;font-size:12px;color:#666">Se o aviso não aparecer: clique no cadeado ao lado do endereço → Permissões do site → Edição de arquivos → Permitir.</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button type="button" class="btn" data-pp="outra">Escolher outra pasta</button><button type="button" class="btn amber" data-pp="ok" style="font-weight:700">Liberar ${esc(h.name)}</button></div></div>`;
+  document.body.appendChild(box);
+  box.addEventListener("click",async e=>{const b=e.target.closest("[data-pp]");if(!b&&e.target!==box)return;
+    if(!b){box.remove();erro(Object.assign(new Error("cancelado"),{name:"AbortError"}));return}
+    if(b.dataset.pp==="ok"){if(await liberarPasta(h)){box.remove();ok(h)}else b.textContent="O Edge recusou. Veja o cadeado ↑ e tente de novo"}
+    else{box.remove();escolherPasta().then(ok,erro)}});
+})}
 async function pastaBase(){
   let h=null;try{h=await idb("get")}catch(e){}
-  if(h&&(await h.queryPermission({mode:"readwrite"})==="granted"||await h.requestPermission({mode:"readwrite"})==="granted")){
+  if(h){
+    if(!(await liberarPasta(h)))h=await pedirPasta(h);
     // pasta renomeada, movida ou apagada: o navegador perde o caminho e é preciso escolher de novo
-    try{await h.values().next();return h}catch(e){if(e.name!=="NotFoundError")throw e;toast(`A pasta "${h.name}" não existe mais (foi renomeada ou movida). Escolha a pasta de novo.`)}
+    try{await h.values().next();marcaPasta(h,true);return h}catch(e){if(e.name!=="NotFoundError")throw e;toast(`A pasta "${h.name}" não existe mais (foi renomeada ou movida). Escolha a pasta de novo.`)}
   }else toast("Escolha UMA VEZ a pasta onde ficam as pastas dos clientes (ex. Downloads\\HOMOLOGA-CITY). Cada cliente ganha a sua subpasta sozinho.");
   return escolherPasta()}
+function marcaPasta(h,ok){const b=$("#bPasta");if(!b||!h)return;b.textContent=(ok?"📁 ":"🔒 Liberar ")+h.name;b.title=ok?`Os clientes são salvos em ${h.name}, cada um na sua subpasta. Clique para trocar a pasta.`:`Clique para liberar a pasta ${h.name} (o Edge pede autorização a cada sessão até você escolher "Permitir em todas as visitas")`;b.classList.toggle("amber",!ok)}
 function nomePasta(){return ((P.nome||"").replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ").trim().slice(0,80))||"Cliente sem nome"}
-if(podePasta){idb("get").then(h=>{if(h)$("#bPasta").textContent="Pasta: "+h.name}).catch(()=>{})}else $("#bPasta").hidden=true;
+if(podePasta){idb("get").then(async h=>{if(h)marcaPasta(h,await h.queryPermission({mode:"readwrite"})==="granted")}).catch(()=>{})}else $("#bPasta").hidden=true;
 /* botão "Abrir pasta": o navegador não abre o Explorador do Windows, então a pasta é mostrada aqui e cada arquivo abre numa aba */
 let pastaPilha=[];
 async function mostrarPasta(){
@@ -215,7 +236,10 @@ if(/[?&]ponte=1/.test(location.search))setTimeout(()=>{
     st("Lendo a pasta "+cli+"…");enviar(false).catch(er=>st("Erro: "+er.message));
   });
 },300);
-$("#bPasta").addEventListener("click",()=>escolherPasta().catch(e=>{if(e.name!=="AbortError")toast("Não foi possível usar a pasta: "+e.message)}));
+// botão da pasta: se já há pasta e ela está bloqueada, só libera; se está liberada, permite trocar
+$("#bPasta").addEventListener("click",async()=>{try{const h=await idb("get").catch(()=>null);
+  if(h&&await h.queryPermission({mode:"readwrite"})!=="granted"){if(await liberarPasta(h)){marcaPasta(h,true);toast("Pasta "+h.name+" liberada")}else await pedirPasta(h).then(x=>marcaPasta(x,true));return}
+  await escolherPasta()}catch(e){if(e.name!=="AbortError")toast("Não foi possível usar a pasta: "+e.message)}});
 
 $("#bAll").addEventListener("click",async()=>{
   // libera a pasta logo no clique (o navegador só pergunta com o clique "fresco", antes dos avisos)

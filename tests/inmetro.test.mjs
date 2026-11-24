@@ -107,3 +107,22 @@ test("conferência automática: só para quando algo não bate", async () => {
   });
   assert.deepEqual(r, [true, false, true, 0, "CPF/CNPJ inválido (dígitos não conferem)"]);
 });
+
+test("pasta já escolhida e bloqueada: pede só a liberação, sem abrir a janela de escolher pasta", async () => {
+  const p = await nav.newPage(), erros = [];
+  p.on("pageerror", (e) => erros.push(e.message));
+  await p.goto(srv.url + "/"); await p.waitForFunction(() => typeof pastaBase === "function");
+  const r = await p.evaluate(async () => {
+    const raiz = await navigator.storage.getDirectory(); idb = async (op) => (op === "get" ? raiz : undefined);
+    let picker = 0, perm = "prompt"; window.showDirectoryPicker = async () => { picker++; return raiz };
+    FileSystemHandle.prototype.queryPermission = async () => perm;
+    FileSystemHandle.prototype.requestPermission = async () => perm;
+    const pr = pastaBase(); await new Promise((r) => setTimeout(r, 300));
+    const modal = !!document.querySelector("#pastaPerm");
+    perm = "granted"; document.querySelector('#pastaPerm [data-pp="ok"]').click();
+    const h = await pr;
+    return [modal, picker, h === raiz || h.name === raiz.name, !document.querySelector("#pastaPerm")];
+  });
+  assert.deepEqual(r, [true, 0, true, true]);
+  assert.deepEqual(erros, []);
+});
