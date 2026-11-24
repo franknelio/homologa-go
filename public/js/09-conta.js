@@ -146,9 +146,10 @@ if(/[?&]crm=1/.test(location.search)&&window.opener){
         }catch(_){}
       }
       if(d.modalidade&&MODS.includes(d.modalidade)){qModSel=d.modalidade;desenharQMod()}
-      const diag=!arqs.length?` (o CRM não mandou nenhum arquivo nesta abertura; campos recebidos: ${Object.keys(e.data).concat(Object.keys(d).map(k=>"dados."+k)).join(", ")})`:r.erros.length?` (não abri: ${r.erros.join("; ")})`:"";
+      // o CRM manda os dados na hora e os documentos do grupo logo depois ("hgo-crm-arquivos"), quando termina de baixar
+      const diag=!arqs.length?" Aguardando os documentos do grupo que o CRM está baixando…":r.erros.length?` (não abri: ${r.erros.join("; ")})`:"";
       const falta=avisoFinal(d,diag);
-      if(!arqs.length)console.warn("HomologaGO: mensagem do CRM sem arquivos",Object.keys(e.data),Object.keys(d));
+      if(!arqs.length)setTimeout(()=>{if(!arqsCRM.length)avisoFinal(d," O CRM não mandou nenhum documento do grupo. Veja o aviso na aba do CRM: normalmente o robô ainda não recebeu a CNH/RG e a conta no grupo. Reenvie lá e abra pelo CRM de novo, ou arraste os arquivos nos quadros 1 e 2.")},60000);
       try{e.source.postMessage({tipo:"hgo-crm-recebido",n:arqs.length},e.origin)}catch(_){}
       crmJanela=e.source;crmOrigem=e.origin;botaoCRM();
       if(!falta.length&&qModSel){setTimeout(()=>$("#qGo").click(),400)}
