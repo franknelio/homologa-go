@@ -122,7 +122,7 @@ Regras: a conta muitas vezes NÃO está no nome do cliente, por isso não devolv
     }
     if($("#q_dsA").files[0]){msg("Lendo a ART/TRT…");await guardarArt($("#q_dsA").files[0]);try{const rt=await lerDatasheet("a",$("#q_dsA").files[0]);Object.assign(Q,rt);guardarRT(Q);aiNote+="ART/TRT lida. "}catch(e){aiNote+=`ART/TRT não lida (${e.message}). `}}
     ["iFab","iMod","mFab","mMod"].forEach(k=>{const v=$("#q_"+k).value.trim();if(v||Q[k]==null)Q[k]=v});
-    if(dsPasta.length)aiNote+=`Datasheet ${dsPasta.map(t=>t==="i"?"do inversor":"do módulo").join(" e ")} lido da pasta Datasheets. `;
+    if(dsPasta.length)aiNote+=`Datasheet ${dsPasta.map(t=>t==="i"?"do inversor":"do módulo").join(" e ")} guardado lido automaticamente. `;
     for(const t of dsOk)if(!dsPasta.includes(t))guardarDatasheet(t,ds[t],Q[t+"Fab"],Q[t+"Mod"]).catch(()=>{});
     if(Q.ligacao==="Trifásico"&&!String(Q.iFases||"").startsWith("Trif")){Q.iFases="Trifásico 380/220 V";Object.assign(Q,{iIout:+(iP*1000/(Math.sqrt(3)*380)).toFixed(1)})}
     Q.loc=$("#q_loc").value.trim();
@@ -263,7 +263,7 @@ document.addEventListener("change",async e=>{
     const d=await lerDatasheet(t,el.files[0],t==="i"?n(P.iP):n(P.mP));
     Object.assign(P,d);P["_ds"+t]=1;if(P._dsi&&P._dsm)delete P._equipEst;delete P._exemplo;
     syncForm();store("hgo_current",P);render();st(`Datasheet do ${nome} lido: ${Object.keys(d).length} campos preenchidos. Confira.`);
-    guardarDatasheet(t,el.files[0],P[t+"Fab"],P[t+"Mod"]).catch(()=>{});
+    guardarDatasheet(t,el.files[0],P[t+"Fab"],P[t+"Mod"]).catch(()=>{});if(typeof guardarEquip==="function")guardarEquip().catch(()=>{});
     if(P[t+"Fab"]&&P[t+"Mod"])buscarInmetro(t);
   }catch(err){st("Não consegui ler o datasheet: "+err.message)}
   el.value="";

@@ -51,3 +51,20 @@ test("datasheet sai da pasta Datasheets pelo modelo, e o lido ganha cópia com n
   assert.deepEqual(r, [true, false, "SUN-6K-G05P1-EU-CM2", 550, ["JA Solar JAM72S30-550 MR.pdf"]]);
   assert.deepEqual(erros, []);
 });
+
+test("datasheet guardado na conta volta sozinho em outro aparelho, sem a pasta", async () => {
+  const p = await nav.newPage(), erros = [];
+  p.on("pageerror", (e) => erros.push(e.message));
+  await p.route("**/api/ler-datasheet", (r) => r.fulfill({ contentType: "application/json", body: JSON.stringify({ dados: { iVmax: 600, iNmppt: 2 } }) }));
+  await p.route("**/api/inmetro?fab=*", (r) => r.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true, encontrado: null, opcoes: [], total: 0, consultados: 0 }) }));
+  await p.goto(srv.url + "/"); await p.waitForFunction(() => typeof datasheetAuto === "function");
+  const r = await p.evaluate(async () => {
+    sessao = { user: { id: "u1" }, access_token: "x" }; pastaLiberada = async () => null;
+    fileToImages = async () => [new Blob(["x"], { type: "image/jpeg" })];
+    await guardarDatasheet("i", new File(["%PDF i"], "ds.pdf", { type: "application/pdf" }), "Solis", "S6-GR1P6K");
+    P = { ...P, iFab: "Solis", iMod: "S6-GR1P6K", iVmax: "", iReg: "" };
+    return [await datasheetAuto("i"), P.iVmax, Object.keys(dsSalvos())];
+  });
+  assert.deepEqual(r, [true, 600, ["DS|i|SOLIS|S6GR1P6K"]]);
+  assert.deepEqual(erros, []);
+});

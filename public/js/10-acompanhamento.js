@@ -54,7 +54,7 @@ async function guardarEquip(){
 async function carregarBiblioteca(){
   if(!sb||!sessao||!navigator.onLine)return;
   const {data,error}=await sb.from("equipamentos").select("tipo,chave,dados");if(error||!data)return;
-  const B=biblioteca(),S=inmSalvos();for(const r of data){if(String(r.chave).startsWith("INM|"))S[r.chave]=r.dados;else if(B[r.tipo])B[r.tipo][r.chave]=r.dados}store("hgo_equip",B);store("hgo_inm",S);atualizaListasEq();
+  const B=biblioteca(),S=inmSalvos(),D=dsSalvos();for(const r of data){if(String(r.chave).startsWith("INM|"))S[r.chave]=r.dados;else if(String(r.chave).startsWith("DS|"))D[r.chave]=r.dados;else if(B[r.tipo])B[r.tipo][r.chave]=r.dados}store("hgo_equip",B);store("hgo_inm",S);store("hgo_ds",D);atualizaListasEq();
 }
 function atualizaListasEq(){
   const B=biblioteca();
@@ -121,22 +121,42 @@ async function inmetroGuardado(t,fab,mod){
 // o app procura o datasheet do modelo nessa pasta e lê sozinho; todo datasheet lido ganha uma cópia lá com nome padrão
 async function pastaDs(t){const h=await pastaLiberada();if(!h)return null;return (await h.getDirectoryHandle("Datasheets",{create:true})).getDirectoryHandle(t==="i"?"Inversores":"Modulos",{create:true})}
 const nomeDs=(fab,mod,ext)=>(`${fab||""} ${mod}`.trim()+(ext||".pdf")).replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ");
+// datasheets guardados na conta (valem em qualquer aparelho, mesmo sem a pasta liberada)
+const dsSalvos=()=>load("hgo_ds")||{};
+const chaveDs=(t,fab,mod)=>"DS|"+t+"|"+nrmInm(fab).slice(0,12)+"|"+nrmInm(mod);
+const notaDs=(nomeArq,fab,alvo)=>{const k=nrmInm(String(nomeArq).replace(/\.[^.]+$/,"")),semFab=k.replace(nrmInm(fab),"");return k.includes(alvo)?3:semFab.length>=6&&alvo.startsWith(semFab)?2:0};
+async function datasheetDaConta(t,fab,mod){
+  const alvo=nrmInm(mod);let melhor=null,nota=0;
+  for(const d of Object.values(dsSalvos()))if(d.t===t){const p=notaDs(d.fab+" "+d.mod,d.fab,alvo);if(p>nota){nota=p;melhor=d}}
+  if(!melhor)return null;
+  const local=await kv("get","ds:"+melhor.path).catch(()=>null);if(local instanceof Blob&&local.size)return new File([local],melhor.nome,{type:local.type});
+  if(!sb||!sessao||!navigator.onLine)return null;
+  const {data,error}=await sb.storage.from("anexos").download(melhor.path);if(error||!data)return null;
+  kv("put","ds:"+melhor.path,data).catch(()=>{});return new File([data],melhor.nome,{type:data.type||"application/pdf"});
+}
 async function datasheetNaPasta(t,fab,mod){
   const alvo=nrmInm(mod);if(alvo.length<5)return null;
-  const dir=await pastaDs(t).catch(()=>null);if(!dir)return null;
+  const dir=await pastaDs(t).catch(()=>null);if(!dir)return datasheetDaConta(t,fab,mod).catch(()=>null);
   let melhor=null,nota=0;
   for await(const [nome,h] of dir.entries()){
     if(h.kind!=="file"||!/\.(pdf|png|jpe?g|webp)$/i.test(nome))continue;
-    const k=nrmInm(nome.replace(/\.[^.]+$/,"")),semFab=k.replace(nrmInm(fab),"");
     // nome do arquivo tem o modelo inteiro, ou o modelo começa com o nome do arquivo (ex. "SUN-6K-G05P1.pdf")
-    const pts=k.includes(alvo)?3:semFab.length>=6&&alvo.startsWith(semFab)?2:0;
+    const pts=notaDs(nome,fab,alvo);
     if(pts>nota){nota=pts;melhor=h}
   }
-  return melhor?melhor.getFile():null;
+  return melhor?melhor.getFile():datasheetDaConta(t,fab,mod).catch(()=>null);
 }
 async function guardarDatasheet(t,file,fab,mod){
-  if(!file||!mod)return;const dir=await pastaDs(t);if(!dir)return;
+  if(!file||!mod)return;
   const ext=((String(file.name||"").match(/\.[a-z0-9]{2,4}$/i)||[".pdf"])[0]).toLowerCase(),nome=nomeDs(fab,mod,ext);
+  // na conta: arquivo no Storage + índice na tabela equipamentos
+  const k=chaveDs(t,fab,mod);
+  if(sessao&&!dsSalvos()[k]){const path=`${sessao.user.id}/datasheets/${t}/${nrmInm(fab)}_${nrmInm(mod)}${ext}`,d={t,fab:fab||"",mod,nome,path,em:new Date().toISOString()};
+    kv("put","ds:"+path,file).catch(()=>{});
+    let ok=!sb;if(sb&&navigator.onLine){const {error}=await sb.storage.from("anexos").upload(path,file,{upsert:true,contentType:file.type||"application/pdf"});ok=!error;
+      if(ok)await sb.from("equipamentos").upsert({user_id:sessao.user.id,tipo:t,chave:k,dados:d,atualizado_em:d.em}).then(()=>{},()=>{})}
+    if(ok){const D=dsSalvos();D[k]=d;store("hgo_ds",D)}}
+  const dir=await pastaDs(t).catch(()=>null);if(!dir)return;
   try{await dir.getFileHandle(nome);return}catch(e){}
   const w=await (await dir.getFileHandle(nome,{create:true})).createWritable();await w.write(file);await w.close();
 }
@@ -145,13 +165,13 @@ async function datasheetAuto(t){
   const fab=(P[t+"Fab"]||"").trim(),mod=(P[t+"Mod"]||"").trim(),nome=t==="i"?"inversor":"módulo",st=x=>{const e=$("#inm_"+t);if(e)e.textContent=x};
   if(!mod||!sessao||!navigator.onLine)return false;
   const f=await datasheetNaPasta(t,fab,mod).catch(()=>null);if(!f)return false;
-  st(`Lendo o datasheet do ${nome} da pasta Datasheets (${f.name})…`);
+  st(`Lendo o datasheet guardado do ${nome} (${f.name})…`);
   try{const d=await lerDatasheet(t,f,t==="i"?n(P.iP):n(P.mP));
     // o modelo escrito pelo usuário continua valendo (o datasheet costuma listar a família toda)
     delete d[t+"Mod"];if(fab)delete d[t+"Fab"];
     Object.assign(P,d);P["_ds"+t]=1;if(P._dsi&&P._dsm)delete P._equipEst;delete P._exemplo;
-    syncForm();store("hgo_current",P);render();st(`Datasheet do ${nome} lido da pasta Datasheets (${f.name}): ${Object.keys(d).length} campos preenchidos. Confira.`);
-    toast(`Datasheet do ${nome} lido da pasta Datasheets`);if(!P[t+"Reg"]&&P[t+"Fab"])buscarInmetro(t);return true;
+    syncForm();store("hgo_current",P);render();st(`Datasheet guardado do ${nome} lido (${f.name}): ${Object.keys(d).length} campos preenchidos. Confira.`);
+    toast(`Datasheet do ${nome} preenchido automaticamente`);if(!P[t+"Reg"]&&P[t+"Fab"])buscarInmetro(t);return true;
   }catch(e){st(`Achei ${f.name} na pasta Datasheets, mas não consegui ler: ${e.message}`);return false}
 }
 document.addEventListener("change",e=>{const k=e.target.closest("#form")&&e.target.dataset.k;if((k==="mMod"||k==="iMod")&&!aplicarBiblioteca(k[0]))datasheetAuto(k[0])});
