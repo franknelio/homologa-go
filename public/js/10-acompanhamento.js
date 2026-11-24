@@ -177,5 +177,26 @@ async function datasheetAuto(t){
 document.addEventListener("change",e=>{const k=e.target.closest("#form")&&e.target.dataset.k;if((k==="mMod"||k==="iMod")&&!aplicarBiblioteca(k[0]))datasheetAuto(k[0])});
 
 /* ---------------- favoritos: os botões do app são para arrastar, não para clicar ---------------- */
-document.addEventListener("click",e=>{const a=e.target.closest("#bmEq,#bmTrt");if(!a)return;e.preventDefault();e.stopPropagation();
+document.addEventListener("click",e=>{const a=e.target.closest("#bmEq,#bmTrt,#bmEq2");if(!a)return;e.preventDefault();e.stopPropagation();
+  if(a.id==="bmEq"){abrirEnvioEq();return}
   toast(a.id==="bmTrt"?"Arraste este botão para a barra de favoritos e clique nele na página do SINCETI (Preencher Termo de Responsabilidade Técnica).":"Arraste este botão para a barra de favoritos e clique nele no site da Equatorial (Orçamento de Conexão GD).")},true);
+
+/* ---------------- passo a passo para subir o projeto na Equatorial ---------------- */
+const PORTAL_EQ="https://go.equatorialenergia.com.br/sua-conta/geracao-distribuida/parecer-de-acesso/";
+function abrirEnvioEq(gerou){
+  let box=document.getElementById("eqBox");
+  if(!box){box=document.createElement("div");box.id="eqBox";box.style.cssText="position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px";
+    box.addEventListener("click",e=>{if(e.target===box||e.target.closest("[data-eqfechar]"))box.remove()});document.body.appendChild(box)}
+  const bm=document.getElementById("bmEq"),href=bm?bm.getAttribute("href"):"";
+  const gerado=gerou||P._geradoEm,passo=(nmr,ok,txt)=>`<li style="display:flex;gap:12px;margin:0 0 14px"><b style="flex:0 0 28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:${ok?"#16a34a":"#f59e0b"};color:#fff">${ok?"✓":nmr}</b><div style="flex:1">${txt}</div></li>`;
+  box.innerHTML=`<div style="background:#fff;color:#222;border-radius:12px;width:min(620px,100%);max-height:88vh;overflow:auto;padding:20px 22px;box-shadow:0 10px 40px rgba(0,0,0,.35)">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px"><h3 style="margin:0;flex:1">Subir o projeto ${esc(P.nome||"")} na Equatorial</h3><button type="button" class="btn" data-eqfechar title="Fechar">×</button></div>
+    <ol style="list-style:none;padding:0;margin:0">
+      ${passo(1,!!gerado,`<b>Gerar todos os documentos</b>${gerado?" (feito: os PDFs estão na pasta do cliente)":` <button type="button" class="btn amber" id="eqGerar">Gerar agora</button>`}`)}
+      ${passo(2,false,`<b>Abrir o site da Equatorial</b> em Orçamento de Conexão GD.<br><a class="btn" href="${PORTAL_EQ}" target="_blank" rel="noopener" style="margin-top:6px">Abrir o site da Equatorial ↗</a>`)}
+      ${passo(3,false,`<b>Na página da Equatorial, clique no favorito ⭐ Preencher Equatorial</b> na barra de favoritos (no alto do Edge). Ele preenche tudo e anexa os PDFs.<br><small style="color:#666">Não tem o favorito? Mostre a barra com Ctrl+Shift+B e arraste este botão para ela: </small><a class="btn" id="bmEq2" draggable="true" href="${esc(href)}">⭐ Preencher Equatorial</a>`)}
+      ${passo(4,false,`<b>Marque "Não sou um robô" e clique em Enviar</b>. Essa parte é sempre sua.`)}
+    </ol></div>`;
+  const g=document.getElementById("eqGerar");if(g)g.onclick=()=>{box.remove();$("#bAll").click()};
+}
+$("#bEnviarEq").addEventListener("click",()=>abrirEnvioEq());

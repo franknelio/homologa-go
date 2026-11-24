@@ -102,6 +102,8 @@ const podePasta="showDirectoryPicker" in window;
 function idb(op,val){return new Promise((ok,erro)=>{const r=indexedDB.open("hgo",1);r.onupgradeneeded=()=>r.result.createObjectStore("kv");
   r.onerror=()=>erro(r.error);r.onsuccess=()=>{try{const t=r.result.transaction("kv",op==="get"?"readonly":"readwrite").objectStore("kv");
   const q=op==="get"?t.get("pasta"):t.put(val,"pasta");q.onsuccess=()=>ok(q.result);q.onerror=()=>erro(q.error)}catch(e){erro(e)}}})}
+// pede ao navegador para não apagar os dados do app (onde fica guardada a pasta escolhida)
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 async function escolherPasta(){
   const h=await window.showDirectoryPicker({id:"hgo-clientes",mode:"readwrite",startIn:"documents"});
   try{await idb("put",h)}catch(e){}$("#bPasta").textContent="Pasta: "+h.name;toast("Os clientes serão salvos em: "+h.name);return h}
@@ -110,7 +112,7 @@ async function pastaBase(){
   if(h&&(await h.queryPermission({mode:"readwrite"})==="granted"||await h.requestPermission({mode:"readwrite"})==="granted")){
     // pasta renomeada, movida ou apagada: o navegador perde o caminho e é preciso escolher de novo
     try{await h.values().next();return h}catch(e){if(e.name!=="NotFoundError")throw e;toast(`A pasta "${h.name}" não existe mais (foi renomeada ou movida). Escolha a pasta de novo.`)}
-  }else toast("Escolha a pasta onde ficarão as pastas dos clientes");
+  }else toast("Escolha UMA VEZ a pasta onde ficam as pastas dos clientes (ex. Downloads\\HOMOLOGA-CITY). Cada cliente ganha a sua subpasta sozinho.");
   return escolherPasta()}
 function nomePasta(){return ((P.nome||"").replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ").trim().slice(0,80))||"Cliente sem nome"}
 if(podePasta){idb("get").then(h=>{if(h)$("#bPasta").textContent="Pasta: "+h.name}).catch(()=>{})}else $("#bPasta").hidden=true;
@@ -200,6 +202,9 @@ if(/[?&]ponte=1/.test(location.search))setTimeout(()=>{
 $("#bPasta").addEventListener("click",()=>escolherPasta().catch(e=>{if(e.name!=="AbortError")toast("Não foi possível usar a pasta: "+e.message)}));
 
 $("#bAll").addEventListener("click",async()=>{
+  // libera a pasta logo no clique (o navegador só pergunta com o clique "fresco", antes dos avisos)
+  let baseCli=null;
+  if(podePasta){try{baseCli=await pastaBase()}catch(e){if(e.name==="AbortError"){toast("Nenhuma pasta escolhida.");return}}}
   {const cc=conferenciaCruzada(calc()),ruins=cc.filter(x=>x[0]==="bad"),av=cc.filter(x=>x[0]==="warn");
    const lim=t=>"• "+String(t).replace(/<[^>]+>/g,"");
    if(ruins.length&&!confirm(`Os documentos de ${P.nome||"este projeto"} têm ${ruins.length} divergência(s) que costumam reprovar:\n\n${ruins.map(x=>lim(x[1])).join("\n")}\n\nOK = gerar mesmo assim (não recomendado)\nCancelar = corrigir antes`))return;
@@ -208,7 +213,7 @@ $("#bAll").addEventListener("click",async()=>{
   const salvos=[],erros=[],pendentes=[];
   try{
     let destino=null;
-    if(podePasta){try{const base=await pastaBase();destino=await base.getDirectoryHandle(nomePasta(),{create:true})}
+    if(podePasta){try{const base=baseCli||await pastaBase();destino=await base.getDirectoryHandle(nomePasta(),{create:true})}
       catch(e){if(e.name==="AbortError"){toast("Nenhuma pasta escolhida.");return}erros.push("pasta: "+e.message)}}
     // grava cada arquivo assim que fica pronto; se a pasta recusar, ele vai para o .zip
     const gravar=async(nome,blob)=>{
@@ -246,6 +251,7 @@ $("#bAll").addEventListener("click",async()=>{
     b.disabled=false;b.textContent="Gerar todos os documentos";
     const res=`${salvos.length?`Salvos${destino_ok(salvos)}: ${salvos.join(", ")}.`:"Nenhum arquivo foi salvo."}${erros.length?`\n\nProblemas:\n- ${erros.join("\n- ")}`:""}`;
     if(erros.length||!salvos.length)alert(res);else toast(`${salvos.length} arquivos salvos na pasta "${nomePasta()}"`);
+    if(salvos.length){P._geradoEm=new Date().toISOString();store("hgo_current",P);abrirEnvioEq(true)}
   }
 });
 function destino_ok(l){return l.some(x=>/\.zip$/.test(x))?"":` na pasta "${nomePasta()}"`}

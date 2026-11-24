@@ -68,3 +68,18 @@ test("datasheet guardado na conta volta sozinho em outro aparelho, sem a pasta",
   assert.deepEqual(r, [true, 600, ["DS|i|SOLIS|S6GR1P6K"]]);
   assert.deepEqual(erros, []);
 });
+
+test("passo a passo para subir na Equatorial abre pelo botão e pelo favorito", async () => {
+  const p = await nav.newPage({ viewport: { width: 390, height: 844 } }), erros = [];
+  p.on("pageerror", (e) => erros.push(e.message));
+  await p.goto(srv.url + "/"); await p.waitForFunction(() => typeof abrirEnvioEq === "function");
+  await p.click("#bEnviarEq");
+  const passos = await p.$$eval("#eqBox li", (x) => x.length);
+  const link = await p.$eval('#eqBox a[target="_blank"]', (a) => a.href);
+  await p.click("#eqBox [data-eqfechar]");
+  await p.evaluate(() => document.querySelector("#bmEq").click());
+  const reabriu = await p.$("#eqBox");
+  const rolagem = await p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
+  assert.equal(passos, 4); assert.match(link, /equatorialenergia\.com\.br/); assert.ok(reabriu); assert.equal(rolagem, false);
+  assert.deepEqual(erros, []);
+});
