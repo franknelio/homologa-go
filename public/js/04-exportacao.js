@@ -106,7 +106,7 @@ function idb(op,val){return new Promise((ok,erro)=>{const r=indexedDB.open("hgo"
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 async function escolherPasta(){
   const h=await window.showDirectoryPicker({id:"hgo-clientes",mode:"readwrite",startIn:"documents"});
-  try{await idb("put",h)}catch(e){toast("Não consegui guardar a pasta escolhida neste navegador: "+e.message)}marcaPasta(h,true);toast("Os clientes serão salvos em: "+h.name);return h}
+  try{await idb("put",h);const v=await idb("get");if(!v||v.name!==h.name)throw new Error("o navegador não manteve a pasta")}catch(e){alert("Atenção: o Edge não guardou a pasta escolhida ("+e.message+"). Ela será pedida de novo. Verifique se não está numa janela InPrivate e se o Edge não apaga os dados dos sites ao fechar (Configurações → Privacidade → Limpar dados ao fechar).")}marcaPasta(h,true);toast("Os clientes serão salvos em: "+h.name);return h}
 // pasta já escolhida: só pede a permissão (um clique em "Permitir"), nunca abre de novo a janela de escolher pasta
 async function liberarPasta(h){
   if(await h.queryPermission({mode:"readwrite"})==="granted")return true;
