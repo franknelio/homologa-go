@@ -206,7 +206,10 @@ async function lerDatasheet(t,file,pot){
 function equipDaBiblioteca(t,pot,fab,mod){
   const L=Object.values((biblioteca()||{})[t]||{});
   if(mod){const a=L.filter(x=>nrmInm(x[t+"Mod"])===nrmInm(mod));return a.length===1?a[0]:null}
-  if(!n(pot))return null;const a=L.filter(x=>n(x[t+"P"])===n(pot)&&(!fab||nrmInm(x[t+"Fab"])===nrmInm(fab)));return a.length===1?a[0]:null;
+  if(!n(pot))return null;const a=L.filter(x=>n(x[t+"P"])===n(pot)&&(!fab||nrmInm(x[t+"Fab"])===nrmInm(fab)));if(a.length<2)return a[0]||null;
+  // mais de um com a mesma potência: fica o que tem datasheet e INMETRO guardados, se só um tiver
+  const D=dsSalvos(),S=inmSalvos(),nota=x=>(D[chaveDs(t,x[t+"Fab"],x[t+"Mod"])]?1:0)+(S[chaveInm(x[t+"Fab"],x[t+"Mod"])]||/\d{6}\/\d{4}/.test(x[t+"Reg"]||"")?1:0);
+  const max=Math.max(...a.map(nota)),top=a.filter(x=>nota(x)===max);return max>0&&top.length===1?top[0]:null;
 }
 let eqAutoT;
 function mostraEquipAuto(){clearTimeout(eqAutoT);eqAutoT=setTimeout(async()=>{if(!document.getElementById("q_dsI"))return;
