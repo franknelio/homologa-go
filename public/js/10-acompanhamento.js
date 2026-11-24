@@ -73,7 +73,6 @@ function aplicarBiblioteca(t){
   if(t==="i"&&String(P.iFases).startsWith("Trif")){P.ligacao="Trifásico";P.tensao="380/220 V"}
   syncForm();store("hgo_current",P);render();toast(`${t==="m"?"Módulo":"Inversor"} ${d[t+"Mod"]} preenchido pela sua biblioteca de equipamentos`);return true;
 }
-document.addEventListener("change",e=>{const k=e.target.closest("#form")&&e.target.dataset.k;if(k==="mMod"||k==="iMod")aplicarBiblioteca(k[0])});
 setTimeout(atualizaListasEq,0);
 
 /* ---------------- certificados INMETRO já encontrados ---------------- */
@@ -83,12 +82,15 @@ const nrmInm=x=>String(x||"").toUpperCase().normalize("NFD").replace(/[^A-Z0-9]/
 const chaveInm=(fab,mod)=>"INM|"+nrmInm(fab).slice(0,12)+"|"+nrmInm(mod);
 const inmSalvos=()=>load("hgo_inm")||{};
 const nomeCert=d=>(`INMETRO ${d.fab} ${d.mod} - ${d.reg.replace("/","-")}.pdf`).replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ");
-async function pastaCert(){
+// pasta dos clientes já liberada neste navegador (não abre a janela de escolher pasta)
+async function pastaLiberada(){
   if(typeof podePasta==="undefined"||!podePasta)return null;
   let h=null;try{h=await idb("get")}catch(e){}if(!h)return null;
-  if(await h.queryPermission({mode:"readwrite"})!=="granted")return null;
-  return h.getDirectoryHandle("Certificados INMETRO",{create:true});
+  let p=await h.queryPermission({mode:"readwrite"});
+  if(p==="prompt"&&navigator.userActivation&&navigator.userActivation.isActive)try{p=await h.requestPermission({mode:"readwrite"})}catch(e){}
+  return p==="granted"?h:null;
 }
+async function pastaCert(){const h=await pastaLiberada();return h?h.getDirectoryHandle("Certificados INMETRO",{create:true}):null}
 async function certNaPasta(reg){
   const dir=await pastaCert().catch(()=>null);if(!dir)return null;const fim=reg.replace("/","-")+".pdf";
   for await(const [nome,h] of dir.entries())if(h.kind==="file"&&nome.endsWith(fim))return h.getFile();
@@ -114,6 +116,45 @@ async function inmetroGuardado(t,fab,mod){
   if(dir){const alvo=nrmInm(mod);for await(const [nome,h] of dir.entries()){const m=nome.match(/(\d{6})-(\d{4})\.pdf$/i);if(h.kind==="file"&&m&&alvo.length>=5&&nrmInm(nome).includes(alvo))return {t,fab,mod,reg:m[1]+"/"+m[2],modelo:mod,fonte:"pasta"}}}
   return null;
 }
+
+/* ---------------- pasta Datasheets (Módulos / Inversores) ---------------- */
+// o app procura o datasheet do modelo nessa pasta e lê sozinho; todo datasheet lido ganha uma cópia lá com nome padrão
+async function pastaDs(t){const h=await pastaLiberada();if(!h)return null;return (await h.getDirectoryHandle("Datasheets",{create:true})).getDirectoryHandle(t==="i"?"Inversores":"Modulos",{create:true})}
+const nomeDs=(fab,mod,ext)=>(`${fab||""} ${mod}`.trim()+(ext||".pdf")).replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ");
+async function datasheetNaPasta(t,fab,mod){
+  const alvo=nrmInm(mod);if(alvo.length<5)return null;
+  const dir=await pastaDs(t).catch(()=>null);if(!dir)return null;
+  let melhor=null,nota=0;
+  for await(const [nome,h] of dir.entries()){
+    if(h.kind!=="file"||!/\.(pdf|png|jpe?g|webp)$/i.test(nome))continue;
+    const k=nrmInm(nome.replace(/\.[^.]+$/,"")),semFab=k.replace(nrmInm(fab),"");
+    // nome do arquivo tem o modelo inteiro, ou o modelo começa com o nome do arquivo (ex. "SUN-6K-G05P1.pdf")
+    const pts=k.includes(alvo)?3:semFab.length>=6&&alvo.startsWith(semFab)?2:0;
+    if(pts>nota){nota=pts;melhor=h}
+  }
+  return melhor?melhor.getFile():null;
+}
+async function guardarDatasheet(t,file,fab,mod){
+  if(!file||!mod)return;const dir=await pastaDs(t);if(!dir)return;
+  const ext=((String(file.name||"").match(/\.[a-z0-9]{2,4}$/i)||[".pdf"])[0]).toLowerCase(),nome=nomeDs(fab,mod,ext);
+  try{await dir.getFileHandle(nome);return}catch(e){}
+  const w=await (await dir.getFileHandle(nome,{create:true})).createWritable();await w.write(file);await w.close();
+}
+// trocou o modelo e a biblioteca não tinha: procura o datasheet na pasta e lê
+async function datasheetAuto(t){
+  const fab=(P[t+"Fab"]||"").trim(),mod=(P[t+"Mod"]||"").trim(),nome=t==="i"?"inversor":"módulo",st=x=>{const e=$("#inm_"+t);if(e)e.textContent=x};
+  if(!mod||!sessao||!navigator.onLine)return false;
+  const f=await datasheetNaPasta(t,fab,mod).catch(()=>null);if(!f)return false;
+  st(`Lendo o datasheet do ${nome} da pasta Datasheets (${f.name})…`);
+  try{const d=await lerDatasheet(t,f,t==="i"?n(P.iP):n(P.mP));
+    // o modelo escrito pelo usuário continua valendo (o datasheet costuma listar a família toda)
+    delete d[t+"Mod"];if(fab)delete d[t+"Fab"];
+    Object.assign(P,d);P["_ds"+t]=1;if(P._dsi&&P._dsm)delete P._equipEst;delete P._exemplo;
+    syncForm();store("hgo_current",P);render();st(`Datasheet do ${nome} lido da pasta Datasheets (${f.name}): ${Object.keys(d).length} campos preenchidos. Confira.`);
+    toast(`Datasheet do ${nome} lido da pasta Datasheets`);if(!P[t+"Reg"]&&P[t+"Fab"])buscarInmetro(t);return true;
+  }catch(e){st(`Achei ${f.name} na pasta Datasheets, mas não consegui ler: ${e.message}`);return false}
+}
+document.addEventListener("change",e=>{const k=e.target.closest("#form")&&e.target.dataset.k;if((k==="mMod"||k==="iMod")&&!aplicarBiblioteca(k[0]))datasheetAuto(k[0])});
 
 /* ---------------- favoritos: os botões do app são para arrastar, não para clicar ---------------- */
 document.addEventListener("click",e=>{const a=e.target.closest("#bmEq,#bmTrt");if(!a)return;e.preventDefault();e.stopPropagation();

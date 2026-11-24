@@ -224,6 +224,8 @@ $("#bAll").addEventListener("click",async()=>{
       b.textContent=`Baixando INMETRO do ${rot}…`;
       try{const blob=await pdfInmetro(reg);await gravar(`08_INMETRO_${rot}_${reg.replace("/","-")}.pdf`,blob)}catch(e){erros.push(`INMETRO do ${rot} (${reg}): ${e.message}`)}
     }
+    // datasheets da pasta Datasheets entram na pasta do cliente
+    for(const [t,rot] of [["i","inversor"],["m","modulo"]]){try{const f=await datasheetNaPasta(t,P[t+"Fab"],P[t+"Mod"]);if(f)await gravar(`12_Datasheet_${rot}${((f.name.match(/\.[a-z0-9]{2,4}$/i)||[".pdf"])[0]).toLowerCase()}`,f)}catch(e){}}
     {const ext=n=>((String(n).match(/\.[a-z0-9]{2,4}$/i)||[".pdf"])[0]).toLowerCase(),limpa=n=>String(n).replace(/[\\/:*?"<>|]+/g,"_");
      const lista=await anexosDoProjeto();
      for(const [k,a] of lista){const blob=new Blob([a.buf],{type:a.tipo||""});

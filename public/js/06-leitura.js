@@ -113,13 +113,17 @@ Regras: a conta muitas vezes NÃO está no nome do cliente, por isso não devolv
     Object.assign(Q,{iP,iQ,mP,mQ},estModulo(mP),estInversor(iP,Q.ligacao));
     // a fatura não disse a ligação e o inversor só cabe em trifásico (acima de 10 kW): a UC é trifásica 380/220 V
     if(!ligLida&&String(Q.iFases).startsWith("Trif")&&Q.ligacao!=="Trifásico"){Q.ligacao="Trifásico";Q.tensao="380/220 V";aiNote+="Ligação considerada Trifásico (inversor acima de 10 kW). "}
-    const ds={i:$("#q_dsI").files[0],m:$("#q_dsM").files[0]},dsOk=[];
+    const ds={i:$("#q_dsI").files[0],m:$("#q_dsM").files[0]},dsOk=[],dsPasta=[];
+    // sem datasheet escolhido: procura pelo modelo na pasta Datasheets
+    for(const t of ["i","m"])if(!ds[t]&&$(`#q_${t}Mod`).value.trim()){const f=await datasheetNaPasta(t,$(`#q_${t}Fab`).value.trim(),$(`#q_${t}Mod`).value.trim()).catch(()=>null);if(f){ds[t]=f;dsPasta.push(t)}}
     for(const t of ["i","m"])if(ds[t]){
       const nome=t==="i"?"inversor":"módulo";msg(`Lendo o datasheet do ${nome}…`);
       try{Object.assign(Q,await lerDatasheet(t,ds[t],t==="i"?iP:mP));dsOk.push(t)}catch(e){aiNote+=`Datasheet do ${nome} não lido (${e.message}). `}
     }
     if($("#q_dsA").files[0]){msg("Lendo a ART/TRT…");await guardarArt($("#q_dsA").files[0]);try{const rt=await lerDatasheet("a",$("#q_dsA").files[0]);Object.assign(Q,rt);guardarRT(Q);aiNote+="ART/TRT lida. "}catch(e){aiNote+=`ART/TRT não lida (${e.message}). `}}
     ["iFab","iMod","mFab","mMod"].forEach(k=>{const v=$("#q_"+k).value.trim();if(v||Q[k]==null)Q[k]=v});
+    if(dsPasta.length)aiNote+=`Datasheet ${dsPasta.map(t=>t==="i"?"do inversor":"do módulo").join(" e ")} lido da pasta Datasheets. `;
+    for(const t of dsOk)if(!dsPasta.includes(t))guardarDatasheet(t,ds[t],Q[t+"Fab"],Q[t+"Mod"]).catch(()=>{});
     if(Q.ligacao==="Trifásico"&&!String(Q.iFases||"").startsWith("Trif")){Q.iFases="Trifásico 380/220 V";Object.assign(Q,{iIout:+(iP*1000/(Math.sqrt(3)*380)).toFixed(1)})}
     Q.loc=$("#q_loc").value.trim();
     {const art=$("#q_art").value.trim();if(art)Q.rtArt=art}
@@ -259,6 +263,7 @@ document.addEventListener("change",async e=>{
     const d=await lerDatasheet(t,el.files[0],t==="i"?n(P.iP):n(P.mP));
     Object.assign(P,d);P["_ds"+t]=1;if(P._dsi&&P._dsm)delete P._equipEst;delete P._exemplo;
     syncForm();store("hgo_current",P);render();st(`Datasheet do ${nome} lido: ${Object.keys(d).length} campos preenchidos. Confira.`);
+    guardarDatasheet(t,el.files[0],P[t+"Fab"],P[t+"Mod"]).catch(()=>{});
     if(P[t+"Fab"]&&P[t+"Mod"])buscarInmetro(t);
   }catch(err){st("Não consegui ler o datasheet: "+err.message)}
   el.value="";
