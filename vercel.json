@@ -1,5 +1,8 @@
 {
   "outputDirectory": "public",
+  "regions": [
+    "gru1"
+  ],
   "functions": {
     "api/ler-documentos.js": {
       "maxDuration": 60
