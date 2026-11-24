@@ -84,6 +84,11 @@ async function buscarInmetro(t){
   const b=document.querySelector(`[data-inm="${t}"]`);if(b)b.disabled=true;
   st("Consultando o INMETRO, pode levar até 1 minuto…");inmBusca[t]=true;render();
   try{
+    const g=await inmetroGuardado(t,fab,mod).catch(()=>null);
+    if(g){P[t+"Reg"]=`Registro INMETRO nº ${g.reg}`;P["_inm"+t]=g.familia?`família ${g.modelo}`:"";delete P._exemplo;syncForm();store("hgo_current",P);render();
+      st(`${g.reg}${g.situacao?" · "+g.situacao:""}${g.modelo&&nrmInm(g.modelo)!==nrmInm(mod)?" · modelo registrado "+g.modelo:""} · já estava ${g.fonte==="pasta"?"na pasta Certificados INMETRO":"guardado na sua conta"}, não precisei consultar o site.`);
+      if(g.fonte==="pasta")guardarInm(t,fab,mod,{registro:g.reg,modelo:g.modelo},g.familia);else salvarCertificado(g).catch(()=>{});
+      toast(`Registro INMETRO do ${nome}: ${g.reg}`);return}
     const r=await fetch(`api/inmetro?fab=${encodeURIComponent(fab)}&modelo=${encodeURIComponent(mod)}&pot=${n(P[t+"P"])||""}`,{headers:{authorization:"Bearer "+sessao.access_token}});
     const j=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(j.error||"erro "+r.status);
@@ -94,6 +99,7 @@ async function buscarInmetro(t){
     if(!a&&j.limitado){st(`O site do INMETRO limitou as consultas agora (li ${j.consultados} de ${j.total} registros da marca ${fab}). Toque em “Buscar no INMETRO” de novo daqui a alguns minutos.`);opc(j.opcoes.slice(0,6));inmFeito.delete(`${P._id}|${t}|${P[t+"Fab"]}|${P[t+"Mod"]}`);toast("INMETRO ocupado, tente a busca de novo em alguns minutos");return}
     if(!a){st(`Não achei o modelo ${mod}${n(P[t+"P"])&&t==="m"?` de ${P.mP} W`:""} entre ${j.total} registros da marca ${fab}.${j.opcoes.length?" Parecidos (toque para usar):":" Confira o modelo ou consulte registro.inmetro.gov.br."}`);opc(j.opcoes.slice(0,6));const sec=document.querySelector(`details[data-s="${t==="m"?"mod":"inv"}"]`);if(sec)sec.open=true;toast(`Registro INMETRO do ${nome} não encontrado`);return}
     P[t+"Reg"]=`Registro INMETRO nº ${a.registro}`;P["_inm"+t]=familia?`família ${a.modelo}`:"";delete P._exemplo;syncForm();store("hgo_current",P);render();
+    guardarInm(t,fab,mod,a,familia);
     const outros=j.opcoes.filter(o=>o.registro!==a.registro).slice(0,3).map(o=>`${o.modelo} (${o.registro})`);
     st(`${a.registro} · ${a.situacao||""} · ${a.empresa||""} · modelo ${a.modelo}${familia?` (o INMETRO não tem o ${mod}; usei o registro da mesma série, confira)`:a.exato?"":" (nome parecido, confira)"}${outros.length?" · outras opções:":""}`);opc(j.opcoes.filter(o=>o.registro!==a.registro).slice(0,3));
     toast(`Registro INMETRO do ${nome}: ${a.registro}`);

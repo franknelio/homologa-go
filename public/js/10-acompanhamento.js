@@ -54,7 +54,7 @@ async function guardarEquip(){
 async function carregarBiblioteca(){
   if(!sb||!sessao||!navigator.onLine)return;
   const {data,error}=await sb.from("equipamentos").select("tipo,chave,dados");if(error||!data)return;
-  const B=biblioteca();for(const r of data)if(B[r.tipo])B[r.tipo][r.chave]=r.dados;store("hgo_equip",B);atualizaListasEq();
+  const B=biblioteca(),S=inmSalvos();for(const r of data){if(String(r.chave).startsWith("INM|"))S[r.chave]=r.dados;else if(B[r.tipo])B[r.tipo][r.chave]=r.dados}store("hgo_equip",B);store("hgo_inm",S);atualizaListasEq();
 }
 function atualizaListasEq(){
   const B=biblioteca();
@@ -75,6 +75,45 @@ function aplicarBiblioteca(t){
 }
 document.addEventListener("change",e=>{const k=e.target.closest("#form")&&e.target.dataset.k;if(k==="mMod"||k==="iMod")aplicarBiblioteca(k[0])});
 setTimeout(atualizaListasEq,0);
+
+/* ---------------- certificados INMETRO já encontrados ---------------- */
+// cada registro achado fica guardado na conta (vale em qualquer aparelho) e, no computador, o PDF vai para a pasta
+// "Certificados INMETRO" dentro da pasta dos clientes. A próxima busca do mesmo modelo olha aí antes de ir ao site.
+const nrmInm=x=>String(x||"").toUpperCase().normalize("NFD").replace(/[^A-Z0-9]/g,"");
+const chaveInm=(fab,mod)=>"INM|"+nrmInm(fab).slice(0,12)+"|"+nrmInm(mod);
+const inmSalvos=()=>load("hgo_inm")||{};
+const nomeCert=d=>(`INMETRO ${d.fab} ${d.mod} - ${d.reg.replace("/","-")}.pdf`).replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ");
+async function pastaCert(){
+  if(typeof podePasta==="undefined"||!podePasta)return null;
+  let h=null;try{h=await idb("get")}catch(e){}if(!h)return null;
+  if(await h.queryPermission({mode:"readwrite"})!=="granted")return null;
+  return h.getDirectoryHandle("Certificados INMETRO",{create:true});
+}
+async function certNaPasta(reg){
+  const dir=await pastaCert().catch(()=>null);if(!dir)return null;const fim=reg.replace("/","-")+".pdf";
+  for await(const [nome,h] of dir.entries())if(h.kind==="file"&&nome.endsWith(fim))return h.getFile();
+  return null;
+}
+async function salvarCertificado(d){
+  const dir=await pastaCert();if(!dir)return;const nome=nomeCert(d);
+  try{await dir.getFileHandle(nome);return}catch(e){}
+  const blob=await pdfInmetro(d.reg);const w=await (await dir.getFileHandle(nome,{create:true})).createWritable();await w.write(blob);await w.close();
+}
+function guardarInm(t,fab,mod,a,familia){
+  const d={t,fab,mod,reg:a.registro,modelo:a.modelo||mod,empresa:a.empresa||"",situacao:a.situacao||"",familia:!!familia,em:new Date().toISOString()};
+  const S=inmSalvos();S[chaveInm(fab,mod)]=d;store("hgo_inm",S);
+  if(sb&&sessao&&navigator.onLine)sb.from("equipamentos").upsert({user_id:sessao.user.id,tipo:t,chave:chaveInm(fab,mod),dados:d,atualizado_em:d.em}).then(()=>{},()=>{});
+  salvarCertificado(d).catch(()=>{});
+}
+// procura primeiro na conta/biblioteca e na pasta "Certificados INMETRO"
+async function inmetroGuardado(t,fab,mod){
+  const d=inmSalvos()[chaveInm(fab,mod)];if(d)return {...d,fonte:"conta"};
+  const e=Object.values(biblioteca()[t]||{}).find(x=>nrmInm(x[t+"Mod"])===nrmInm(mod)&&/\d{6}\/\d{4}/.test(x[t+"Reg"]||""));
+  if(e)return {t,fab,mod,reg:String(e[t+"Reg"]).match(/\d{6}\/\d{4}/)[0],modelo:mod,fonte:"conta"};
+  const dir=await pastaCert().catch(()=>null);
+  if(dir){const alvo=nrmInm(mod);for await(const [nome,h] of dir.entries()){const m=nome.match(/(\d{6})-(\d{4})\.pdf$/i);if(h.kind==="file"&&m&&alvo.length>=5&&nrmInm(nome).includes(alvo))return {t,fab,mod,reg:m[1]+"/"+m[2],modelo:mod,fonte:"pasta"}}}
+  return null;
+}
 
 /* ---------------- favoritos: os botões do app são para arrastar, não para clicar ---------------- */
 document.addEventListener("click",e=>{const a=e.target.closest("#bmEq,#bmTrt");if(!a)return;e.preventDefault();e.stopPropagation();

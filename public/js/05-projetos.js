@@ -4,6 +4,7 @@ let sb=null,sessao=null,modoLocal=false;
 // PDF oficial do registro INMETRO, guardado no aparelho para não baixar de novo
 async function pdfInmetro(reg){
   const k="inm:"+reg,salvo=await kv("get",k).catch(()=>null);if(salvo instanceof Blob&&salvo.size)return salvo;
+  const naPasta=typeof certNaPasta==="function"?await certNaPasta(reg).catch(()=>null):null;if(naPasta&&naPasta.size)return naPasta;
   if(!sessao)throw new Error("entre na sua conta para baixar");
   const r=await fetch(`api/inmetro?pdf=${encodeURIComponent(reg)}`,{headers:{authorization:"Bearer "+sessao.access_token}});
   if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||"erro "+r.status);
