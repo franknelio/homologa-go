@@ -105,7 +105,8 @@ export default async function handler(req, res) {
   try {
     res.status(200).json(await consultar(fab, modelo, Number(req.query.pot) || 0));
   } catch (e) {
-    res.status(502).json({ error: "não consegui consultar o INMETRO agora (" + (e.message || e) + ")" });
+    console.error("INMETRO", e.message, e.cause?.code || "", e.cause?.message || "");
+    res.status(502).json({ error: "não consegui consultar o INMETRO agora (" + (e.message || e) + (e.cause?.code ? " " + e.cause.code : "") + ")" });
   }
 }
 
