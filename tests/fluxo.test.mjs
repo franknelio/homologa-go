@@ -92,8 +92,8 @@ test("CRM → projeto → Gerar todos → Preencher Equatorial, tudo sozinho", {
 
   // 2. o app lê, confere sozinho (sem abrir a tela de conferência) e gera o projeto
   await app.waitForFunction(() => P && P.nome === "LETICIA RODRIGUES DA SILVA" && P.uc, null, { timeout: 60000 });
-  const proj = await app.evaluate(() => ({ nome: P.nome, doc: P.doc, uc: P.uc, cidade: P.cidade, iMod: P.iMod, mMod: P.mMod, iReg: P.iReg, mReg: P.mReg, est: !!P._equipEst, conf: !!document.querySelector("#confBox") }));
-  assert.deepEqual(proj, { nome: "LETICIA RODRIGUES DA SILVA", doc: "701.528.811-74", uc: "4.477.145.012-91", cidade: "Pontalina", iMod: "SUN-6K-G05P1-EU-CM2", mMod: "RIO600W-120BIF-2278", iReg: "Registro INMETRO nº 000774/2026", mReg: "Registro INMETRO nº 014057/2025", est: false, conf: false });
+  const proj = await app.evaluate(() => ({ nome: P.nome, doc: P.doc, uc: P.uc, cidade: P.cidade, iMod: P.iMod, mMod: P.mMod, iReg: P.iReg, mReg: P.mReg, est: !!P._equipEst, conf: !!document.querySelector("#confBox"), aviso: checks(calc()).some((x) => /ainda não conferidos/.test(x[1])) }));
+  assert.deepEqual(proj, { nome: "LETICIA RODRIGUES DA SILVA", doc: "701.528.811-74", uc: "4.477.145.012-91", cidade: "Pontalina", iMod: "SUN-6K-G05P1-EU-CM2", mMod: "RIO600W-120BIF-2278", iReg: "Registro INMETRO nº 000774/2026", mReg: "Registro INMETRO nº 014057/2025", est: false, conf: false, aviso: false });
 
   // 3. Gerar todos: grava na subpasta do cliente sem abrir a janela de escolher pasta
   await app.evaluate(() => document.querySelector("#eqBox")?.remove());

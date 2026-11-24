@@ -172,7 +172,7 @@ function problemasLeitura(Q,lidos,imgs,ligLida){
 }
 function conferirLeitura(Q,lidos,imgs,ligLida){
   const prob=problemasLeitura(Q,lidos,imgs,ligLida);
-  if(!prob.length)return Promise.resolve(true);
+  if(!prob.length){Q._conferido=new Date().toISOString();Q._conferidoAuto=true;return Promise.resolve(true)}
   return new Promise(ok=>{
   const urls=[];const im=(l,t)=>l.slice(0,3).map(b=>{const u=URL.createObjectURL(b);urls.push(u);return `<a href="${u}" target="_blank" title="abrir em tamanho grande"><img src="${u}" alt="${t}" style="width:100%;border:1px solid #ccc;border-radius:6px;margin-bottom:6px"></a>`}).join("");
   const F=[["nome","Nome do titular (do RG/CNH)",1],["doc","CPF / CNPJ (do RG/CNH)",1],["rg","RG",0],["uc","Unidade consumidora / conta contrato (da fatura)",1],["end","Endereço (da fatura)",1],["bairro","Bairro",0],["cidade","Cidade",1],["cep","CEP",0],["classe","Classe",0]];
