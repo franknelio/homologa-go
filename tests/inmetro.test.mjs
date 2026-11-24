@@ -95,3 +95,15 @@ test("entrada rápida mostra o inversor da biblioteca pela potência", async () 
   await p.waitForFunction(() => document.querySelector("#q_dsI_n").textContent === "", null, { timeout: 5000 });
   assert.deepEqual(erros, []);
 });
+
+test("conferência automática: só para quando algo não bate", async () => {
+  const p = await nav.newPage();
+  await p.goto(srv.url + "/"); await p.waitForFunction(() => typeof problemasLeitura === "function");
+  const r = await p.evaluate(() => {
+    const Q = { nome: "LETICIA RODRIGUES DA SILVA", doc: "701.528.811-74", uc: "4.477.145.012-91", end: "Rua Aroeira, Q. 03", cidade: "Pontalina" };
+    const lidos = { ...Q }, imgs = { doc: [1], fat: [1] };
+    return [docValido("701.528.811-74"), docValido("701.528.811-75"), docValido("11.222.333/0001-81"),
+      problemasLeitura(Q, lidos, imgs, true).length, problemasLeitura({ ...Q, doc: "701.528.811-75" }, lidos, imgs, true).join(";")];
+  });
+  assert.deepEqual(r, [true, false, true, 0, "CPF/CNPJ inválido (dígitos não conferem)"]);
+});

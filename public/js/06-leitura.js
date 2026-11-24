@@ -133,9 +133,9 @@ Regras: a conta muitas vezes NÃO está no nome do cliente, por isso não devolv
     Q._equipEst=dsOk.length<2;Q.modalidade=qModSel;
     // gerou de novo o mesmo cliente (mesma UC) sem anexar o RG/CNH: mantém nome/CPF/RG, o mesmo projeto e os anexos já guardados
     const dg=x=>String(x||"").replace(/\D/g,""),ant=P||{},mesmo=!fDoc&&ant._id&&ant.nome&&dg(Q.uc)&&dg(Q.uc)===dg(ant.uc);
-    if(mesmo){for(const k of ["nome","doc","rg","tel"])if(ant[k]&&!Q[k])Q[k]=ant[k];aiNote=aiNote.replace(/Sem RG\/CNH:[^.]*\([^)]*\)\. /,"")+"Mesmo cliente: nome, CPF e RG/CNH mantidos do projeto anterior. "}
+    if(mesmo){for(const k of ["nome","doc","rg","tel"])if(ant[k]&&!Q[k]){Q[k]=ant[k];lidos[k]=ant[k]}confImgs.mesmo=true;aiNote=aiNote.replace(/Sem RG\/CNH:[^.]*\([^)]*\)\. /,"")+"Mesmo cliente: nome, CPF e RG/CNH mantidos do projeto anterior. "}
     // conferência obrigatória do que a IA leu, ao lado das fotos, antes de gerar
-    if(docsLer.length){msg("Confira os dados lidos na janela que abriu…");if(!(await conferirLeitura(Q,lidos,confImgs,ligLida))){msg("Geração cancelada. Corrija os documentos ou os dados e clique em Gerar projeto de novo.");return}}
+    if(docsLer.length){msg("Conferindo os dados lidos…");if(!(await conferirLeitura(Q,lidos,confImgs,ligLida))){msg("Geração cancelada. Corrija os documentos ou os dados e clique em Gerar projeto de novo.");return}}
     P=Q;autoStrings();plantaImg=null;
     P._id=mesmo?ant._id:novoId();store("hgo_current",P);if(artArq){kv("put","art:"+P._id,artArq).catch(()=>{});anexoPut(P._id,"art",{tipo:"application/pdf",...artArq}).catch(()=>{})}{const id=P._id,novos=[];for(const [k,el] of [["docTit",$("#q_docTit")],["proc",$("#q_proc")],["procDoc",$("#q_procDoc")]])if(el.files[0]){novos.push([k,el.files[0]]);el.value=""}qFiles.forEach((f,i)=>novos.push(["doc"+(i+1),f]));P._anexos=mesmo?{...(ant._anexos||{})}:{};novos.forEach(([k,f])=>P._anexos[k]=f.name);Promise.all(novos.map(async([k,f])=>anexoPut(id,k,{nome:f.name,tipo:f.type,buf:await f.arrayBuffer()}))).catch(()=>{})}buildFormFresh();currentDoc="form";render();salvarProjeto(true);
     ["i","m"].forEach(t=>{if(P[t+"Fab"]&&P[t+"Mod"])buscarInmetro(t)});
@@ -144,6 +144,7 @@ Regras: a conta muitas vezes NÃO está no nome do cliente, por isso não devolv
     qModSel="";desenharQMod();$("#q_rat").value="";$("#q_rat_n").textContent="";
     if(contas.length)lerContasRateio(contas);
     if(dsOk.length)aiNote+=dsOk.length>1?"Datasheets do inversor e do módulo lidos. ":`Datasheet do ${dsOk[0]==="i"?"inversor":"módulo"} lido. `;
+    if(docsLer.length&&!problemasLeitura(P,lidos,confImgs,ligLida).length)aiNote+="Dados conferidos automaticamente (CPF válido, nome, UC e endereço lidos). ";
     const miss=["nome","doc","uc","end","cidade"].filter(k=>!P[k]);
     msg(`${aiNote}${found?found+" campos lidos dos documentos. ":""}${miss.length?"Faltam: "+miss.map(k=>SECTIONS.flatMap(s=>s.f).find(f=>f[0]===k)[1]).join(", ")+". ":""}Confira os alertas e os documentos ao lado.`);
   }catch(e){msg(e&&e.code==="not_granted"?"Permissão negada para o Claude ler os documentos.":e&&e.code==="rate_limited"?"Muitas leituras seguidas; tente de novo em instantes.":"Não foi possível ler os documentos ("+(e&&(e.code||e.message)||"erro")+").")}
@@ -152,7 +153,27 @@ Regras: a conta muitas vezes NÃO está no nome do cliente, por isso não devolv
 
 /* ---------------- conferência da leitura ---------------- */
 // mostra o que a IA leu ao lado das fotos do RG/CNH e da fatura; nada é gerado sem você confirmar
-function conferirLeitura(Q,lidos,imgs,ligLida){return new Promise(ok=>{
+// CPF/CNPJ com dígitos verificadores certos
+function docValido(x){const d=String(x||"").replace(/\D/g,"");
+  const dv=(b,pesos)=>{const s=b.split("").reduce((a,c,i)=>a+c*pesos[i],0)%11;return s<2?0:11-s};
+  if(d.length===11){if(/^(\d)\1+$/.test(d))return false;const p=k=>Array.from({length:k},(_,i)=>k+1-i);return dv(d.slice(0,9),p(9))==d[9]&&dv(d.slice(0,10),p(10))==d[10]}
+  if(d.length===14){if(/^(\d)\1+$/.test(d))return false;const p1=[5,4,3,2,9,8,7,6,5,4,3,2],p2=[6,...p1];return dv(d.slice(0,12),p1)==d[12]&&dv(d.slice(0,13),p2)==d[13]}
+  return false}
+// o app confere sozinho; a tela de conferência só abre quando algo não bate
+function problemasLeitura(Q,lidos,imgs,ligLida){
+  const p=[];
+  for(const [k,r] of [["nome","nome do titular"],["doc","CPF/CNPJ"],["uc","unidade consumidora"],["end","endereço"],["cidade","cidade"]])if(!String(Q[k]||"").trim())p.push(`falta ${r}`);else if(!(k in lidos))p.push(`${r} não foi lido dos documentos`);
+  if(Q.doc&&!docValido(Q.doc))p.push("CPF/CNPJ inválido (dígitos não conferem)");
+  if(Q.nome&&String(Q.nome).trim().split(/\s+/).length<2)p.push("nome do titular incompleto");
+  if(Q.uc&&String(Q.uc).replace(/\D/g,"").length<6)p.push("unidade consumidora curta demais");
+  if(!imgs.doc.length&&!imgs.mesmo)p.push("sem RG/CNH do titular");
+  if(!ligLida)p.push("a fatura não diz se é monofásico, bifásico ou trifásico");
+  return p;
+}
+function conferirLeitura(Q,lidos,imgs,ligLida){
+  const prob=problemasLeitura(Q,lidos,imgs,ligLida);
+  if(!prob.length)return Promise.resolve(true);
+  return new Promise(ok=>{
   const urls=[];const im=(l,t)=>l.slice(0,3).map(b=>{const u=URL.createObjectURL(b);urls.push(u);return `<a href="${u}" target="_blank" title="abrir em tamanho grande"><img src="${u}" alt="${t}" style="width:100%;border:1px solid #ccc;border-radius:6px;margin-bottom:6px"></a>`}).join("");
   const F=[["nome","Nome do titular (do RG/CNH)",1],["doc","CPF / CNPJ (do RG/CNH)",1],["rg","RG",0],["uc","Unidade consumidora / conta contrato (da fatura)",1],["end","Endereço (da fatura)",1],["bairro","Bairro",0],["cidade","Cidade",1],["cep","CEP",0],["classe","Classe",0]];
   const linha=([k,r,obr])=>`<label style="display:block;margin:6px 0 2px;font-size:12px;color:#555">${r}${obr?" *":""}${!(k in lidos)?' <b style="color:#B45309">· não lido, confira</b>':""}</label><input data-cf="${k}" value="${esc(Q[k]||"")}" style="width:100%;padding:7px;border:1px solid #bbb;border-radius:6px;font-size:14px${!(k in lidos)?";background:#FEF3C7":""}">`;
@@ -162,7 +183,8 @@ function conferirLeitura(Q,lidos,imgs,ligLida){return new Promise(ok=>{
   box.style.cssText="position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto";
   box.innerHTML=`<div style="background:#fff;color:#222;border-radius:12px;max-width:1100px;width:100%;padding:16px;box-shadow:0 10px 40px rgba(0,0,0,.4)">
    <h2 style="margin:0 0 4px;font-size:20px">Confira os dados lidos</h2>
-   <p style="margin:0 0 10px;font-size:13px;color:#555">Compare com as fotos e corrija o que estiver errado. Os campos em amarelo não foram lidos ou são valores padrão. Os documentos só são gerados depois que você confirmar.</p>
+   <p style="margin:0 0 6px;font-size:14px;color:#B91C1C"><b>O app conferiu e parou por isto:</b> ${esc(prob.join("; "))}.</p>
+   <p style="margin:0 0 10px;font-size:13px;color:#555">Corrija só o que está acima, comparando com as fotos. Os campos em amarelo não foram lidos ou são valores padrão.</p>
    <div style="display:flex;flex-wrap:wrap;gap:16px">
     <div style="flex:1 1 300px;min-width:0">${F.map(linha).join("")}${lig}${dj}</div>
     <div style="flex:1 1 300px;min-width:0;max-height:70vh;overflow:auto">${imgs.doc.length?`<b style="font-size:13px">RG/CNH</b>${im(imgs.doc,"RG/CNH")}`:'<p style="color:#B91C1C;font-size:13px"><b>Sem RG/CNH:</b> nome e CPF precisam ser conferidos em outro documento.</p>'}${imgs.fat.length?`<b style="font-size:13px">Fatura</b>${im(imgs.fat,"Fatura")}`:'<p style="color:#B91C1C;font-size:13px"><b>Sem fatura.</b></p>'}</div>
@@ -178,7 +200,7 @@ function conferirLeitura(Q,lidos,imgs,ligLida){return new Promise(ok=>{
   box.querySelector("#confSim").onclick=()=>{
     const v={};box.querySelectorAll("[data-cf]").forEach(e=>v[e.dataset.cf]=e.value.trim());
     const falta=F.filter(([k,,o])=>o&&!v[k]).map(([,r])=>r.replace(/ \(.*\)/,""));
-    const cpf=v.doc.replace(/\D/g,"");if(cpf&&cpf.length!==11&&cpf.length!==14)falta.push("CPF/CNPJ com 11 ou 14 dígitos");
+    const cpf=v.doc.replace(/\D/g,"");if(cpf&&!docValido(cpf))falta.push("CPF/CNPJ válido (os dígitos não conferem)");
     if(falta.length){box.querySelector("#confErro").textContent="Preencha: "+falta.join(", ")+".";return}
     for(const [k] of F)Q[k]=v[k];
     if(v.ligacao!==Q.ligacao){Q.ligacao=v.ligacao;Q.tensao=v.ligacao==="Monofásico"?"220 V (F-N)":"380/220 V";if(v.ligacao==="Trifásico"&&!String(Q.iFases||"").startsWith("Trif"))Object.assign(Q,{iFases:"Trifásico 380/220 V",iIout:+(n(Q.iP)*1000/(Math.sqrt(3)*380)).toFixed(1)})}
