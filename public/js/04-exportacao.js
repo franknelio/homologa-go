@@ -150,12 +150,22 @@ if(/[?&]ponte=1/.test(location.search))setTimeout(()=>{
   document.body.innerHTML=`<div style="font:16px Arial,sans-serif;padding:24px;text-align:center;color:#222"><h2 style="color:#FF6A00;margin:0 0 8px">HomologaGO → Equatorial</h2><p>Cliente: <b>${esc(P.nome||"(nenhum projeto aberto)")}</b></p><p id="pst">Esperando a página da Equatorial ou do SINCETI…</p><button id="pbt" hidden style="font-size:17px;padding:12px 22px;background:#FF6A00;color:#fff;border:0;border-radius:10px;cursor:pointer">Liberar a pasta e enviar os arquivos</button></div>`;
   const st=t=>{$("#pst").textContent=t};
   let pedido=null;
+  // sem pasta (ou sem a pasta do cliente): gera os PDFs aqui mesmo, em memória, e grava na pasta se ela estiver liberada
+  async function gerados(d){
+    const L=[],add=async(nome,blob)=>{L.push({nome,tipo:blob.type||"application/pdf",data:Date.now(),buf:await blob.arrayBuffer()});if(d)try{const w=await (await d.getFileHandle(nome,{create:true})).createWritable();await w.write(blob);await w.close()}catch(e){}};
+    for(const x of activeDocs()){st(`Gerando ${x.short}…`);try{await add(`${NAMES[x.id]}.pdf`,await docPdfBlob(x.id,c))}catch(e){}}
+    for(const [t,rot] of [["i","inversor"],["m","modulo"]]){const reg=String(P[t+"Reg"]||"").match(/\d{6}\/\d{4}/)?.[0];if(reg){st(`Baixando INMETRO do ${rot}…`);try{await add(`08_INMETRO_${rot}_${reg.replace("/","-")}.pdf`,await pdfInmetro(reg))}catch(e){}}}
+    for(const [t,rot] of [["i","inversor"],["m","modulo"]]){try{const f=await datasheetNaPasta(t,P[t+"Fab"],P[t+"Mod"]);if(f)await add(`12_Datasheet_${rot}${((f.name.match(/\.[a-z0-9]{2,4}$/i)||[".pdf"])[0]).toLowerCase()}`,f)}catch(e){}}
+    return L;
+  }
   async function arquivos(pedir){
-    const h=await idb("get").catch(()=>null);if(!h)throw new Error("o app ainda não tem pasta escolhida");
-    let perm=await h.queryPermission({mode:"readwrite"});
-    if(perm!=="granted"){if(!pedir)return null;perm=await h.requestPermission({mode:"readwrite"});if(perm!=="granted")throw new Error("acesso à pasta negado")}
-    const d=await h.getDirectoryHandle(cli).catch(()=>null);if(!d)throw new Error(`a pasta "${cli}" não existe; clique em Gerar todos os documentos antes`);
-    const L=[];for await(const e of d.values())if(e.kind==="file"){const f=await e.getFile();L.push({nome:f.name,tipo:f.type,data:f.lastModified,buf:await f.arrayBuffer()})}
+    const h=await idb("get").catch(()=>null);let d=null;
+    if(h){let perm=await h.queryPermission({mode:"readwrite"});
+      if(perm!=="granted"&&pedir)try{perm=await h.requestPermission({mode:"readwrite"})}catch(e){}
+      if(perm==="granted")d=await h.getDirectoryHandle(cli,{create:true}).catch(()=>null)}
+    const L=[];
+    if(d)for await(const e of d.values())if(e.kind==="file"){const f=await e.getFile();L.push({nome:f.name,tipo:f.type,data:f.lastModified,buf:await f.arrayBuffer()})}
+    if(!L.some(x=>/^0[1-7]_/.test(x.nome)))L.push(...await gerados(d));
     // anexos guardados no projeto (RG/CNH, documentos do cliente, procuração) que ainda não estão na pasta: pega da conta e já grava na pasta
     try{
       const ext=n=>((String(n).match(/\.[a-z0-9]{2,4}$/i)||[".pdf"])[0]).toLowerCase(),limpa=n=>String(n).replace(/[\\/:*?"<>|]+/g,"_");
