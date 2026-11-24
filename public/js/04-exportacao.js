@@ -105,7 +105,9 @@ function idb(op,val){return new Promise((ok,erro)=>{const r=indexedDB.open("hgo"
 // pede ao navegador para não apagar os dados do app (onde fica guardada a pasta escolhida)
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 async function escolherPasta(){
-  const h=await window.showDirectoryPicker({id:"hgo-clientes",mode:"readwrite",startIn:"documents"});
+  let h=await window.showDirectoryPicker({id:"hgo-clientes",mode:"readwrite",startIn:"downloads"});
+  // escolheu a pasta de um cliente em vez da pasta-mãe: avisa e pede de novo
+  if(P.nome&&h.name.toUpperCase()===nomePasta().toUpperCase()){alert(`Você escolheu a pasta do próprio cliente (${h.name}). Escolha a pasta de cima, a HOMOLOGA-CITY, que guarda todos os clientes.`);h=await window.showDirectoryPicker({id:"hgo-clientes",mode:"readwrite",startIn:"downloads"})}
   try{await idb("put",h);const v=await idb("get");if(!v||v.name!==h.name)throw new Error("o navegador não manteve a pasta")}catch(e){alert("Atenção: o Edge não guardou a pasta escolhida ("+e.message+"). Ela será pedida de novo. Verifique se não está numa janela InPrivate e se o Edge não apaga os dados dos sites ao fechar (Configurações → Privacidade → Limpar dados ao fechar).")}marcaPasta(h,true);toast("Os clientes serão salvos em: "+h.name);return h}
 // pasta já escolhida: só pede a permissão (um clique em "Permitir"), nunca abre de novo a janela de escolher pasta
 async function liberarPasta(h){
@@ -132,8 +134,23 @@ async function pastaBase(){
     if(!(await liberarPasta(h)))h=await pedirPasta(h);
     // pasta renomeada, movida ou apagada: o navegador perde o caminho e é preciso escolher de novo
     try{await h.values().next();marcaPasta(h,true);return h}catch(e){if(e.name!=="NotFoundError")throw e;toast(`A pasta "${h.name}" não existe mais (foi renomeada ou movida). Escolha a pasta de novo.`)}
-  }else toast("Escolha UMA VEZ a pasta onde ficam as pastas dos clientes (ex. Downloads\\HOMOLOGA-CITY). Cada cliente ganha a sua subpasta sozinho.");
-  return escolherPasta()}
+    return escolherPasta();
+  }
+  return explicarPasta()}
+// primeira vez: explica antes de abrir a janela do Edge (escolhe a pasta-mãe; a do cliente o app cria sozinho)
+function explicarPasta(){return new Promise((ok,erro)=>{
+  const cli=nomePasta(),box=document.createElement("div");box.id="pastaExpl";box.style.cssText="position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px";
+  box.innerHTML=`<div style="background:#fff;color:#222;border-radius:12px;width:min(560px,100%);padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.35)">
+    <h3 style="margin:0 0 8px">Onde guardar os clientes (só desta vez)</h3>
+    <ol style="margin:0 0 12px;padding-left:20px;font-size:14px;line-height:1.5">
+      <li>Na janela do Edge que vai abrir, vá até a pasta <b>HOMOLOGA-CITY</b> (Downloads) — <b>não entre</b> em nenhuma pasta de cliente.</li>
+      <li>Clique em <b>Selecionar pasta</b> e depois em <b>Editar arquivos / Permitir</b>.</li>
+      <li>Pronto: o app cria sozinho a pasta <b>${esc(cli)}</b> dentro dela e grava todos os documentos. Para os próximos clientes, é automático.</li></ol>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn" data-pe="nao">Agora não</button><button type="button" class="btn amber" data-pe="ok" style="font-weight:700">Abrir a janela do Edge</button></div></div>`;
+  document.body.appendChild(box);
+  box.addEventListener("click",e=>{const b=e.target.closest("[data-pe]");if(!b)return;box.remove();
+    if(b.dataset.pe==="ok")escolherPasta().then(ok,erro);else erro(Object.assign(new Error("cancelado"),{name:"AbortError"}))});
+})}
 function marcaPasta(h,ok){const b=$("#bPasta");if(!b||!h)return;b.textContent=(ok?"📁 ":"🔒 Liberar ")+h.name;b.title=ok?`Os clientes são salvos em ${h.name}, cada um na sua subpasta. Clique para trocar a pasta.`:`Clique para liberar a pasta ${h.name} (o Edge pede autorização a cada sessão até você escolher "Permitir em todas as visitas")`;b.classList.toggle("amber",!ok)}
 function nomePasta(){return ((P.nome||"").replace(/[\\/:*?"<>|]+/g," ").replace(/\s+/g," ").trim().slice(0,80))||"Cliente sem nome"}
 if(podePasta){idb("get").then(async h=>{if(h)marcaPasta(h,await h.queryPermission({mode:"readwrite"})==="granted")}).catch(()=>{})}else $("#bPasta").hidden=true;
