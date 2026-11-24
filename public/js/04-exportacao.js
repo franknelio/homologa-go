@@ -151,11 +151,12 @@ if(/[?&]ponte=1/.test(location.search))setTimeout(()=>{
   const st=t=>{$("#pst").textContent=t};
   let pedido=null;
   // sem pasta (ou sem a pasta do cliente): gera os PDFs aqui mesmo, em memória, e grava na pasta se ela estiver liberada
-  async function gerados(d){
+  async function gerados(d,ja=[]){
+    const tem=re=>ja.some(x=>re.test(x.nome));
     const L=[],add=async(nome,blob)=>{L.push({nome,tipo:blob.type||"application/pdf",data:Date.now(),buf:await blob.arrayBuffer()});if(d)try{const w=await (await d.getFileHandle(nome,{create:true})).createWritable();await w.write(blob);await w.close()}catch(e){}};
-    for(const x of activeDocs()){st(`Gerando ${x.short}…`);try{await add(`${NAMES[x.id]}.pdf`,await docPdfBlob(x.id,c))}catch(e){}}
-    for(const [t,rot] of [["i","inversor"],["m","modulo"]]){const reg=String(P[t+"Reg"]||"").match(/\d{6}\/\d{4}/)?.[0];if(reg){st(`Baixando INMETRO do ${rot}…`);try{await add(`08_INMETRO_${rot}_${reg.replace("/","-")}.pdf`,await pdfInmetro(reg))}catch(e){}}}
-    for(const [t,rot] of [["i","inversor"],["m","modulo"]]){try{const f=await datasheetNaPasta(t,P[t+"Fab"],P[t+"Mod"]);if(f)await add(`12_Datasheet_${rot}${((f.name.match(/\.[a-z0-9]{2,4}$/i)||[".pdf"])[0]).toLowerCase()}`,f)}catch(e){}}
+    for(const x of activeDocs()){if(tem(new RegExp("^"+NAMES[x.id],"i")))continue;st(`Gerando ${x.short}…`);try{await add(`${NAMES[x.id]}.pdf`,await docPdfBlob(x.id,c))}catch(e){}}
+    for(const [t,rot] of [["i","inversor"],["m","modulo"]]){const reg=String(P[t+"Reg"]||"").match(/\d{6}\/\d{4}/)?.[0];if(reg&&!tem(new RegExp("^08_INMETRO_"+rot,"i"))){st(`Baixando INMETRO do ${rot}…`);try{await add(`08_INMETRO_${rot}_${reg.replace("/","-")}.pdf`,await pdfInmetro(reg))}catch(e){}}}
+    for(const [t,rot] of [["i","inversor"],["m","modulo"]]){if(tem(new RegExp("^12_Datasheet_"+rot,"i")))continue;try{const f=await datasheetNaPasta(t,P[t+"Fab"],P[t+"Mod"]);if(f)await add(`12_Datasheet_${rot}${((f.name.match(/\.[a-z0-9]{2,4}$/i)||[".pdf"])[0]).toLowerCase()}`,f)}catch(e){}}
     return L;
   }
   async function arquivos(pedir){
@@ -165,7 +166,8 @@ if(/[?&]ponte=1/.test(location.search))setTimeout(()=>{
       if(perm==="granted")d=await h.getDirectoryHandle(cli,{create:true}).catch(()=>null)}
     const L=[];
     if(d)for await(const e of d.values())if(e.kind==="file"){const f=await e.getFile();L.push({nome:f.name,tipo:f.type,data:f.lastModified,buf:await f.arrayBuffer()})}
-    if(!L.some(x=>/^0[1-7]_/.test(x.nome)))L.push(...await gerados(d));
+    // o que faltar na pasta (documentos, relatório INMETRO, datasheets) é gerado ou baixado agora
+    L.push(...await gerados(d,L));
     // anexos guardados no projeto (RG/CNH, documentos do cliente, procuração) que ainda não estão na pasta: pega da conta e já grava na pasta
     try{
       const ext=n=>((String(n).match(/\.[a-z0-9]{2,4}$/i)||[".pdf"])[0]).toLowerCase(),limpa=n=>String(n).replace(/[\\/:*?"<>|]+/g,"_");
@@ -240,7 +242,7 @@ $("#bAll").addEventListener("click",async()=>{
       try{const blob=await pdfInmetro(reg);await gravar(`08_INMETRO_${rot}_${reg.replace("/","-")}.pdf`,blob)}catch(e){erros.push(`INMETRO do ${rot} (${reg}): ${e.message}`)}
     }
     // datasheets da pasta Datasheets entram na pasta do cliente
-    for(const [t,rot] of [["i","inversor"],["m","modulo"]]){try{const f=await datasheetNaPasta(t,P[t+"Fab"],P[t+"Mod"]);if(f)await gravar(`12_Datasheet_${rot}${((f.name.match(/\.[a-z0-9]{2,4}$/i)||[".pdf"])[0]).toLowerCase()}`,f)}catch(e){}}
+    for(const [t,rot] of [["i","inversor"],["m","modulo"]]){if(tem(new RegExp("^12_Datasheet_"+rot,"i")))continue;try{const f=await datasheetNaPasta(t,P[t+"Fab"],P[t+"Mod"]);if(f)await gravar(`12_Datasheet_${rot}${((f.name.match(/\.[a-z0-9]{2,4}$/i)||[".pdf"])[0]).toLowerCase()}`,f)}catch(e){}}
     {const ext=n=>((String(n).match(/\.[a-z0-9]{2,4}$/i)||[".pdf"])[0]).toLowerCase(),limpa=n=>String(n).replace(/[\\/:*?"<>|]+/g,"_");
      const lista=await anexosDoProjeto();
      for(const [k,a] of lista){const blob=new Blob([a.buf],{type:a.tipo||""});
