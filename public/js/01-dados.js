@@ -91,7 +91,7 @@ const val=k=>esc(P[k]??"");
 function toast(t){const e=$("#toast");e.textContent=t;e.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>e.hidden=true,2800)}
 // assinatura do RT (imagem), guardada no aparelho e na tabela perfil da conta
 let assinRT=load("hgo_assin")||"";
-setTimeout(()=>carregarArt().catch(()=>{}),0);
+addEventListener("DOMContentLoaded",()=>carregarArt().catch(()=>{}));
 const imgAssin=(st="")=>assinRT?`<img class="assin" src="${assinRT}" alt="" style="${st}">`:"";
 const assinaCli=()=>P.assinaCli!=="Não";
 const svgAssin=(x,y,w,h)=>assinRT?`<image href="${assinRT}" x="${x}" y="${y}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet"/>`:"";
