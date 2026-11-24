@@ -83,3 +83,15 @@ test("passo a passo para subir na Equatorial abre pelo botão e pelo favorito", 
   assert.equal(passos, 4); assert.match(link, /equatorialenergia\.com\.br/); assert.ok(reabriu); assert.equal(rolagem, false);
   assert.deepEqual(erros, []);
 });
+
+test("entrada rápida mostra o inversor da biblioteca pela potência", async () => {
+  const p = await nav.newPage(), erros = [];
+  p.on("pageerror", (e) => erros.push(e.message));
+  await p.goto(srv.url + "/"); await p.waitForFunction(() => typeof mostraEquipAuto === "function");
+  await p.evaluate(() => { store("hgo_equip", { m: {}, i: { "DEYE|SUN-6K-G05P1-EU-CM2": { iFab: "Deye", iMod: "SUN-6K-G05P1-EU-CM2", iP: 6, iVmax: 550, iNmppt: 2, iReg: "Registro INMETRO nº 000774/2026" } } }) });
+  await p.fill("#q_iP", "6");
+  await p.waitForFunction(() => /biblioteca: Deye SUN-6K-G05P1-EU-CM2/.test(document.querySelector("#q_dsI_n").textContent), null, { timeout: 5000 });
+  await p.fill("#q_iP", "8");
+  await p.waitForFunction(() => document.querySelector("#q_dsI_n").textContent === "", null, { timeout: 5000 });
+  assert.deepEqual(erros, []);
+});

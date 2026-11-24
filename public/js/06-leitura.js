@@ -120,6 +120,9 @@ Regras: a conta muitas vezes NÃO está no nome do cliente, por isso não devolv
       const nome=t==="i"?"inversor":"módulo";msg(`Lendo o datasheet do ${nome}…`);
       try{Object.assign(Q,await lerDatasheet(t,ds[t],t==="i"?iP:mP));dsOk.push(t)}catch(e){aiNote+=`Datasheet do ${nome} não lido (${e.message}). `}
     }
+    // sem datasheet: usa a biblioteca de equipamentos (pelo modelo, ou pela potência quando só há um equipamento com ela)
+    for(const t of ["i","m"])if(!dsOk.includes(t)){const e=equipDaBiblioteca(t,t==="i"?iP:mP,$(`#q_${t}Fab`).value.trim(),$(`#q_${t}Mod`).value.trim());
+      if(e){const {[t+"P"]:_p,...resto}=e;Object.assign(Q,resto);dsOk.push(t);aiNote+=`${t==="i"?"Inversor":"Módulo"} ${e[t+"Fab"]||""} ${e[t+"Mod"]} preenchido pela sua biblioteca de equipamentos. `}}
     if($("#q_dsA").files[0]){msg("Lendo a ART/TRT…");await guardarArt($("#q_dsA").files[0]);try{const rt=await lerDatasheet("a",$("#q_dsA").files[0]);Object.assign(Q,rt);guardarRT(Q);aiNote+="ART/TRT lida. "}catch(e){aiNote+=`ART/TRT não lida (${e.message}). `}}
     ["iFab","iMod","mFab","mMod"].forEach(k=>{const v=$("#q_"+k).value.trim();if(v||Q[k]==null)Q[k]=v});
     if(dsPasta.length)aiNote+=`Datasheet ${dsPasta.map(t=>t==="i"?"do inversor":"do módulo").join(" e ")} guardado lido automaticamente. `;
@@ -198,7 +201,24 @@ async function lerDatasheet(t,file,pot){
   }
   return out;
 }
-["I","M","A"].forEach(x=>$("#q_ds"+x).addEventListener("change",e=>{const f=e.target.files[0];$(`#q_ds${x}_n`).textContent=f?f.name:""}));
+["I","M","A"].forEach(x=>$("#q_ds"+x).addEventListener("change",e=>{const f=e.target.files[0];$(`#q_ds${x}_n`).textContent=f?f.name:"";if(!f&&x!=="A")mostraEquipAuto()}));
+// entrada rápida: mostra ao lado do botão o datasheet guardado ou o equipamento da biblioteca que será usado
+function equipDaBiblioteca(t,pot,fab,mod){
+  const L=Object.values((biblioteca()||{})[t]||{});
+  if(mod){const a=L.filter(x=>nrmInm(x[t+"Mod"])===nrmInm(mod));return a.length===1?a[0]:null}
+  if(!n(pot))return null;const a=L.filter(x=>n(x[t+"P"])===n(pot)&&(!fab||nrmInm(x[t+"Fab"])===nrmInm(fab)));return a.length===1?a[0]:null;
+}
+let eqAutoT;
+function mostraEquipAuto(){clearTimeout(eqAutoT);eqAutoT=setTimeout(async()=>{if(!document.getElementById("q_dsI"))return;
+  for(const [t,x] of [["i","I"],["m","M"]]){
+    if($("#q_ds"+x).files[0])continue;const el=$(`#q_ds${x}_n`);if(!el)continue;
+    const fab=$(`#q_${t}Fab`).value.trim(),mod=$(`#q_${t}Mod`).value.trim(),pot=n($(`#q_${t}P`).value);
+    const f=mod?await datasheetNaPasta(t,fab,mod).catch(()=>null):null;
+    const e=f?null:equipDaBiblioteca(t,pot,fab,mod);
+    el.textContent=f?`✓ datasheet guardado: ${f.name}`:e?`✓ da sua biblioteca: ${e[t+"Fab"]||""} ${e[t+"Mod"]}`:"";
+  }},400)}
+["q_iP","q_mP","q_iFab","q_iMod","q_mFab","q_mMod"].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener("input",mostraEquipAuto)});
+setTimeout(mostraEquipAuto,1500);
 // anexos do projeto (RG/CNH do titular, documentos do cliente, procuração, documento do procurador):
 // guardados no aparelho e na conta (Supabase Storage "anexos"), então funcionam em qualquer navegador
 const ANEXO_ARQ={proc:"10_Procuracao",procDoc:"11_Documento_procurador"};
