@@ -151,11 +151,15 @@ if(/[?&]ponte=1/.test(location.search))setTimeout(()=>{
   const st=t=>{$("#pst").textContent=t};
   let pedido=null;
   // sem pasta (ou sem a pasta do cliente): gera os PDFs aqui mesmo, em memória, e grava na pasta se ela estiver liberada
+  const falhas=[];
   async function gerados(d,ja=[]){
+    // a conta (login) carrega um pouco depois da janelinha abrir; sem ela não dá para baixar o INMETRO
+    for(let i=0;i<40&&!sessao&&sb;i++)await new Promise(r=>setTimeout(r,250));
     const tem=re=>ja.some(x=>re.test(x.nome));
     const L=[],add=async(nome,blob)=>{L.push({nome,tipo:blob.type||"application/pdf",data:Date.now(),buf:await blob.arrayBuffer()});if(d)try{const w=await (await d.getFileHandle(nome,{create:true})).createWritable();await w.write(blob);await w.close()}catch(e){}};
     for(const x of activeDocs()){if(tem(new RegExp("^"+NAMES[x.id],"i")))continue;st(`Gerando ${x.short}…`);try{await add(`${NAMES[x.id]}.pdf`,await docPdfBlob(x.id,c))}catch(e){}}
-    for(const [t,rot] of [["i","inversor"],["m","modulo"]]){const reg=String(P[t+"Reg"]||"").match(/\d{6}\/\d{4}/)?.[0];if(reg&&!tem(new RegExp("^08_INMETRO_"+rot,"i"))){st(`Baixando INMETRO do ${rot}…`);try{await add(`08_INMETRO_${rot}_${reg.replace("/","-")}.pdf`,await pdfInmetro(reg))}catch(e){}}}
+    for(const [t,rot] of [["i","inversor"],["m","modulo"]]){const reg=String(P[t+"Reg"]||"").match(/\d{6}\/\d{4}/)?.[0];if(reg&&!tem(new RegExp("^08_INMETRO_"+rot,"i"))){st(`Baixando INMETRO do ${rot}…`);try{await add(`08_INMETRO_${rot}_${reg.replace("/","-")}.pdf`,await pdfInmetro(reg))}catch(e){falhas.push(`INMETRO do ${rot}: ${e.message}`)}}
+      else if(!reg&&t==="i")falhas.push("o projeto está sem o número do registro INMETRO do inversor")}
     for(const [t,rot] of [["i","inversor"],["m","modulo"]]){if(tem(new RegExp("^12_Datasheet_"+rot,"i")))continue;try{const f=await datasheetNaPasta(t,P[t+"Fab"],P[t+"Mod"]);if(f)await add(`12_Datasheet_${rot}${((f.name.match(/\.[a-z0-9]{2,4}$/i)||[".pdf"])[0]).toLowerCase()}`,f)}catch(e){}}
     return L;
   }
@@ -198,7 +202,7 @@ if(/[?&]ponte=1/.test(location.search))setTimeout(()=>{
     const dados={tipo:"hgo-dados",nome:P.nome||"",doc,pj:doc.length>11,tel:P.tel||P.rtTel||"",cel:P.tel||P.rtTel||"",rtNome:P.rtNome||"",rtReg:P.rtReg||"",rtCpf:String(P.rtCpf||(load("hgo_rt")||{}).rtCpf||"").replace(/\D/g,""),rtEmail:(load("hgo_rt")||{}).rtEmail||P.rtEmail||"",rtTel:P.rtTel||"",
       disj:String(n(P.disj)||c.disjCA||""),email:P.rtEmailEq||(load("hgo_rt")||{}).rtEmailEq||P.rtEmail||P.email||"",mini:c.pinst>75,modalidade:P.modalidade||"",arquivos:L};
     pedido.source.postMessage(dados,pedido.origin);
-    $("#pbt").hidden=true;st(`✓ Enviados os dados e ${L.length} arquivos. Pode fechar esta janela.`);setTimeout(()=>window.close(),4000);
+    $("#pbt").hidden=true;st(`✓ Enviados os dados e ${L.length} arquivos.${falhas.length?" Atenção: "+falhas.join("; ")+".":" Pode fechar esta janela."}`);if(!falhas.length)setTimeout(()=>window.close(),4000);
   }
   $("#pbt").onclick=()=>enviar(true).catch(e=>st("Erro: "+e.message));
   addEventListener("message",e=>{
