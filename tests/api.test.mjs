@@ -23,6 +23,10 @@ test("INMETRO: modelo igual vale 10; módulo de outra potência não serve", () 
   assert.equal(pontos("MIN 6000TL-XH", "min 6000tl-xh", 0), 10);
   assert.equal(pontos("HN19RN-72H610W", "HN19RN-72H620W", 620), 1);
   assert.ok(pontos("HN19RN-72H600W-620W", "HN19RN-72H620W", 620) >= 5);
+  // mesmo modelo com outro sufixo de versão (Deye CM2 x AM2) conta; potência diferente não
+  assert.equal(pontos("SUN-6K-G05P1-EU-AM2", "SUN-6K-G05P1-EU-CM2", 6), 6);
+  assert.ok(pontos("JAM72S30-545/MR", "JAM72S30-550/MR", 550) < 5);
+  assert.ok(pontos("SUN-6K-G05P1-EU-AM2", "SUN-6K-G05P1-EU-CM2", 6) > pontos("SUN-6K-G", "SUN-6K-G05P1-EU-CM2", 6));
 });
 
 test("imagem de satélite exige login", async () => {

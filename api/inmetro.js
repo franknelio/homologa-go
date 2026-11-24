@@ -27,10 +27,13 @@ function urlPesquisa(marca, pag) {
   });
 }
 
+// o INMETRO bloqueia por alguns minutos quem faz muitas consultas seguidas (página LimiteExcedido.aspx)
 async function pagina(url, ms = 20000) {
   const r = await fetch(url, { headers: UA, signal: AbortSignal.timeout(ms) });
   if (!r.ok) throw new Error("INMETRO respondeu " + r.status);
-  return r.text();
+  const h = await r.text();
+  if (/LimiteExcedido/i.test(r.url) || /Limite de Acessos Excedido/i.test(h)) throw Object.assign(new Error("o INMETRO limitou as consultas, tente em alguns minutos"), { limite: true });
+  return h;
 }
 
 function lerLista(h) {
@@ -47,26 +50,42 @@ function lerDetalhe(h) {
   return { situacao: cab[0], empresa: cab[1], concessao: cab[2], familia: cab[6], modelos };
 }
 
-async function registrosDaMarca(marca, limite) {
+const detalhes = new Map(); // registro → detalhe, reaproveitado entre consultas enquanto a função estiver quente
+const ordem = (r) => (r.sit === "Ativo" ? 1e7 : 0) + Number(r.reg.slice(7)) * 1e3 + Number(r.reg.slice(0, 6)) / 1e3;
+
+// lista os registros da marca e lê os detalhes (modelos) um a um, do mais novo ao mais antigo, ativos primeiro.
+// para quando "achou" diz que já encontrou o modelo, quando o tempo acaba ou quando o INMETRO limita as consultas.
+async function registrosDaMarca(marca, limite, achou = () => false) {
+  let regs, info = { limitado: false };
   const c = cache.get(marca);
-  if (c && Date.now() - c.t < 12 * 3600e3) return c.regs;
-  const h1 = await pagina(urlPesquisa(marca, 1));
-  const total = Math.min(Number(h1.match(/<b>(\d+)<\/b> página/)?.[1] || 1), 25);
-  const resto = await Promise.all(Array.from({ length: total - 1 }, (_, k) => pagina(urlPesquisa(marca, k + 2)).catch(() => "")));
-  const vistos = new Set();
-  const regs = [h1, ...resto].flatMap(lerLista).filter((r) => !vistos.has(r.reg) && vistos.add(r.reg));
-  // detalhes em lotes paralelos, ativos primeiro
-  regs.sort((a, b) => (b.sit === "Ativo") - (a.sit === "Ativo"));
-  let k = 0;
+  if (c && Date.now() - c.t < 12 * 3600e3) regs = c.regs;
+  else {
+    const h1 = await pagina(urlPesquisa(marca, 1));
+    const total = Math.min(Number(h1.match(/<b>(\d+)<\/b> página/)?.[1] || 1), 40);
+    let falhou = false;
+    const resto = await Promise.all(Array.from({ length: total - 1 }, (_, k) => pagina(urlPesquisa(marca, k + 2)).catch((e) => { falhou = true; if (e.limite) info.limitado = true; return "" })));
+    const vistos = new Set();
+    regs = [h1, ...resto].flatMap(lerLista).filter((r) => !vistos.has(r.reg) && vistos.add(r.reg));
+    regs.sort((a, b) => ordem(b) - ordem(a));
+    if (!falhou) cache.set(marca, { t: Date.now(), regs });
+  }
+  for (const r of regs) if (detalhes.has(r.reg)) Object.assign(r, detalhes.get(r.reg));
+  if (regs.some(achou)) return Object.assign(regs, info);
+  let k = 0, fim = false;
   const trab = async () => {
-    while (k < regs.length && Date.now() < limite) {
+    while (!fim && k < regs.length && Date.now() < limite) {
       const r = regs[k++];
-      try { Object.assign(r, lerDetalhe(await pagina(BASE + "detalhe.aspx?pag=1&NumeroRegistro=" + r.reg, 15000))) } catch { r.falhou = true }
+      if (r.modelos) continue;
+      try {
+        const d = lerDetalhe(await pagina(BASE + "detalhe.aspx?pag=1&NumeroRegistro=" + r.reg, 15000));
+        if (!d.modelos.length && !d.situacao) throw new Error("página sem dados");
+        detalhes.set(r.reg, d); Object.assign(r, d);
+        if (achou(r)) fim = true;
+      } catch (e) { if (e.limite) { info.limitado = true; fim = true } }
     }
   };
-  await Promise.all(Array.from({ length: 16 }, trab));
-  if (regs.every((r) => r.modelos)) cache.set(marca, { t: Date.now(), regs });
-  return regs;
+  await Promise.all(Array.from({ length: 6 }, trab));
+  return Object.assign(regs, info);
 }
 
 export default async function handler(req, res) {
@@ -137,15 +156,22 @@ export function pontos(registrado, procurado, pot) {
   const potReg = String(registrado).match(/(\d{3,4})\s*W/i);
   if (pot >= 100 && potReg && +potReg[1] !== pot && !/(\d{3,4})\s*[-~]\s*(\d{3,4})\s*W/i.test(registrado)) return n.slice(0, 4) === alvo.slice(0, 4) ? 1 : 0;
   if (alvo.length >= 5 && (n.includes(alvo) || (alvo.includes(n) && n.length >= 5))) return 5;
-  return n.slice(0, 4) === alvo.slice(0, 4) ? 1 : 0;
+  // mesmo modelo, só o sufixo de versão diferente (ex. "SUN-6K-G05P1-EU-CM2" e o registrado "SUN-6K-G05P1-EU-AM2");
+  // não vale se a diferença corta um número (potência), como "JAM72S30-550" e "JAM72S30-545"
+  const k = comum(n, alvo), ra = alvo.slice(k), rn = n.slice(k);
+  if (k >= 8 && ra.length <= 3 && rn.length <= 3 && !/^\d/.test(ra + rn) && !/\d/.test(alvo[k - 1])) return 6;
+  // parecido: quanto maior o começo em comum, mais acima na lista de sugestões
+  return n.slice(0, 4) === alvo.slice(0, 4) ? 1 + k / 100 : 0;
 }
+const comum = (a, b) => { let i = 0; while (i < a.length && i < b.length && a[i] === b[i]) i++; return i };
 
 export async function consultar(fab, modelo, pot = 0) {
   const t0 = Date.now();
   // a busca do INMETRO casa pela marca; tenta o nome completo e depois só a primeira palavra
   const marcas = [...new Set([fab.toUpperCase(), fab.toUpperCase().split(/\s+/)[0]])];
+  const achou = (r) => (r.modelos || []).some((m) => !/exclu/i.test(m.acao) && pontos(m.modelo, modelo, pot) >= 6);
   let regs = [];
-  for (const m of marcas) { regs = await registrosDaMarca(m, t0 + 50000); if (regs.length) break }
+  for (const m of marcas) { regs = await registrosDaMarca(m, t0 + 50000, achou); if (regs.length) break }
   const achados = [];
   for (const r of regs) for (const m of r.modelos || []) {
     if (/exclu/i.test(m.acao)) continue;
@@ -157,6 +183,6 @@ export async function consultar(fab, modelo, pot = 0) {
   const lista = achados.filter((a) => !vistos.has(a.registro + a.modelo) && vistos.add(a.registro + a.modelo)).slice(0, 8).map(({ pts, ...a }) => a);
   return {
     ok: true, encontrado: lista[0]?.forte ? lista[0] : null, opcoes: lista,
-    consultados: regs.filter((r) => r.modelos).length, total: regs.length, ms: Date.now() - t0,
+    consultados: regs.filter((r) => r.modelos).length, total: regs.length, limitado: !!regs.limitado, ms: Date.now() - t0,
   };
 }
