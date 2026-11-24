@@ -4,7 +4,7 @@
 (async () => {
   if (window.__hgoTrt) return;
   window.__hgoTrt = true;
-  const fim = () => { window.__hgoTrt = false };
+  const fim = () => { window.__hgoTrt = false; if (typeof agendaSumir === "function") agendaSumir(15000) };
   const $ = window.jQuery;
   const q = (s) => document.querySelector(s);
   const dorme = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -16,6 +16,16 @@
   painel.style.cssText = "position:fixed;right:16px;bottom:16px;z-index:999999;width:360px;max-height:70vh;overflow:auto;background:#fff;border:3px solid #FF6A00;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.3);font:13px/1.4 Arial,sans-serif;color:#222;padding:12px 14px";
   painel.innerHTML = '<b style="color:#FF2D87;font-size:15px">HomologaGO \u00b7 Preencher TRT</b><div id="hgoLog" style="margin-top:6px"></div>';
   document.body.appendChild(painel);
+
+  // um painel s\u00f3 (clicar no favorito de novo troca o painel), bot\u00e3o de fechar e some sozinho no fim
+  { const velho = document.getElementById("hgoPainelTrt"); if (velho) velho.remove() }
+  painel.id = "hgoPainelTrt";
+  const xis = document.createElement("button"); xis.textContent = "\u00d7"; xis.title = "Fechar";
+  xis.style.cssText = "position:absolute;top:4px;right:8px;border:0;background:none;font-size:22px;line-height:1;cursor:pointer;color:#888";
+  xis.onclick = () => painel.remove(); painel.style.position = "fixed"; painel.appendChild(xis);
+  let someT = null; const agendaSumir = (ms) => { clearTimeout(someT); someT = setTimeout(() => { if (!painel.matches(":hover")) painel.remove(); else agendaSumir(5000) }, ms) };
+  painel.addEventListener("mouseenter", () => clearTimeout(someT));
+  painel.addEventListener("mouseleave", () => { if (!window.__hgoTrt) agendaSumir(8000) });
   const log = (t, cor) => { const d = document.createElement("div"); d.textContent = t; if (cor) d.style.color = cor; q("#hgoLog").appendChild(d); painel.scrollTop = 1e6 };
 
   // confirma\u00e7\u00e3o dentro do painel (o confirm() do navegador \u00e9 cancelado sozinho quando a janelinha do app est\u00e1 em foco)
@@ -109,6 +119,10 @@
     return true;
   }
   try {
+    if (/homologa-go\.vercel\.app$/.test(location.hostname)) {
+      log("Este bot\u00e3o \u00e9 o favorito: arraste-o para a barra de favoritos e clique nele na p\u00e1gina do SINCETI (TRT \u2192 Preencher Termo de Responsabilidade T\u00e9cnica).", "#b45309");
+      agendaSumir(8000); window.__hgoTrt = false; return;
+    }
     if (!q("#FORMADEREGISTRO")) {
       log("Abra antes: TRT \u2192 Preencher Termo de Responsabilidade T\u00e9cnica e clique em \"Li e Compreendi\". Depois clique no favorito de novo.", "#c00");
       return fim();

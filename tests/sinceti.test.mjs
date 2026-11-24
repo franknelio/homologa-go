@@ -24,3 +24,26 @@ test("cadastra o contratante novo e marca o aproveitamento de dados", { timeout:
   assert.ok(await p.evaluate(() => document.getElementById("proprietario0_AproveitaDados").checked));
   assert.deepEqual(erros, []);
 });
+
+test("painel do favorito tem botão de fechar e some sozinho quando não há o que fazer", { timeout: 60000 }, async () => {
+  const p = await nav.newPage();
+  await p.goto(srv.url + "/app/view/sight/main.php?form=CadastrarContratantePF");
+  await p.addScriptTag({ path: path.resolve(import.meta.dirname, "../public/sinceti.js") });
+  await p.waitForSelector("#hgoPainelTrt");
+  await p.addScriptTag({ path: path.resolve(import.meta.dirname, "../public/sinceti.js") });
+  await p.waitForTimeout(300);
+  assert.equal(await p.locator("#hgoPainelTrt").count(), 1);
+  await p.waitForSelector("#hgoPainelTrt", { state: "detached", timeout: 20000 });
+  await p.addScriptTag({ path: path.resolve(import.meta.dirname, "../public/sinceti.js") });
+  await p.click('#hgoPainelTrt button[title="Fechar"]');
+  assert.equal(await p.locator("#hgoPainelTrt").count(), 0);
+});
+
+test("no próprio app, clicar no botão do favorito só explica (não abre painel)", async () => {
+  const p = await nav.newPage();
+  await p.goto(srv.url + "/"); await p.waitForFunction(() => typeof calc === "function");
+  await p.evaluate(() => document.querySelectorAll("details.sec").forEach((x) => (x.open = true)));
+  await p.click("#bmTrt"); await p.waitForTimeout(500);
+  assert.equal(await p.locator("#hgoPainelTrt").count(), 0);
+  assert.match(await p.textContent("#toast"), /Arraste/);
+});

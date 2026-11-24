@@ -75,3 +75,7 @@ function aplicarBiblioteca(t){
 }
 document.addEventListener("change",e=>{const k=e.target.closest("#form")&&e.target.dataset.k;if(k==="mMod"||k==="iMod")aplicarBiblioteca(k[0])});
 setTimeout(atualizaListasEq,0);
+
+/* ---------------- favoritos: os botões do app são para arrastar, não para clicar ---------------- */
+document.addEventListener("click",e=>{const a=e.target.closest("#bmEq,#bmTrt");if(!a)return;e.preventDefault();e.stopPropagation();
+  toast(a.id==="bmTrt"?"Arraste este botão para a barra de favoritos e clique nele na página do SINCETI (Preencher Termo de Responsabilidade Técnica).":"Arraste este botão para a barra de favoritos e clique nele no site da Equatorial (Orçamento de Conexão GD).")},true);

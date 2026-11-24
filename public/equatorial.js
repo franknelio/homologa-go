@@ -17,6 +17,16 @@
   painel.style.cssText = "position:fixed;right:16px;bottom:90px;z-index:2147483647;width:370px;max-height:70vh;overflow:auto;background:#fff;border:3px solid #FF6A00;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.3);font:13px/1.4 Arial,sans-serif;color:#222;padding:12px 14px";
   painel.innerHTML = '<b style="color:#FF2D87;font-size:15px">HomologaGO \u00b7 Preencher Equatorial</b><div id="hgoEqLog" style="margin-top:6px"></div>';
   document.body.appendChild(painel);
+
+  // um painel s\u00f3 (clicar no favorito de novo troca o painel), bot\u00e3o de fechar e some sozinho no fim
+  { const velho = document.getElementById("hgoPainelEq"); if (velho) velho.remove() }
+  painel.id = "hgoPainelEq";
+  const xis = document.createElement("button"); xis.textContent = "\u00d7"; xis.title = "Fechar";
+  xis.style.cssText = "position:absolute;top:4px;right:8px;border:0;background:none;font-size:22px;line-height:1;cursor:pointer;color:#888";
+  xis.onclick = () => painel.remove(); painel.appendChild(xis);
+  let someT = null; const agendaSumir = (ms) => { clearTimeout(someT); someT = setTimeout(() => { if (!painel.matches(":hover")) painel.remove(); else agendaSumir(5000) }, ms) };
+  painel.addEventListener("mouseenter", () => clearTimeout(someT));
+  painel.addEventListener("mouseleave", () => { if (!window.__hgoEq) agendaSumir(8000) });
   const log = (t, cor) => { const d = document.createElement("div"); d.textContent = t; if (cor) d.style.color = cor; painel.querySelector("#hgoEqLog").appendChild(d); painel.scrollTop = 1e6 };
 
   // confirma\u00e7\u00e3o dentro do painel (o confirm() do navegador \u00e9 cancelado sozinho quando a janelinha do app est\u00e1 em foco)
@@ -28,7 +38,7 @@
     bt("Sim, preencher", "#16a34a", true); bt("N\u00e3o", "#c00", false);
     painel.appendChild(box); painel.scrollTop = 1e6; try { window.focus() } catch (e) {}
   });
-  const fim = () => { const x = document.createElement("button"); x.textContent = "Fechar"; x.style.cssText = "margin-top:8px;padding:4px 12px;border:0;border-radius:6px;background:#FF6A00;color:#fff;cursor:pointer"; x.onclick = () => painel.remove(); painel.appendChild(x); window.__hgoEq = false };
+  const fim = () => { const x = document.createElement("button"); x.textContent = "Fechar"; x.style.cssText = "margin-top:8px;padding:4px 12px;border:0;border-radius:6px;background:#FF6A00;color:#fff;cursor:pointer"; x.onclick = () => painel.remove(); painel.appendChild(x); window.__hgoEq = false; if (typeof agendaSumir === "function") agendaSumir(20000) };
 
   // valor em campos de site com React/m\u00e1scara: usa o setter nativo e dispara os eventos
   const poe = (el, v) => {
