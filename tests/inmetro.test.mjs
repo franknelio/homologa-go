@@ -126,3 +126,19 @@ test("pasta já escolhida e bloqueada: pede só a liberação, sem abrir a janel
   assert.deepEqual(r, [true, 0, true, true]);
   assert.deepEqual(erros, []);
 });
+
+test("todos os documentos enviados à Equatorial saem com a assinatura do RT", async () => {
+  const p = await nav.newPage(), erros = [];
+  p.on("pageerror", (e) => erros.push(e.message));
+  await p.goto(srv.url + "/"); await p.waitForFunction(() => typeof docPdfBlob === "function");
+  const r = await p.evaluate(async () => {
+    const c = document.createElement("canvas"); c.width = 300; c.height = 100; const g = c.getContext("2d"); g.lineWidth = 4; g.beginPath(); g.moveTo(10, 80); g.bezierCurveTo(80, 0, 150, 100, 290, 20); g.stroke();
+    assinRT = c.toDataURL("image/png"); P = { ...EXAMPLE, modalidade: "Autoconsumo remoto", benef: "UC 1;123;Rua;x;50\nUC 2;456;Rua;y;50" };
+    const o = {};
+    for (const id of ["form", "memo", "unif", "blocos", "planta", "placa", "benef"]) o[id] = BUILD[id](calc()).join("").split(assinRT).length - 1 >= (id === "placa" || id === "benef" ? 2 : 1);
+    await docPdfBlob("placa", calc());
+    return o;
+  });
+  assert.deepEqual(r, { form: true, memo: true, unif: true, blocos: true, planta: true, placa: true, benef: true });
+  assert.deepEqual(erros, []);
+});

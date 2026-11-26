@@ -697,13 +697,18 @@ function docPlanta(c){
   for(let i=1;i<6;i++){g+=S.line(rx+10+i*50,my+26,rx+10+i*50,my+166,.4)+(i<3?S.line(rx+10,my+26+i*46,rx+309,my+26+i*46,.4):"")}
   g+=`<circle cx="${rx+160}" cy="${my+96}" r="7" fill="#C0392B" stroke="#fff" stroke-width="2"/>`+S.t(rx+172,my+92,`${fmt(n(P.lat),5)}`,{fs:8.5,b:1})+S.t(rx+172,my+104,`${fmt(n(P.lon),5)}`,{fs:8.5,b:1});
   g+=S.lines(rx+10,my+184,[`${esc(P.cidade||"")} – ${esc(P.uf||"")}`,`${esc(P.bairro||"")} · CEP ${esc(P.cep||"")}`,`Google Maps: ${fmt(n(P.lat),6).replace(",",".")}, ${fmt(n(P.lon),6).replace(",",".")}`],{fs:9,lh:14});
-  g+=S.rect(rx,my+262,319,278,"#fff",1.2)+S.t(rx+8,my+278,"QUADRO DE INFORMAÇÕES",{fs:10,b:1});
+  g+=S.rect(rx,my+262,319,200,"#fff",1.2)+S.t(rx+8,my+278,"QUADRO DE INFORMAÇÕES",{fs:10,b:1});
   const info=[["UC",P.uc],["Titular",P.nome],["Potência instalada",fmt(c.pinst)+" kW"],["Módulos",`${c.qtd} × ${P.mP||""} Wp`],["Área do arranjo",fmt(c.area)+" m²"],["Inversor",`${P.iFab||""} ${P.iMod||""}`],["Telhado",`${P.telhado||""} · ${P.orient||""} · ${P.incl||""}°`],["Local do inversor",P.locInv],["Padrão",`${P.padrao||""} · ${P.ramal||""}`]];
-  info.forEach((r,i)=>{g+=S.t(rx+8,my+300+i*25,esc(r[0]),{fs:8})+S.t(rx+8,my+312+i*25,esc(String(r[1]??"").slice(0,52)),{fs:9,b:1})});
+  info.forEach((r,i)=>{g+=S.t(rx+8,my+294+i*19,esc(r[0]),{fs:7.5})+S.t(rx+8,my+304+i*19,esc(String(r[1]??"").slice(0,52)),{fs:8.5,b:1})});
+  // assinaturas (a Equatorial reprova documento sem assinatura)
+  {const ya=my+470,hw=159.5,campo=(x,rot,assina,nome)=>S.rect(x,ya,hw,70,"#fff",1.2)+assina+S.line(x+12,ya+46,x+hw-12,ya+46,.8)+S.t(x+hw/2,ya+56,nome,{fs:nome.length>26?6.2:7.5,a:"middle",b:1})+S.t(x+hw/2,ya+66,rot,{fs:7,a:"middle"});
+   g+=campo(rx,"RESPONSÁVEL TÉCNICO",svgAssin(rx+20,ya+4,120,42),esc(UP(P.rtNome)).slice(0,34));
+   g+=campo(rx+hw,"PROPRIETÁRIO",assinaCli()&&assinRT?S.t(rx+hw+8,ya+30,"p.p.",{fs:8})+svgAssin(rx+hw+24,ya+4,120,42):"",esc(UP(P.nome)).slice(0,34));}
   g+=carimbo(20,H-118,W-40,96,"Planta de situação e localização","01/01");
   return [`<div class="sheet land"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">${g}</svg></div>`];
 }
 
+const assinRtHtml=()=>`<div style="position:relative"><span style="position:absolute;left:50%;transform:translateX(-50%);top:-54px;white-space:nowrap">${imgAssin("height:50px;vertical-align:bottom")}</span>${esc(UP(P.rtNome))}<br>Responsável técnico · ${esc(P.rtTit||"")} ${esc(P.rtReg||"")}</div>`;
 function docPlaca(){
   return [`<div class="sheet">${hdr("Placa de advertência","Sinalização do padrão de entrada · Micro e minigeração distribuída")}
   <p>Fixar junto à caixa de medição, em local visível, de forma permanente. Material: PVC ou alumínio, espessura mínima 1 mm, resistente a intempéries. Dimensões de referência: 25 × 18 cm (confirme na revisão vigente da NT.020.EQTL).</p>
@@ -719,6 +724,7 @@ function docPlaca(){
    <text x="250" y="311" text-anchor="middle" font-size="28" font-weight="700" font-family="Arial,sans-serif" fill="#FFD200">GERAÇÃO PRÓPRIA</text>
   </svg></div>
   <table>${tr("Unidade consumidora",val("uc"),"Potência instalada",fmt(calc().pinst)+" kW")}${tr("Endereço",`${val("end")} – ${val("bairro")} – ${val("cidade")}/${val("uf")}`)}</table>
+  <div class="sign" style="margin-top:70px">${assinRtHtml()}<div style="position:relative">${assinaCli()&&assinRT?`<span style="position:absolute;left:50%;transform:translateX(-50%);top:-54px;white-space:nowrap">p.p. ${imgAssin("height:50px;vertical-align:bottom")}</span>`:""}${val("nome")}<br>Titular da UC geradora</div></div>
   ${foot("Placa de advertência",1,1)}</div>`];
 }
 
@@ -730,7 +736,7 @@ function docBenef(c){
   ${rows.length?rows.map((r,i)=>`<tr><td>${i+1}</td><td class="v">${esc(r[0])}</td><td class="v">${esc(r[1]||"")}</td><td class="v">${esc(r[2]||"")}</td><td class="v">${esc(r[3]||"")}</td><td class="v">${fmt(c.gerMes*n(r[3])/100,0)}</td></tr>`).join(""):`<tr><td colspan="6">Nenhuma beneficiária informada.</td></tr>`}
   <tr><th colspan="4">Total</th><td class="v">${fmt(rows.reduce((a,r)=>a+n(r[3]),0),1)} %</td><td></td></tr></table>
   <p>As unidades listadas pertencem ao mesmo titular ou integram consórcio, cooperativa, condomínio ou associação, conforme a modalidade declarada (Lei 14.300/2022).</p>
-  <div class="sign" style="margin-top:40px"><div style="position:relative">${assinaCli()&&assinRT?`<span style="position:absolute;left:50%;transform:translateX(-50%);top:-50px;white-space:nowrap">p.p. ${imgAssin("height:48px;vertical-align:bottom")}</span>`:""}${val("nome")}<br>Titular da UC geradora</div></div>
+  <div class="sign" style="margin-top:70px">${assinRtHtml()}<div style="position:relative">${assinaCli()&&assinRT?`<span style="position:absolute;left:50%;transform:translateX(-50%);top:-54px;white-space:nowrap">p.p. ${imgAssin("height:50px;vertical-align:bottom")}</span>`:""}${val("nome")}<br>Titular da UC geradora</div></div>
   ${foot("Lista de beneficiárias",1,1)}</div>`];
 }
 
