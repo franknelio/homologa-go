@@ -6,7 +6,7 @@
   if (window.__hgoEq) return;
   window.__hgoEq = true;
   const APP = "https://homologa-go.vercel.app";
-  const SOLICITANTE_ALT = "00494710152"; // regra do usu\u00e1rio: se o CPF do cliente for recusado (d\u00e9bito em aberto), usar este
+  const SOLICITANTES_ALT = ["00494710152", "12116879612"]; // regra do usu\u00e1rio: se o CPF do cliente for recusado (d\u00e9bito em aberto), usar este
   const dorme = (ms) => new Promise((r) => setTimeout(r, ms));
   const espera = async (fn, ms = 10000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { const v = fn(); if (v) return v; await dorme(200) } return null };
   const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
@@ -84,6 +84,14 @@
     // 2. CPF/CNPJ do solicitante (verifica\u00e7\u00e3o de d\u00e9bitos)
     const ehPasso1 = () => !temTexto(/^dados do titular da unidade$/) && [...document.querySelectorAll("input")].filter(vis).find((i) => /cpf|cnpj/.test(norm(rotulo(i))) || /^0{6,}$/.test(i.placeholder || ""));
     const pedidoVisivel = () => botao(/^microgeracao distribuida$/) || temTexto(/^selecione seu pedido/);
+    // aviso "Verificamos que voc\u00ea possui contrato na Equatorial \u2026 ENTRAR": n\u00e3o \u00e9 recusa, \u00e9 s\u00f3 seguir
+    const modalContrato = () => temTexto(/possui contrato/) && botao(/^entrar$/);
+    const passaContrato = async () => {
+      const b = modalContrato(); if (!b) return false;
+      log("Equatorial: o cliente j\u00e1 tem contrato. Cliquei em ENTRAR para seguir (se a p\u00e1gina mudar, clique no favorito de novo).");
+      b.click(); await espera(() => pedidoVisivel() || !modalContrato(), 12000); await dorme(600); return true;
+    };
+    await passaContrato();
     const campoCpf = ehPasso1();
     if (campoCpf && !pedidoVisivel()) {
       // avisos da p\u00e1gina (alert) s\u00e3o capturados para o script decidir sozinho
@@ -105,16 +113,19 @@
         ultimoAlerta = "";
         poe(campoCpf, cpf); await dorme(300);
         const env = enviarCpf() || botao(/^enviar$/); if (env) env.click();
-        let ok = await espera(() => pedidoVisivel() || ultimoAlerta, 12000);
+        let ok = await espera(() => pedidoVisivel() || ultimoAlerta || modalContrato(), 12000);
+        if (modalContrato()) { await passaContrato(); ok = await espera(pedidoVisivel, 12000) }
         if (ok && /termos/i.test(ultimoAlerta) && !pedidoVisivel()) { await aceitaTermos(); ultimoAlerta = ""; const e2 = enviarCpf() || botao(/^enviar$/); if (e2) e2.click(); ok = await espera(pedidoVisivel, 12000) }
         return pedidoVisivel() ? true : null;
       };
       const ok1 = await tenta(D.doc);
       if (ok1) log("\u2713 CPF/CNPJ do cliente aceito");
       else {
-        log("CPF/CNPJ do cliente recusado (prov\u00e1vel d\u00e9bito em aberto). Usando o CPF alternativo\u2026", "#b45309");
-        if (await tenta(SOLICITANTE_ALT)) log("\u2713 CPF alternativo aceito");
-        else { log("A Equatorial n\u00e3o aceitou nenhum dos dois CPFs. Veja a mensagem na p\u00e1gina.", "#c00"); window.alert = alertaOrig; return fim() }
+        log("CPF/CNPJ do cliente recusado" + (ultimoAlerta ? " (" + ultimoAlerta.slice(0, 120) + ")" : " (prov\u00e1vel d\u00e9bito em aberto)") + ". Usando o CPF alternativo\u2026", "#b45309");
+        let alt = null;
+        for (const c of SOLICITANTES_ALT) { if (await tenta(c)) { alt = c; break } log("CPF alternativo " + c.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") + " recusado, tentando o pr\u00f3ximo\u2026", "#b45309") }
+        if (alt) log("\u2713 CPF alternativo aceito (" + alt.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") + ")");
+        else { log("A Equatorial n\u00e3o aceitou nenhum dos CPFs (cliente e alternativos). Veja a mensagem na p\u00e1gina.", "#c00"); window.alert = alertaOrig; return fim() }
       }
       window.alert = alertaOrig;
     }

@@ -17,6 +17,7 @@ after(async () => { await nav?.close(); srv?.fechar() });
 const PORTAL = `<!doctype html><html><head><meta charset=utf-8></head><body>
 <div id=p1><h3>Digite o CPF / CNPJ</h3><label><input type=checkbox id=lgpd> Li e entendi o Aviso de Privacidade</label>
 <label>CPF / CNPJ <input id=cpf placeholder="00000000000"></label><button id=env1>Enviar</button></div>
+<div id=mc hidden style="position:fixed;inset:30%;background:#fff"><h2>Atenção</h2><p>Olá! Verificamos que você possui contrato na Equatorial Energia.</p><button id=entrar>ENTRAR</button></div>
 <div id=p2 hidden><h3>Selecione seu pedido</h3><button>Minigeração distribuída</button><button id=micro>Microgeração distribuída</button></div>
 <div id=p3 hidden><button>Pessoa Jurídica</button><button id=pf>Pessoa Física</button></div>
 <div id=p4 hidden>
@@ -38,7 +39,8 @@ const PORTAL = `<!doctype html><html><head><meta charset=utf-8></head><body>
  <button id=enviarFinal onclick="window.__enviado=true">Enviar</button>
 </div>
 <script>
-env1.onclick=()=>{if(!lgpd.checked){alert('Aceite os termos');return}if(cpf.value.replace(/\\D/g,'').length===11){p1.hidden=true;p2.hidden=false}};
+env1.onclick=()=>{if(!lgpd.checked){alert('Aceite os termos');return}if((window.__recusa||[]).includes(cpf.value.replace(/\\D/g,''))){window.__cpfs=(window.__cpfs||[]).concat(cpf.value);alert('Existem débitos em aberto');return}if(cpf.value.replace(/\\D/g,'').length===11){window.__cpfs=(window.__cpfs||[]).concat(cpf.value);mc.hidden=false}};
+entrar.onclick=()=>{mc.hidden=true;p1.hidden=true;p2.hidden=false};
 micro.onclick=()=>{p2.hidden=true;p3.hidden=false};pf.onclick=()=>{p3.hidden=true;p4.hidden=false};
 </script></body></html>`;
 
@@ -114,13 +116,14 @@ test("CRM → projeto → Gerar todos → Preencher Equatorial, tudo sozinho", {
     const f = (id) => [...document.getElementById(id).files].map((x) => x.name).join("+");
     return { nome: tNome.value, cpf: tCpf.value, rt: rNome.value, disj: disj.value, mail: eMail.value,
       tit: f("fTit"), proc: f("fProc"), procDoc: f("fProcDoc"), form: f("fForm"), memo: f("fMemo"), unif: f("fUnif"), blocos: f("fBlocos"), ensaio: f("fEnsaio"),
-      avisos: [...document.querySelectorAll("#hgoEqLog div")].map((d) => d.textContent).filter((t) => /^⚠/.test(t)), enviado: !!window.__enviado };
+      cpfs: window.__cpfs, avisos: [...document.querySelectorAll("#hgoEqLog div")].map((d) => d.textContent).filter((t) => /^⚠/.test(t)), enviado: !!window.__enviado };
   });
   assert.equal(r.nome, "LETICIA RODRIGUES DA SILVA"); assert.equal(r.cpf, "70152881174"); assert.equal(r.rt, "FRANKNELIO APARECIDO ALVES SILVA"); assert.ok(+r.disj >= 40); assert.equal(r.mail, "rt@exemplo.com");
   assert.equal(r.tit, "09_Documento_titular_RG_CNH.jpeg"); assert.equal(r.proc, "10_Procuracao.pdf");
   assert.equal(r.form, "01_Formulario_Solicitacao.pdf"); assert.equal(r.memo, "02_Memorial_Descritivo.pdf"); assert.equal(r.unif, "03_Diagrama_Unifilar.pdf"); assert.equal(r.blocos, "04_Diagrama_de_Blocos.pdf");
   assert.equal(r.ensaio, "08_INMETRO_inversor_000774-2026.pdf");
   assert.equal(r.enviado, false);
+  assert.equal(r.cpfs.length, 1, "o aviso \"possui contrato\" não é recusa: não pode tentar o CPF alternativo");
   assert.deepEqual(r.avisos.filter((a) => !/ART\/TRT/.test(a)), [], "avisos inesperados no portal");
   assert.deepEqual(erros, []);
   await ctx.close();
