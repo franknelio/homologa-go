@@ -634,7 +634,7 @@ function docBlocos(c){
   const W=1079,H=750;let g=S.rect(4,4,W-8,H-8,"none",1.2);
   g+=S.t(20,30,"DIAGRAMA DE BLOCOS – SISTEMA FOTOVOLTAICO CONECTADO À REDE",{fs:15,b:1});
   g+=S.t(20,46,`${fmt(c.pinst)} kW · ${esc(P.nome||"")} · UC ${esc(P.uc||"")}`,{fs:10});
-  const y=200,h=120,bw=138,gap=36;
+  const y=170,h=120,bw=124,gap=Math.floor((W-48-7*124)/6);
   const blocks=[
    ["ARRANJO FV",[`${c.qtd} módulos ${esc(P.mP||"")} Wp`,`${fmt(c.pcc)} kWp`,`${esc(P.nStr||"")} × ${esc(P.mPorStr||"")} em série`,`Voc ${fmt(c.vocStr,0)} V`]],
    ["PROTEÇÃO CC",[`Chave seccionadora ${c.chaveCC} A`,`DPS Cl. II ≥${c.dpsCCv} V`,c.fusivel?`Fusível gPV ${c.fusivel} A`:"Sem fusível (≤2 strings/MPPT)",`Cabo ${c.cabCC} mm² solar`]],
@@ -648,13 +648,17 @@ function docBlocos(c){
   blocks.forEach((b,i)=>{const x=x0+i*(bw+gap);
     g+=`<rect x="${x}" y="${y}" width="${bw}" height="${h}" fill="${i===2?"#FFF4DE":i===6?"#E9EEF0":"#fff"}" stroke="#111" stroke-width="1.6" rx="3"/>`;
     g+=S.t(x+bw/2,y+20,b[0],{fs:10.5,a:"middle",b:1})+S.line(x,y+28,x+bw,y+28,1);
-    b[1].forEach((l,j)=>g+=S.t(x+bw/2,y+46+j*16,l,{fs:8.6,a:"middle"}));
+    b[1].forEach((l,j)=>g+=S.t(x+bw/2,y+46+j*16,l,{fs:String(l).length>26?7.4:8.6,a:"middle"}));
     if(i<blocks.length-1){const ax=x+bw,ay=y+h/2;g+=S.line(ax,ay,ax+gap-6,ay,1.8)+`<path d="M${ax+gap-8} ${ay-5} L${ax+gap} ${ay} L${ax+gap-8} ${ay+5} Z" fill="#111"/>`;
       g+=S.t(ax+gap/2,ay-8,i<2?"CC":"CA",{fs:8,a:"middle",b:1});}
   });
   g+=S.t(x0+2*(bw+gap)+bw/2,y+h+30,"Sentido do fluxo de potência injetada →",{fs:9,a:"middle"});
   g+=S.line(x0+4*(bw+gap)+bw/2,y+h,x0+4*(bw+gap)+bw/2,y+h+70,1.4)+`<rect x="${x0+4*(bw+gap)+10}" y="${y+h+70}" width="${bw-20}" height="40" fill="#fff" stroke="#111" stroke-width="1.4"/>`+S.t(x0+4*(bw+gap)+bw/2,y+h+94,"CARGAS DA UC",{fs:9,a:"middle",b:1});
   g+=S.lines(24,560,["Notas:","1. Proteções de sub/sobretensão, sub/sobrefrequência, anti-ilhamento e sincronismo incorporadas ao inversor certificado (NBR 16149/16150, IEC 62116).","2. Massas metálicas, estruturas e DPS conectados ao BEP da unidade consumidora.","3. Diagrama exigido para potência acima de 10 kW (NT.020.EQTL), incluído para referência."],{fs:9,lh:13});
+  // assinaturas (a Equatorial reprova diagrama de blocos sem assinatura): RT e proprietário, como no unifilar
+  {const ya=432,lw=(W-80)/2,campo=(x,rot,assina,linhas)=>S.t(x,ya+8,rot,{fs:9,b:1})+assina+S.line(x+40,ya+62,x+lw-40,ya+62,.9)+S.lines(x+lw/2,ya+76,linhas,{fs:9,a:"middle",lh:11});
+   g+=campo(24,"RESPONSÁVEL TÉCNICO:",svgAssin(24+lw/2-80,ya+6,160,58),[esc(UP(P.rtNome)),esc(`${P.rtTit||""} · ${P.rtReg||""}`),esc(`ART/TRT nº ${P.rtArt||""}`)]);
+   g+=campo(56+lw,"PROPRIETÁRIO:",assinaCli()&&assinRT?S.t(56+lw+lw/2-100,ya+40,"p.p.",{fs:9})+svgAssin(56+lw+lw/2-80,ya+6,160,58):"",[esc(UP(P.nome)),`CPF/CNPJ: ${esc(P.doc||"")}`]);}
   g+=carimbo(20,H-118,W-40,96,"Diagrama de blocos","01/01");
   return [`<div class="sheet land"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">${g}</svg></div>`];
 }
