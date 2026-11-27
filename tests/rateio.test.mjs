@@ -36,3 +36,17 @@ test("rateio: digita UCs e % na tabela e sai na Guia 2 do formulário, assinada"
   assert.equal(await p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
   assert.deepEqual(erros, []);
 });
+
+test("rateio na entrada rápida: anexar as contas já preenche UC e titular; só falta a %", async () => {
+  const p = await nav.newPage(), erros = [];
+  p.on("pageerror", (e) => erros.push(e.message));
+  await p.goto(srv.url + "/"); await p.waitForFunction(() => typeof ratEditor === "function");
+  await p.evaluate(() => { sessao = { user: { id: "u1" }, access_token: "x" }; fileToImages = async () => [new Blob(["x"], { type: "image/jpeg" })];
+    let k = 0; sample.json = async () => [{ uc: "3.262.319.012-52", nome: "JOÃO DA SILVA", end: "Rua 1", cidade: "Pontalina", consumo: "300 320" }, { uc: "1.111.222.333-44", nome: "MARIA SOUZA", consumo: "200" }][k++] });
+  await p.click('#qMod [data-qmod="Autoconsumo remoto"]');
+  await p.setInputFiles("#q_rat", [{ name: "a.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF a") }, { name: "b.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF b") }]);
+  await p.waitForFunction(() => /2 de 2 conta/.test(document.querySelector("#q_rat_n").textContent), null, { timeout: 10000 });
+  const r = await p.$$eval("#qRatTab tbody tr", (trs) => trs.map((tr) => [...tr.querySelectorAll("input")].map((i) => i.value)));
+  assert.deepEqual(r, [[""], ["3.262.319.012-52", "JOÃO DA SILVA", ""], ["1.111.222.333-44", "MARIA SOUZA", ""]]);
+  assert.deepEqual(erros, []);
+});

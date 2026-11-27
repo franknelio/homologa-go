@@ -66,11 +66,20 @@ const DOC_KEYS={nome:"nome completo da pessoa do RG/CNH (nunca o nome da conta d
   lat:"latitude aproximada do endereço em graus decimais (estimativa pelo endereço, se não constar)",lon:"longitude aproximada do endereço em graus decimais"};
 
 const MODS=["Autoconsumo local","Autoconsumo remoto","Geração compartilhada","Múltiplas unidades consumidoras (EMUC)"];
-let qModSel="",qRat={L:[["","","","",""]],ger:{pc:""}};
+let qModSel="",qRat={L:[["","","","",""]],ger:{pc:""},lidas:false};
 function desenharQMod(){$("#qMod").innerHTML=MODS.map(m=>`<button type="button" class="chip" data-qmod="${esc(m)}" aria-pressed="${m===qModSel}">${esc(m.replace(" (EMUC)",""))}</button>`).join("");$("#qRatBox").hidden=!qModSel||qModSel==="Autoconsumo local";if(!$("#qRatBox").hidden&&typeof ratEditor==="function")ratEditor("qRatTab",qRat.L,()=>{},qRat.ger)}
 desenharQMod();
 $("#qMod").addEventListener("click",e=>{const b=e.target.closest("[data-qmod]");if(!b)return;qModSel=b.dataset.qmod;$("#qMod").classList.remove("falta");desenharQMod()});
-$("#q_rat").addEventListener("change",e=>{const f=[...e.target.files];$("#q_rat_n").textContent=f.length?f.length+" conta(s)":""});
+// contas do rateio: lê na hora e preenche a tabela (UC e titular); o usuário só digita a %
+$("#q_rat").addEventListener("change",async e=>{const fs=[...e.target.files],nt=$("#q_rat_n");qRat.lidas=false;nt.textContent=fs.length?fs.length+" conta(s)":"";if(!fs.length)return;
+  if(!navigator.onLine||!sessao){nt.textContent+=" · serão lidas ao gerar o projeto (precisa de internet e login)";return}
+  const dig=x=>String(x||"").replace(/\D/g,"");let ok=0;
+  for(const [i,f] of fs.entries()){nt.textContent=`Lendo a conta ${i+1} de ${fs.length}…`;
+    try{const d=await sample.json("",{images:await fileToImages(f,2)});const uc=String(d.uc||"").trim();if(!uc)continue;
+      const lin=[uc,d.nome||"",[d.end,d.bairro,d.cidade].filter(Boolean).join(", "),"",String(mediaCons(d.consumo)||"")];
+      const j=qRat.L.findIndex(r=>dig(r[0])&&dig(r[0])===dig(uc));
+      if(j>=0){lin[3]=qRat.L[j][3]||"";qRat.L[j]=lin}else{const v=qRat.L.findIndex(r=>!String(r[0]||"").trim()&&!String(r[1]||"").trim());if(v>=0){lin[3]=qRat.L[v][3]||"";qRat.L[v]=lin}else qRat.L.push(lin)}ok++}catch(err){}}
+  qRat.lidas=ok===fs.length;nt.textContent=ok?`${ok} de ${fs.length} conta(s) lida(s): agora é só digitar a %`:"Não consegui ler as contas; preencha a UC e o titular à mão";desenharQMod()});
 $("#qGo").addEventListener("click",async()=>{
   const msg=t=>$("#qMsg").textContent=t;
   const iP=n($("#q_iP").value),iQ=n($("#q_iQ").value)||1,mP=n($("#q_mP").value),mQ=n($("#q_mQ").value);
@@ -142,11 +151,13 @@ Regras: a conta muitas vezes NÃO está no nome do cliente, por isso não devolv
     plantaAuto(true);
     const contas=qModSel!=="Autoconsumo local"?[...$("#q_rat").files]:[];
     // rateio digitado na entrada rápida (a UC geradora entra primeiro, com a % dela)
-    if(qModSel!=="Autoconsumo local"){const L=qRat.L.filter(r=>String(r[0]||"").trim()).map(r=>[r[0].trim(),r[1]||"","",r[3]||"",""]);
-      if(L.length||qRat.ger.pc){L.unshift([P.uc||"",P.nome||"",[P.end,P.bairro,P.cidade].filter(Boolean).join(", "),qRat.ger.pc||"",""]);gravarRateio(L)}}
-    qRat={L:[["","","","",""]],ger:{pc:""}};
+    let ratLido=false;
+    if(qModSel!=="Autoconsumo local"){const L=qRat.L.filter(r=>String(r[0]||"").trim()).map(r=>[String(r[0]).trim(),r[1]||"",r[2]||"",r[3]||"",r[4]||""]);
+      if(L.length||qRat.ger.pc){L.unshift([P.uc||"",P.nome||"",[P.end,P.bairro,P.cidade].filter(Boolean).join(", "),qRat.ger.pc||"",String(mediaCons(P.consumo)||"")]);gravarRateio(L);
+        ratLido=qRat.lidas;if(!L.some(r=>n(r[3]))&&L.every(r=>n(r[4])))calcRateio()}}
+    qRat={L:[["","","","",""]],ger:{pc:""},lidas:false};
     qModSel="";desenharQMod();$("#q_rat").value="";$("#q_rat_n").textContent="";
-    if(contas.length)lerContasRateio(contas);
+    if(contas.length&&!ratLido)lerContasRateio(contas);
     if(dsOk.length)aiNote+=dsOk.length>1?"Datasheets do inversor e do módulo lidos. ":`Datasheet do ${dsOk[0]==="i"?"inversor":"módulo"} lido. `;
     if(docsLer.length&&!problemasLeitura(P,lidos,confImgs,ligLida).length)aiNote+="Dados conferidos automaticamente (CPF válido, nome, UC e endereço lidos). ";
     const miss=["nome","doc","uc","end","cidade"].filter(k=>!P[k]);
