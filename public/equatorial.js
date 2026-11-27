@@ -84,14 +84,19 @@
     // 2. CPF/CNPJ do solicitante (verifica\u00e7\u00e3o de d\u00e9bitos)
     const ehPasso1 = () => !temTexto(/^dados do titular da unidade$/) && [...document.querySelectorAll("input")].filter(vis).find((i) => /cpf|cnpj/.test(norm(rotulo(i))) || /^0{6,}$/.test(i.placeholder || ""));
     const pedidoVisivel = () => botao(/^microgeracao distribuida$/) || temTexto(/^selecione seu pedido/);
-    // aviso "Verificamos que voc\u00ea possui contrato na Equatorial \u2026 ENTRAR": n\u00e3o \u00e9 recusa, \u00e9 s\u00f3 seguir
+    // aviso "Verificamos que voc\u00ea possui contrato na Equatorial \u2026 ENTRAR": esse CPF j\u00e1 tem conta e o ENTRAR leva para o
+    // login da Ag\u00eancia Web (sua-conta). N\u00c3O clicar em ENTRAR: fecha o aviso e tenta o pr\u00f3ximo CPF da lista.
     const modalContrato = () => temTexto(/possui contrato/) && botao(/^entrar$/);
-    const passaContrato = async () => {
+    const fechaContrato = async () => {
       const b = modalContrato(); if (!b) return false;
-      log("Equatorial: o cliente j\u00e1 tem contrato. Cliquei em ENTRAR para seguir (se a p\u00e1gina mudar, clique no favorito de novo).");
-      b.click(); await espera(() => pedidoVisivel() || !modalContrato(), 12000); await dorme(600); return true;
+      let el = b; while (el && el !== document.body) { const cs = getComputedStyle(el); if (cs.position === "fixed" && el.offsetWidth >= innerWidth * 0.5) break; el = el.parentElement }
+      const alvos = [...document.querySelectorAll(".swal2-container,.modal-backdrop,.modal.show,.modal.in")];
+      if (el && el !== document.body) alvos.push(el); else { let m = b; for (let k = 0; k < 6 && m.parentElement && m.parentElement !== document.body; k++) m = m.parentElement; alvos.push(m) }
+      alvos.forEach((x) => x.remove());
+      [document.body, document.documentElement].forEach((x) => { x.classList.remove("swal2-shown", "swal2-height-auto", "modal-open"); x.style.overflow = "" });
+      await dorme(400); return true;
     };
-    await passaContrato();
+    if (await fechaContrato()) log("Fechei o aviso \"possui contrato\" (n\u00e3o cliquei em ENTRAR, que leva para o login).", "#b45309");
     const campoCpf = ehPasso1();
     if (campoCpf && !pedidoVisivel()) {
       // avisos da p\u00e1gina (alert) s\u00e3o capturados para o script decidir sozinho
@@ -114,7 +119,7 @@
         poe(campoCpf, cpf); await dorme(300);
         const env = enviarCpf() || botao(/^enviar$/); if (env) env.click();
         let ok = await espera(() => pedidoVisivel() || ultimoAlerta || modalContrato(), 12000);
-        if (modalContrato()) { await passaContrato(); ok = await espera(pedidoVisivel, 12000) }
+        if (modalContrato()) { await fechaContrato(); ultimoAlerta = "este CPF tem contrato na Equatorial e o portal pede login"; return null }
         if (ok && /termos/i.test(ultimoAlerta) && !pedidoVisivel()) { await aceitaTermos(); ultimoAlerta = ""; const e2 = enviarCpf() || botao(/^enviar$/); if (e2) e2.click(); ok = await espera(pedidoVisivel, 12000) }
         return pedidoVisivel() ? true : null;
       };
