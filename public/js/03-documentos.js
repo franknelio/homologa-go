@@ -358,8 +358,16 @@ function docForm(c){
    <table class="ut"><tr><th style="width:30%">Informação</th><th>Especificação</th><th>Unidade</th><th>Periodicidade</th><th>Observação</th></tr>${TER.map(([a,u,v])=>`<tr><td style="text-align:left">${a}</td>${pe(v||"")}<td>${u}</td><td></td><td></td></tr>`).join("")}</table>
    <div class="aob"><sup>(1)</sup> G/V/O<br><sup>(2)</sup> Y ou Δ<br><sup>(3)</sup> Sobre-excitado ou Sub-excitado</div>
   </div></div>`;
-  const ben=c.benef.length?[`<div class="sheet">${hdr("Guia 2 · Lista de unidades consumidoras participantes","Rateio dos créditos de energia · REN ANEEL 1.000/2021")}
-  <table><tr><th>#</th><th>Nº da UC</th><th>Titular</th><th>Endereço</th><th>%</th></tr>${[["Geradora",P.uc,P.nome,P.end,""]].concat(c.benef).map((r,i)=>`<tr><td>${i?i:"G"}</td><td class="v">${esc(r[0]==="Geradora"?P.uc:r[0])}</td><td class="v">${esc(r[1])}</td><td class="v">${esc(r[2])}</td><td class="v">${esc(r[3])}</td></tr>`).join("")}</table></div>`]:[];
+  // Guia 2 (rateio) dentro do próprio formulário: a geradora primeiro, com a % dela, depois as demais UCs
+  const soDig=x=>String(x||"").replace(/\D/g,""),gerL=c.benef.find(r=>soDig(r[0])&&soDig(r[0])===soDig(P.uc)),outras=c.benef.filter(r=>r!==gerL);
+  const linhasRat=[[P.uc,P.nome,[P.end,P.bairro,P.cidade].filter(Boolean).join(", "),gerL?gerL[3]:"","Geradora"]].concat(outras.map(r=>[r[0],r[1],r[2],r[3],""]));
+  const somaRat=linhasRat.reduce((a,r)=>a+n(r[3]),0);
+  const ben=c.benef.length?[`<div class="sheet">${hdr("Guia 2 · Lista de unidades consumidoras participantes do rateio","Formulário de solicitação · Rateio dos créditos de energia · "+esc(P.modalidade||""))}
+  <table><tr><th>#</th><th>Nº da UC</th><th>Titular</th><th>Endereço</th><th>% dos créditos</th></tr>${linhasRat.map((r,i)=>`<tr><td>${i?i:"G"}</td><td class="v">${esc(r[0]||"")}${r[4]?" <b>(geradora)</b>":""}</td><td class="v">${esc(r[1]||"")}</td><td class="v">${esc(r[2]||"")}</td><td class="v">${r[3]?esc(fmt(n(r[3]),2))+" %":""}</td></tr>`).join("")}
+  <tr><th colspan="4">Total</th><td class="v"><b>${fmt(somaRat,2)} %</b></td></tr></table>
+  <p>Declaro que as unidades consumidoras listadas participam do sistema de compensação de energia elétrica na modalidade indicada, com os percentuais acima (Lei 14.300/2022 e REN ANEEL 1.000/2021).</p>
+  <div class="sign" style="margin-top:70px">${assinRtHtml()}<div style="position:relative">${assinaCli()&&assinRT?`<span style="position:absolute;left:50%;transform:translateX(-50%);top:-54px;white-space:nowrap">p.p. ${imgAssin("height:50px;vertical-align:bottom")}</span>`:""}${val("nome")}<br>Titular da UC geradora</div></div>
+  ${foot("Formulário de solicitação · Guia 2",5,5)}</div>`]:[];
   return [p1,p2,p3,p4,...ben];
 }
 

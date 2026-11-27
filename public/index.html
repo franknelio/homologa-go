@@ -96,6 +96,7 @@ details.sec[open]>summary .chev{transform:rotate(90deg)}
 .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px;padding:2px 12px 12px}
 .fields .full{grid-column:1/-1}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}.chips .chip{border:1.5px solid var(--line,#ccc);background:#fff;border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer;color:inherit}.chips .chip[aria-pressed="true"]{background:#B87500;border-color:#B87500;color:#fff;font-weight:700}.chips.falta{outline:2px solid #c0392b;outline-offset:3px;border-radius:10px}
+table.rat{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0}table.rat th{text-align:left;font-weight:600;color:var(--muted);padding:2px 4px}table.rat td{padding:2px 4px}table.rat input{width:100%;box-sizing:border-box;padding:5px 6px;font:inherit;border:1px solid var(--line,#ccc);border-radius:6px}table.rat td:nth-child(3){width:70px}table.rat td:nth-child(4){width:34px}table.rat .btn{padding:3px 8px}.ratSoma.ok{color:#15803d;font-weight:600}.ratSoma.bad{color:#b91c1c;font-weight:600}.ratDica,#qRatTab{grid-column:1/-1;margin:0}.ratTxt summary{font-size:12px;color:var(--muted);cursor:pointer}
 .qloc{margin-top:8px}.qds{display:grid;grid-template-columns:auto 1fr;gap:6px 8px;align-items:center;margin:8px 0;font-size:12px;color:var(--muted)}.qds .btn{font-size:12.5px;padding:5px 10px}
 .inmop{display:flex;flex-wrap:wrap;gap:4px;width:100%}.inmop .btn{font-size:11px;padding:3px 8px;font-weight:500}
 .inm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;font-size:12px;color:var(--muted)}.inm .btn{padding:4px 10px;font-size:12px}
@@ -273,7 +274,7 @@ details.sec[open]>summary .chev{transform:rotate(90deg)}
       <div class="f qloc"><label for="q_loc">Localização <span class="u">link do Google Maps, coordenadas ou endereço</span></label><input id="q_loc" placeholder="ex. -16.7008, -49.2803"></div>
       <div class="f qloc"><label for="q_art">Nº da ART / TRT <span class="u">do responsável técnico</span></label><input id="q_art" placeholder="ex. GO20260000000 ou BR20260000000"></div>
       <div class="f qloc"><label>Modalidade de compensação <span class="u">escolha uma</span></label><div class="chips" id="qMod"></div>
-        <div class="qds" id="qRatBox" hidden><label class="btn" for="q_rat">Contas das UCs do rateio (PDF/foto)<input type="file" id="q_rat" multiple accept="application/pdf,.pdf,image/*" hidden></label><span id="q_rat_n"></span></div></div>
+        <div class="qds" id="qRatBox" hidden><label class="btn" for="q_rat">Contas das UCs do rateio (PDF/foto)<input type="file" id="q_rat" multiple accept="application/pdf,.pdf,image/*" hidden></label><span id="q_rat_n"></span><p class="ratDica">Digite a % de cada UC (a geradora também, se ela consome no local). Deixe a % em branco para o app calcular pelo consumo das contas.</p><div id="qRatTab"></div></div></div>
       <div class="qds">
         <label class="btn" for="q_dsI">Datasheet do inversor (PDF)<input type="file" id="q_dsI" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_dsI_n"></span>
         <label class="btn" for="q_dsM">Datasheet do módulo (PDF)<input type="file" id="q_dsM" accept="application/pdf,.pdf,image/*" hidden></label><span id="q_dsM_n"></span>

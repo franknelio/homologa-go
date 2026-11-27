@@ -66,8 +66,8 @@ const DOC_KEYS={nome:"nome completo da pessoa do RG/CNH (nunca o nome da conta d
   lat:"latitude aproximada do endereço em graus decimais (estimativa pelo endereço, se não constar)",lon:"longitude aproximada do endereço em graus decimais"};
 
 const MODS=["Autoconsumo local","Autoconsumo remoto","Geração compartilhada","Múltiplas unidades consumidoras (EMUC)"];
-let qModSel="";
-function desenharQMod(){$("#qMod").innerHTML=MODS.map(m=>`<button type="button" class="chip" data-qmod="${esc(m)}" aria-pressed="${m===qModSel}">${esc(m.replace(" (EMUC)",""))}</button>`).join("");$("#qRatBox").hidden=!qModSel||qModSel==="Autoconsumo local"}
+let qModSel="",qRat={L:[["","","","",""]],ger:{pc:""}};
+function desenharQMod(){$("#qMod").innerHTML=MODS.map(m=>`<button type="button" class="chip" data-qmod="${esc(m)}" aria-pressed="${m===qModSel}">${esc(m.replace(" (EMUC)",""))}</button>`).join("");$("#qRatBox").hidden=!qModSel||qModSel==="Autoconsumo local";if(!$("#qRatBox").hidden&&typeof ratEditor==="function")ratEditor("qRatTab",qRat.L,()=>{},qRat.ger)}
 desenharQMod();
 $("#qMod").addEventListener("click",e=>{const b=e.target.closest("[data-qmod]");if(!b)return;qModSel=b.dataset.qmod;$("#qMod").classList.remove("falta");desenharQMod()});
 $("#q_rat").addEventListener("change",e=>{const f=[...e.target.files];$("#q_rat_n").textContent=f.length?f.length+" conta(s)":""});
@@ -141,6 +141,10 @@ Regras: a conta muitas vezes NÃO está no nome do cliente, por isso não devolv
     ["i","m"].forEach(t=>{if(P[t+"Fab"]&&P[t+"Mod"])buscarInmetro(t)});
     plantaAuto(true);
     const contas=qModSel!=="Autoconsumo local"?[...$("#q_rat").files]:[];
+    // rateio digitado na entrada rápida (a UC geradora entra primeiro, com a % dela)
+    if(qModSel!=="Autoconsumo local"){const L=qRat.L.filter(r=>String(r[0]||"").trim()).map(r=>[r[0].trim(),r[1]||"","",r[3]||"",""]);
+      if(L.length||qRat.ger.pc){L.unshift([P.uc||"",P.nome||"",[P.end,P.bairro,P.cidade].filter(Boolean).join(", "),qRat.ger.pc||"",""]);gravarRateio(L)}}
+    qRat={L:[["","","","",""]],ger:{pc:""}};
     qModSel="";desenharQMod();$("#q_rat").value="";$("#q_rat_n").textContent="";
     if(contas.length)lerContasRateio(contas);
     if(dsOk.length)aiNote+=dsOk.length>1?"Datasheets do inversor e do módulo lidos. ":`Datasheet do ${dsOk[0]==="i"?"inversor":"módulo"} lido. `;

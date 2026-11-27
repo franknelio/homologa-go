@@ -42,6 +42,27 @@ async function carregarDocRT(){
 /* ---------------- rateio: lê as contas das UCs e calcula o % pelo consumo médio ---------------- */
 const mediaCons=t=>{const v=String(t||"").split(/[,;\s]+/).map(n).filter(x=>x>0);return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):0};
 function linhasRateio(){return String(P.benef||"").split(/\n/).map(l=>l.split(";").map(x=>x.trim())).filter(r=>r[0])}
+/* tabela do rateio: nº da UC, titular e % de cada UC, sem precisar escrever no formato de texto */
+function ratEditor(id,L,salvar,ger){
+  const el=document.getElementById(id);if(!el)return;
+  const soma=()=>L.reduce((a,r)=>a+n(r[3]),0)+(ger?n(ger.pc):0);
+  const somaTxt=()=>{const s2=soma();return `<span class="ratSoma ${L.length||ger&&ger.pc?Math.abs(s2-100)<0.01?"ok":"bad":""}">Soma: ${fmt(s2,2)}%${L.length&&Math.abs(s2-100)>=0.01?" (precisa dar 100%)":""}</span>`};
+  const inp=(i,c,v,ph,dec)=>`<input data-ri="${i}" data-rc="${c}" value="${esc(v||"")}" placeholder="${ph}"${dec?' inputmode="decimal"':""}>`;
+  el.innerHTML=`<table class="rat"><thead><tr><th>Nº da UC</th><th>Titular</th><th>%</th><th></th></tr></thead><tbody>
+  ${ger?`<tr><td colspan="2"><b>UC geradora</b> (consome no local)</td><td><input data-rg value="${esc(ger.pc||"")}" placeholder="%" inputmode="decimal"></td><td></td></tr>`:""}
+  ${L.map((r,i)=>`<tr><td>${inp(i,0,r[0],"nº da UC")}</td><td>${inp(i,1,r[1],"titular")}</td><td>${inp(i,3,r[3],"%",1)}</td><td><button type="button" class="btn" data-rx="${i}" title="Remover esta UC">×</button></td></tr>`).join("")}
+  </tbody></table><div class="inm"><button type="button" class="btn" data-radd>+ Adicionar UC do rateio</button>${somaTxt()}</div>`;
+  el.oninput=(e)=>{const t=e.target;if(t.dataset.rg!==undefined)ger.pc=t.value;else if(t.dataset.ri!==undefined)L[+t.dataset.ri][+t.dataset.rc]=t.value;else return;
+    const sp=el.querySelector(".ratSoma");if(sp)sp.outerHTML=somaTxt();salvar(L)};
+  el.onclick=(e)=>{const x=e.target.closest("[data-rx]");if(x){L.splice(+x.dataset.rx,1);salvar(L);ratEditor(id,L,salvar,ger);return}
+    if(e.target.closest("[data-radd]")){L.push(["","","","",""]);ratEditor(id,L,salvar,ger);const ins=el.querySelectorAll('input[data-rc="0"]');ins[ins.length-1]?.focus()}};
+}
+const ratTexto=L=>L.filter(r=>String(r[0]||"").trim()).map(r=>[r[0],r[1]||"",r[2]||"",r[3]||"",r[4]||""].join(" ; ")).join("\n");
+let ratT;
+function desenharRatForm(){
+  const L=linhasRateio();
+  ratEditor("ratTab",L,(L2)=>{P.benef=ratTexto(L2);delete P._exemplo;const ta=$("#f_benef");if(ta)ta.value=P.benef;clearTimeout(ratT);ratT=setTimeout(()=>{store("hgo_current",P);render()},300)});
+}
 function gravarRateio(L){P.benef=L.map(r=>[r[0],r[1]||"",r[2]||"",r[3]||"",r[4]||""].join(" ; ")).join("\n");delete P._exemplo;syncForm();store("hgo_current",P);render()}
 function calcRateio(){
   const st=x=>{const e=$("#ratSt");if(e)e.textContent=x};
@@ -67,10 +88,11 @@ async function lerContasRateio(fs){
     try{const d=await sample.json("",{images:await fileToImages(f,2)});
       const uc=String(d.uc||"").trim();if(!uc)throw new Error("UC não encontrada");
       const lin=[uc,d.nome||"",[d.end,d.bairro,d.cidade].filter(Boolean).join(", "),"",String(mediaCons(d.consumo)||"")];
-      const j=L.findIndex(r=>r[0].replace(/\D/g,"")===uc.replace(/\D/g,""));if(j>=0)L[j]=lin;else L.push(lin);ok++;
+      const j=L.findIndex(r=>r[0].replace(/\D/g,"")===uc.replace(/\D/g,""));if(j>=0){lin[3]=L[j][3]||"";if(!lin[1])lin[1]=L[j][1]||"";L[j]=lin}else L.push(lin);ok++;
     }catch(err){st(`Conta ${f.name}: ${err.message}`)}
   }
-  gravarRateio(L);if(ok)calcRateio();
+  // % digitado na tabela vale; só calcula pelo consumo quando ninguém digitou
+  gravarRateio(L);if(ok&&!L.some(r=>n(r[3])))calcRateio();
 }
 
 /* ---------------- registro INMETRO (consulta pública) ---------------- */
