@@ -60,7 +60,7 @@ function docMemoSimpl(c){
    <div class="mrow"><span class="ml">E-mail:</span><span class="mv f">${v("email")}</span><span class="ml">Telefone:</span><span class="mv">${v("tel")}</span></div>
    <div class="ml">CPF/CNPJ:</div><div class="mv">${v("doc")}</div>
    <div class="ml">Nome do Responsável Técnico:</div><div class="mv">${up("rtNome")}</div>
-   <div class="mrow"><span class="ml">E-mail:</span><span class="mv f">${v("rtEmail")}</span><span class="ml">Telefone:</span><span class="mv">${v("rtTel")}</span></div>
+   <div class="mrow"><span class="ml">E-mail:</span><span class="mv f">${esc(EMAIL_EQ)}</span><span class="ml">Telefone:</span><span class="mv">${v("rtTel")}</span></div>
    <div class="mrow"><span class="ml">Registro:</span><span class="mv f">${v("rtReg")}</span></div>
    <div class="mrow"><span class="ml">Título Profissional:</span><span class="mv f">${v("rtTit")}</span></div>
    <div class="ml">Endereço da obra:</div><div class="mv">${up("end")}</div>
@@ -280,7 +280,7 @@ function docMemoTec(c){
 function docForm(c){
   const pd=pdEq(),pdKw=pd.kw,carga=cargaInst(),u=utm(n(P.lat),n(P.lon)),mod=UP(P.modalidade||"Autoconsumo local"),t=P.tipoSolic||"";
   const L=(s)=>`<div class="al">${s}</div>`,V=(s,cls="")=>`<div class="av ${cls}">${s??""}</div>`,SEL=`<span class="ar">(selecionar)</span>`;
-  const tel=esc(P.tel||P.rtTel||""),mail=esc(P.email||P.rtEmail||"");
+  const tel=esc(P.tel||P.rtTel||""),mail=esc(P.email||EMAIL_EQ);
   const tipoTxt=t.includes("nova")?"LIGAÇÃO NOVA DE UNIDADE CONSUMIDORA COM GD":t.includes("com aumento")?"CONEXÃO DE GD EM UNIDADE CONSUMIDORA EXISTENTE COM AUMENTO DE POTÊNCIA DISPONIBILIZADA (ver item abaixo)":"CONEXÃO DE GD EM UNIDADE CONSUMIDORA EXISTENTE SEM AUMENTO DE POTÊNCIA DISPONIBILIZADA (ver item abaixo)";
   const dIni=(()=>{const d=P.dataDoc?new Date(P.dataDoc+"T12:00:00"):new Date();d.setDate(d.getDate()+20);return d.toLocaleDateString("pt-BR")})();
   const okC=carga<=pdKw,okG=c.pca<=pdKw;
@@ -305,7 +305,7 @@ function docForm(c){
    <div class="ag" style="grid-template-columns:2.2fr 1fr 1fr"><div>${L("Nome do Responsável Legal")}${V(esc(UP(P.nome)),"c")}</div><div>${L("Telefone do Responsável Legal")}${V(tel,"c")}</div><div>${L("E-mail do Responsável Legal")}${V(mail,"c")}</div></div>
    <div class="as">2. Dados Cadastrais do Responsável Técnico</div>
    <div class="ag" style="grid-template-columns:1.6fr 1.3fr 1.3fr"><div>${L("Nome Completo")}${V(esc(UP(P.rtNome)),"c")}</div><div>${L("Titulo Profissional")}${V(esc(titRT()),"c")}</div><div>${L("Registro Profissional")}<div class="arow"><span class="al2">Nº</span>${V(esc(regRT()),"c f")}<span class="al2">UF</span>${V(esc(ufRT()),"c w0")}</div></div></div>
-   <div class="ag" style="grid-template-columns:1.6fr 1fr 1fr 1fr"><div>${L("E-mail")}${V(`<u>${esc(P.rtEmail||"")}</u>`)}</div><div>${L("Telefone Fixo")}${V(val("rtTel"),"c")}</div><div>${L("Telefone Celular")}${V(val("rtTel"),"c")}</div><div>${L("Empresa (opcional)")}${V(esc(UP(P.rtEmp||"")),"c")}</div></div>
+   <div class="ag" style="grid-template-columns:1.6fr 1fr 1fr 1fr"><div>${L("E-mail")}${V(`<u>${esc(EMAIL_EQ)}</u>`)}</div><div>${L("Telefone Fixo")}${V(val("rtTel"),"c")}</div><div>${L("Telefone Celular")}${V(val("rtTel"),"c")}</div><div>${L("Empresa (opcional)")}${V(esc(UP(P.rtEmp||"")),"c")}</div></div>
    <div class="as">3. Características da Microgeração Distribuída<br><span style="font-weight:700">Dados Gerais da Central Geradora</span></div>
    <div class="arow"><span class="al w3">Tipo de Fonte Primária ${SEL}</span>${V("SOLAR FOTOVOLTAICA","c w4")}<span class="al">Especificar se necessário</span>${V("","f")}</div>
    <div class="arow"><span class="al w3">Tipo de Geração ${SEL}</span>${V("EMPREGANDO CONVERSOR ELETRÔNICO/INVERSOR","c w4")}<span class="al">Especificar se necessário</span>${V("","f")}</div>

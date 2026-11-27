@@ -80,7 +80,7 @@ function xlsxBlob(c){
    [1,n(P.mP),c.qtd,+c.pcc.toFixed(2),+c.area.toFixed(2),P.mFab,P.mMod],["TOTAL","",c.qtd,+c.pcc.toFixed(2),+c.area.toFixed(2)],[],
    ["5. DADOS DOS INVERSORES"],["Item","Fabricante","Modelo","Potência nominal (kW)","Faixa de tensão de operação (V)","Corrente nominal (A)","Fator de potência","Rendimento (%)","DHT de corrente (%)"],
    [1,P.iFab,P.iMod+" (x"+(n(P.iQ)||1)+")",+c.pca.toFixed(2),`${P.iMin}-${P.iMax}`,+c.iout.toFixed(1),n(P.iFp),n(P.iEff),n(P.iDht)],[],
-   ["6. RESPONSÁVEL TÉCNICO"],["Nome",P.rtNome],["Título",P.rtTit],["Registro",P.rtReg],["ART/TRT",P.rtArt],["Telefone",P.rtTel],["E-mail",P.rtEmail]
+   ["6. RESPONSÁVEL TÉCNICO"],["Nome",P.rtNome],["Título",P.rtTit],["Registro",P.rtReg],["ART/TRT",P.rtArt],["Telefone",P.rtTel],["E-mail",EMAIL_EQ]
   ];
   const wb=XLSX.utils.book_new();const ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=[{wch:34},{wch:26},{wch:14},{wch:20},{wch:22},{wch:18},{wch:18},{wch:14},{wch:16}];
   XLSX.utils.book_append_sheet(wb,ws,"Solicitação");
@@ -237,8 +237,8 @@ if(/[?&]ponte=1/.test(location.search))setTimeout(()=>{
     if(sb){try{const {data:u}=await sb.auth.getUser();const rt=u&&u.user&&u.user.user_metadata&&u.user.user_metadata.rt;if(rt)store("hgo_rt",{...(load("hgo_rt")||{}),...Object.fromEntries(Object.entries(rt).filter(([k,v])=>v))})}catch(e){}}
     const L=await arquivos(pedir);if(!L){$("#pbt").hidden=false;st("Clique no botão para liberar a pasta "+cli+":");return}
     const doc=String(P.doc||"").replace(/\D/g,"");
-    const dados={tipo:"hgo-dados",nome:P.nome||"",doc,pj:doc.length>11,tel:P.tel||P.rtTel||"",cel:P.tel||P.rtTel||"",rtNome:P.rtNome||"",rtReg:P.rtReg||"",rtCpf:String(P.rtCpf||(load("hgo_rt")||{}).rtCpf||"").replace(/\D/g,""),rtEmail:(load("hgo_rt")||{}).rtEmail||P.rtEmail||"",rtTel:P.rtTel||"",
-      disj:String(n(P.disj)||c.disjCA||""),email:P.rtEmailEq||(load("hgo_rt")||{}).rtEmailEq||P.rtEmail||P.email||"",mini:c.pinst>75,modalidade:P.modalidade||"",arquivos:L};
+    const dados={tipo:"hgo-dados",nome:P.nome||"",doc,pj:doc.length>11,tel:P.tel||P.rtTel||"",cel:P.tel||P.rtTel||"",rtNome:P.rtNome||"",rtReg:P.rtReg||"",rtCpf:String(P.rtCpf||(load("hgo_rt")||{}).rtCpf||"").replace(/\D/g,""),rtEmail:EMAIL_EQ,rtTel:P.rtTel||"",
+      disj:String(n(P.disj)||c.disjCA||""),email:EMAIL_EQ,mini:c.pinst>75,modalidade:P.modalidade||"",arquivos:L};
     pedido.source.postMessage(dados,pedido.origin);
     $("#pbt").hidden=true;st(`✓ Enviados os dados e ${L.length} arquivos.${falhas.length?" Atenção: "+falhas.join("; ")+".":" Pode fechar esta janela."}`);if(!falhas.length)setTimeout(()=>window.close(),4000);
   }

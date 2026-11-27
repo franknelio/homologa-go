@@ -137,8 +137,9 @@ test("todos os documentos enviados à Equatorial saem com a assinatura do RT", a
     const o = {};
     for (const id of ["form", "memo", "unif", "blocos", "planta", "placa", "benef"]) o[id] = BUILD[id](calc()).join("").split(assinRT).length - 1 >= (id === "placa" || id === "benef" ? 2 : 1);
     await docPdfBlob("placa", calc());
+    o.email = ["form"].every((id) => BUILD[id](calc()).join("").includes("solarcityprojetos@gmail.com"));
     return o;
   });
-  assert.deepEqual(r, { form: true, memo: true, unif: true, blocos: true, planta: true, placa: true, benef: true });
+  assert.deepEqual(r, { form: true, memo: true, unif: true, blocos: true, planta: true, placa: true, benef: true, email: true });
   assert.deepEqual(erros, []);
 });

@@ -40,7 +40,7 @@ const SECTIONS = [
   ["locInv","Local do inversor","text","full","ex. Parede externa da garagem, a 1,30 m do piso"]]},
  {id:"rt", t:"Responsável técnico", f:[
   ["rtNome","Nome","text","full"],["rtTit","Título profissional","sel",["Engenheiro Eletricista","Técnico em Eletrotécnica","Engenheiro de Controle e Automação","Engenheiro Eletrônico"]],
-  ["rtReg","CREA / CFT nº"],["rtCpf","CPF do responsável técnico"],["rtEmailEq","E-mail de acompanhamento (portal Equatorial)"],["rtArt","ART / TRT nº"],["rtTel","Telefone"],["rtEmail","E-mail"],["rtEmp","Empresa integradora"],["rtCidade","Cidade do RT (local e data)","text",null,"ex. Edealina - GO"],["dataDoc","Data dos documentos","date"],
+  ["rtReg","CREA / CFT nº"],["rtCpf","CPF do responsável técnico"],["rtEmailEq","E-mail de acompanhamento (portal Equatorial): sempre solarcityprojetos@gmail.com"],["rtArt","ART / TRT nº"],["rtTel","Telefone"],["rtEmail","E-mail"],["rtEmp","Empresa integradora"],["rtCidade","Cidade do RT (local e data)","text",null,"ex. Edealina - GO"],["dataDoc","Data dos documentos","date"],
   ["memoModelo","Modelo do memorial","sel",["Técnico descritivo (ANEXO III)","Simplificado"]],["rtAssin","Assinatura do responsável técnico","sig","full"],["assinaCli","Assinar também pelo cliente (procuração)","sel",["Sim","Não"]]]},
  {id:"ben", t:"Beneficiárias e anexos", f:[
   ["benef","UCs do rateio","area","full","Uma por linha: UC ; titular ; endereço ; % ; consumo médio kWh. Use os botões abaixo para ler as contas e calcular os %."],
@@ -94,6 +94,8 @@ let assinRT=load("hgo_assin")||"";
 addEventListener("DOMContentLoaded",()=>carregarArt().catch(()=>{}));
 const imgAssin=(st="")=>assinRT?`<img class="assin" src="${assinRT}" alt="" style="${st}">`:"";
 const assinaCli=()=>P.assinaCli!=="Não";
+// regra do usuário (27/11/2026): tudo que vai para a Equatorial usa este e-mail, para não misturar com o e-mail pessoal
+const EMAIL_EQ="solarcityprojetos@gmail.com";
 const svgAssin=(x,y,w,h)=>assinRT?`<image href="${assinRT}" x="${x}" y="${y}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid meet"/>`:"";
 function dataBR(){const d=P.dataDoc?new Date(P.dataDoc+"T12:00:00"):new Date();return d.toLocaleDateString("pt-BR")}
 function slug(){return (P.nome||"projeto").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-zA-Z0-9]+/g,"_").replace(/^_|_$/g,"").slice(0,40)||"projeto"}

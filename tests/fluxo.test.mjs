@@ -114,11 +114,11 @@ test("CRM → projeto → Gerar todos → Preencher Equatorial, tudo sozinho", {
   await eq.waitForFunction(() => /marque "Não sou um robô"/.test(document.querySelector("#hgoEqLog")?.textContent || ""), null, { timeout: 60000 });
   const r = await eq.evaluate(() => {
     const f = (id) => [...document.getElementById(id).files].map((x) => x.name).join("+");
-    return { nome: tNome.value, cpf: tCpf.value, rt: rNome.value, disj: disj.value, mail: eMail.value,
+    return { rtMail: rMail.value, nome: tNome.value, cpf: tCpf.value, rt: rNome.value, disj: disj.value, mail: eMail.value,
       tit: f("fTit"), proc: f("fProc"), procDoc: f("fProcDoc"), form: f("fForm"), memo: f("fMemo"), unif: f("fUnif"), blocos: f("fBlocos"), ensaio: f("fEnsaio"),
       cpfs: window.__cpfs, avisos: [...document.querySelectorAll("#hgoEqLog div")].map((d) => d.textContent).filter((t) => /^⚠/.test(t)), enviado: !!window.__enviado };
   });
-  assert.equal(r.nome, "LETICIA RODRIGUES DA SILVA"); assert.equal(r.cpf, "70152881174"); assert.equal(r.rt, "FRANKNELIO APARECIDO ALVES SILVA"); assert.ok(+r.disj >= 40); assert.equal(r.mail, "rt@exemplo.com");
+  assert.equal(r.nome, "LETICIA RODRIGUES DA SILVA"); assert.equal(r.cpf, "70152881174"); assert.equal(r.rt, "FRANKNELIO APARECIDO ALVES SILVA"); assert.ok(+r.disj >= 40); assert.equal(r.mail, "solarcityprojetos@gmail.com"); assert.equal(r.rtMail, "solarcityprojetos@gmail.com");
   assert.equal(r.tit, "09_Documento_titular_RG_CNH.jpeg"); assert.equal(r.proc, "10_Procuracao.pdf");
   assert.equal(r.form, "01_Formulario_Solicitacao.pdf"); assert.equal(r.memo, "02_Memorial_Descritivo.pdf"); assert.equal(r.unif, "03_Diagrama_Unifilar.pdf"); assert.equal(r.blocos, "04_Diagrama_de_Blocos.pdf");
   assert.equal(r.ensaio, "08_INMETRO_inversor_000774-2026.pdf");
